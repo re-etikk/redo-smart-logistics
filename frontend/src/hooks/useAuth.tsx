@@ -14,13 +14,24 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
-const devProfile: Profile = {
-  id: "localhost-dev-user",
-  role: "sme",
-  full_name: "Ritik (Localhost Dev)",
-  company_name: "Ritik Smart Freight Ltd",
-  phone: "+91 9876543210",
-  onboarding_complete: true,
+const getDevProfile = (pathname: string): Profile => {
+  const isOwnerPath =
+    pathname.startsWith('/owner') ||
+    pathname.includes('/truck') ||
+    pathname.includes('/earning') ||
+    pathname.includes('/trip') ||
+    pathname.includes('/payment') ||
+    pathname.includes('/review');
+
+  const role: Role = isOwnerPath ? 'truck_owner' : 'sme';
+  return {
+    id: "localhost-dev-user",
+    role,
+    full_name: isOwnerPath ? "Rohit Sharma (Dev Truck Owner)" : "Ritik (Dev Customer)",
+    company_name: isOwnerPath ? "Rohit Logistics Fleet" : "Ritik Freight Ltd",
+    phone: "+91 9876543210",
+    onboarding_complete: true,
+  };
 };
 
 const AuthCtx = createContext<AuthState>({
@@ -37,10 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = useCallback(async (s: Session | null) => {
     if (!s) {
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
       if (isLocalhost) {
-        setProfile(devProfile);
-        return devProfile;
+        const p = getDevProfile(window.location.pathname);
+        setProfile(p);
+        return p;
       }
       setProfile(null);
       return null;
@@ -91,9 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.history.replaceState(null, "", window.location.pathname);
         }
       } else {
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
         if (isLocalhost) {
-          setProfile(devProfile);
+          setProfile(getDevProfile(window.location.pathname));
         } else {
           setProfile(null);
         }

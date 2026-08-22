@@ -7,13 +7,20 @@ import SignUp from './pages/auth/SignUp';
 import Forgot from './pages/auth/Forgot';
 import OwnerOnboarding from './pages/onboarding/Owner';
 import SmeOnboarding from './pages/onboarding/Sme';
+
+// Truck Owner dedicated pages
 import OwnerDashboard from './pages/owner/Dashboard';
 import MyTrucks from './pages/owner/MyTrucks';
 import AvailableLoads from './pages/owner/AvailableLoads';
 import Earnings from './pages/owner/Earnings';
 import Trips from './pages/owner/Trips';
 import Payments from './pages/owner/Payments';
+import OwnerDocuments from './pages/owner/Documents';
 import Reviews from './pages/owner/Reviews';
+import OwnerSupport from './pages/owner/Support';
+import OwnerSettings from './pages/owner/Settings';
+
+// Customer / Shipper dedicated pages
 import SmeDashboard from './pages/sme/Dashboard';
 import BookShipment from './pages/sme/BookShipment';
 import Recommendations from './pages/sme/Recommendations';
@@ -58,24 +65,40 @@ export default function App() {
             <Route path="/onboarding/owner" element={<Protected role="truck_owner" allowIncompleteOnboarding><OwnerOnboarding /></Protected>} />
             <Route path="/onboarding/sme" element={<Protected role="sme" allowIncompleteOnboarding><SmeOnboarding /></Protected>} />
 
-            {/* Shipper */}
+            {/* Customer / Shipper Dedicated Routes */}
             <Route path="/dashboard/sme" element={<Protected role="sme"><SmeDashboard /></Protected>} />
+            <Route path="/sme/dashboard" element={<Protected role="sme"><SmeDashboard /></Protected>} />
             <Route path="/book" element={<Protected role="sme"><BookShipment /></Protected>} />
+            <Route path="/sme/book" element={<Protected role="sme"><BookShipment /></Protected>} />
+            <Route path="/sme/shipments" element={<Protected role="sme"><Bookings /></Protected>} />
             <Route path="/find-trucks/:cargoId" element={<Protected role="sme"><Recommendations /></Protected>} />
             <Route path="/match/:cargoId/:truckId" element={<Protected role="sme"><MatchDetail /></Protected>} />
             <Route path="/invoices" element={<Protected role="sme"><Invoices /></Protected>} />
+            <Route path="/sme/invoices" element={<Protected role="sme"><Invoices /></Protected>} />
             <Route path="/addresses" element={<Protected role="sme"><Addresses /></Protected>} />
+            <Route path="/sme/addresses" element={<Protected role="sme"><Addresses /></Protected>} />
             <Route path="/rate-card" element={<Protected role="sme"><RateCard /></Protected>} />
+            <Route path="/sme/rate-card" element={<Protected role="sme"><RateCard /></Protected>} />
 
-            {/* Truck owner */}
+            {/* Truck Owner Dedicated Routes */}
             <Route path="/dashboard/owner" element={<Protected role="truck_owner"><OwnerDashboard /></Protected>} />
+            <Route path="/owner/dashboard" element={<Protected role="truck_owner"><OwnerDashboard /></Protected>} />
             <Route path="/trucks" element={<Protected role="truck_owner"><MyTrucks /></Protected>} />
+            <Route path="/owner/trucks" element={<Protected role="truck_owner"><MyTrucks /></Protected>} />
             <Route path="/loads" element={<Protected role="truck_owner"><AvailableLoads /></Protected>} />
+            <Route path="/owner/loads" element={<Protected role="truck_owner"><AvailableLoads /></Protected>} />
             <Route path="/earnings" element={<Protected role="truck_owner"><Earnings /></Protected>} />
+            <Route path="/owner/earnings" element={<Protected role="truck_owner"><Earnings /></Protected>} />
             <Route path="/trips" element={<Protected role="truck_owner"><Trips /></Protected>} />
+            <Route path="/owner/trips" element={<Protected role="truck_owner"><Trips /></Protected>} />
             <Route path="/payments" element={<Protected role="truck_owner"><Payments /></Protected>} />
+            <Route path="/owner/payments" element={<Protected role="truck_owner"><Payments /></Protected>} />
+            <Route path="/owner/documents" element={<Protected role="truck_owner"><OwnerDocuments /></Protected>} />
             <Route path="/reviews" element={<Protected role="truck_owner"><Reviews /></Protected>} />
-            <Route path="/documents" element={<Protected role="truck_owner"><Documents /></Protected>} />
+            <Route path="/owner/reviews" element={<Protected role="truck_owner"><Reviews /></Protected>} />
+            <Route path="/owner/support" element={<Protected role="truck_owner"><OwnerSupport /></Protected>} />
+            <Route path="/owner/settings" element={<Protected role="truck_owner"><OwnerSettings /></Protected>} />
+            <Route path="/owner/bookings" element={<Protected role="truck_owner"><Bookings /></Protected>} />
 
             {/* Admin */}
             <Route path="/admin" element={<Protected role="admin"><AdminDashboard /></Protected>} />
@@ -93,7 +116,7 @@ export default function App() {
             <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
             {import.meta.env.DEV && <Route path="/dev/diagnostics" element={<Protected><Diagnostics /></Protected>} />}
 
-            {/* Legacy redirects from v2 routes */}
+            {/* Legacy redirects */}
             <Route path="/post-cargo" element={<Navigate to="/book" replace />} />
             <Route path="/bookings" element={<Navigate to="/shipments" replace />} />
             <Route path="/trips/new" element={<Navigate to="/trucks" replace />} />

@@ -100,6 +100,13 @@ export default function Layout({ children }: { children: ReactNode }) {
           </button>
           <button onClick={() => navigate(nav[0].to)} className="shrink-0"><Logo /></button>
           <div className="ml-auto flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => navigate("/dashboard/owner")}
+              className="hidden sm:flex items-center gap-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm"
+              title="Switch to Truck Owner Portal"
+            >
+              <span>Switch to Truck Owner View 🚛</span>
+            </button>
             {role === "truck_owner" && wallet !== null && (
               <div className="hidden sm:flex items-center gap-2 rounded-xl border border-line px-3 py-1.5">
                 <Wallet size={18} className="text-ink-faint" />

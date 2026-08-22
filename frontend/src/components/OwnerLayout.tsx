@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Truck, CalendarCheck, IndianRupee, MapPin, CreditCard,
-  FileText, Star, Headset, Settings, Bell, Wallet, ChevronDown, User, Gift, ShieldCheck, Plus, Landmark
+  FileText, Star, Headset, Settings, Bell, Wallet, ChevronDown, User, Gift, ShieldCheck, Plus, Landmark, RefreshCw
 } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "../hooks/useAuth";
@@ -28,16 +28,16 @@ export default function OwnerLayout({
   const [profileOpen, setProfileOpen] = useState(false);
 
   const navItems = [
-    { id: "dashboard", label: "Dashboard", path: "/dashboard/owner", icon: LayoutDashboard },
-    { id: "trucks", label: "My Trucks", path: "/trucks", icon: Truck },
-    { id: "bookings", label: "My Bookings", path: "/shipments", icon: CalendarCheck },
-    { id: "earnings", label: "Earnings", path: "/earnings", icon: IndianRupee },
-    { id: "trips", label: "Trips", path: "/trips", icon: MapPin },
-    { id: "payments", label: "Payments", path: "/payments", icon: CreditCard },
-    { id: "documents", label: "Documents", path: "/verification", icon: FileText },
-    { id: "reviews", label: "Reviews", path: "/reviews", icon: Star },
-    { id: "support", label: "Support", path: "/support", icon: Headset },
-    { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+    { id: "dashboard", label: "Dashboard", path: "/owner/dashboard", icon: LayoutDashboard },
+    { id: "trucks", label: "My Trucks", path: "/owner/trucks", icon: Truck },
+    { id: "bookings", label: "My Bookings", path: "/owner/bookings", icon: CalendarCheck },
+    { id: "earnings", label: "Earnings", path: "/owner/earnings", icon: IndianRupee },
+    { id: "trips", label: "Trips", path: "/owner/trips", icon: MapPin },
+    { id: "payments", label: "Payments", path: "/owner/payments", icon: CreditCard },
+    { id: "documents", label: "Documents", path: "/owner/documents", icon: FileText },
+    { id: "reviews", label: "Reviews", path: "/owner/reviews", icon: Star },
+    { id: "support", label: "Support", path: "/owner/support", icon: Headset },
+    { id: "settings", label: "Settings", path: "/owner/settings", icon: Settings },
   ];
 
   return (
@@ -45,39 +45,49 @@ export default function OwnerLayout({
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200/80 shadow-sm">
         <div className="mx-auto max-w-[1500px] px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-10">
+          <div className="flex items-center gap-6">
             <Link to="/">
               <Logo />
             </Link>
 
             {/* Horizontal Sub-Nav matching Mockup 1 */}
-            <nav className="hidden xl:flex items-center gap-6 text-xs font-bold text-slate-700">
-              <Link to="/dashboard/owner" className={`transition hover:text-amber-600 ${location.pathname === "/dashboard/owner" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
+            <nav className="hidden xl:flex items-center gap-5 text-xs font-bold text-slate-700">
+              <Link to="/owner/dashboard" className={`transition hover:text-amber-600 ${location.pathname === "/owner/dashboard" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
                 Dashboard
               </Link>
-              <Link to="/trucks" className={`transition hover:text-amber-600 ${location.pathname === "/trucks" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
+              <Link to="/owner/trucks" className={`transition hover:text-amber-600 ${location.pathname === "/owner/trucks" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
                 My Trucks
               </Link>
-              <Link to="/shipments" className={`transition hover:text-amber-600 ${location.pathname === "/shipments" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
+              <Link to="/owner/bookings" className={`transition hover:text-amber-600 ${location.pathname === "/owner/bookings" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
                 My Bookings
               </Link>
-              <Link to="/earnings" className={`transition hover:text-amber-600 ${location.pathname === "/earnings" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
+              <Link to="/owner/earnings" className={`transition hover:text-amber-600 ${location.pathname === "/owner/earnings" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
                 Earnings
               </Link>
-              <Link to="/trips" className={`transition hover:text-amber-600 ${location.pathname === "/trips" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
+              <Link to="/owner/trips" className={`transition hover:text-amber-600 ${location.pathname === "/owner/trips" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
                 Trips
               </Link>
-              <Link to="/payments" className={`transition hover:text-amber-600 ${location.pathname === "/payments" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
+              <Link to="/owner/payments" className={`transition hover:text-amber-600 ${location.pathname === "/owner/payments" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
                 Payments
               </Link>
-              <Link to="/support" className={`transition hover:text-amber-600 ${location.pathname === "/support" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
+              <Link to="/owner/support" className={`transition hover:text-amber-600 ${location.pathname === "/owner/support" ? "text-amber-600 border-b-2 border-amber-400 pb-1" : ""}`}>
                 Support
               </Link>
             </nav>
           </div>
 
           {/* Header Right Actions matching Mockup 2 */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Quick Role Switcher Button */}
+            <button
+              onClick={() => navigate("/dashboard/sme")}
+              className="hidden md:flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm"
+              title="Switch to Customer/Shipper Portal"
+            >
+              <RefreshCw size={12} className="animate-spin-slow" />
+              <span>Switch to Customer View</span>
+            </button>
+
             {/* Wallet Balance Chip */}
             <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
               <Wallet size={15} className="text-amber-500" />
@@ -120,11 +130,14 @@ export default function OwnerLayout({
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-1 font-bold text-xs space-y-1">
-                  <Link to="/settings" onClick={() => setProfileOpen(false)} className="px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-1 font-bold text-xs space-y-1">
+                  <button onClick={() => { setProfileOpen(false); navigate("/dashboard/sme"); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-blue-700 flex items-center gap-2">
+                    <RefreshCw size={14} /> Switch to Customer View
+                  </button>
+                  <Link to="/owner/settings" onClick={() => setProfileOpen(false)} className="px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                     <User size={14} /> Profile Settings
                   </Link>
-                  <Link to="/verification" onClick={() => setProfileOpen(false)} className="px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                  <Link to="/owner/documents" onClick={() => setProfileOpen(false)} className="px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                     <ShieldCheck size={14} /> KYC Verification
                   </Link>
                   <button
@@ -187,7 +200,6 @@ export default function OwnerLayout({
 
           {/* Dynamic Sidebar Promo Card (Refer & Earn / Bank Details / Add Truck) */}
           {promoCardType === "bank" ? (
-            /* Get Paid Faster / Bank Details Card matching Mockup 5 */
             <div className="bg-white border border-amber-200/80 rounded-2xl p-4 shadow-sm space-y-3 relative overflow-hidden">
               <div className="space-y-1">
                 <span className="text-xs font-black text-slate-900 block">Get Paid Faster!</span>
@@ -197,7 +209,7 @@ export default function OwnerLayout({
               </div>
 
               <button
-                onClick={onAddBankClick || (() => navigate("/settings"))}
+                onClick={onAddBankClick || (() => navigate("/owner/settings"))}
                 className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
               >
                 <Landmark size={14} /> Add Bank Details
@@ -210,7 +222,6 @@ export default function OwnerLayout({
               </div>
             </div>
           ) : promoCardType === "truck" ? (
-            /* Earn More Every Trip Card matching Mockup 3 & 4 */
             <div className="bg-white border border-amber-200/80 rounded-2xl p-4 shadow-sm space-y-3 relative overflow-hidden">
               <div className="space-y-1">
                 <span className="text-xs font-black text-slate-900 block">Earn More, Every Trip!</span>
@@ -220,7 +231,7 @@ export default function OwnerLayout({
               </div>
 
               <button
-                onClick={onAddTruckClick || (() => navigate("/trucks"))}
+                onClick={onAddTruckClick || (() => navigate("/owner/trucks"))}
                 className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
               >
                 <Plus size={14} /> Add New Truck
@@ -231,7 +242,6 @@ export default function OwnerLayout({
               </div>
             </div>
           ) : (
-            /* Refer & Earn Card matching Mockup 1 & 2 */
             <div className="bg-white border border-amber-200/80 rounded-2xl p-4 shadow-sm space-y-3 relative overflow-hidden">
               <div className="space-y-1">
                 <span className="text-xs font-black text-slate-900 block">Refer &amp; Earn</span>
@@ -241,7 +251,7 @@ export default function OwnerLayout({
               </div>
 
               <button
-                onClick={() => navigate("/support")}
+                onClick={() => navigate("/owner/support")}
                 className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
               >
                 <Gift size={14} /> Refer Now
