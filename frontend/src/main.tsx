@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import App from "./App";
 import "./styles.css";
 
-// Dynamically load Google Maps Places API if API key is present in environment
+// Safely load Google Maps Places API
 const mapsKey = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY;
 if (mapsKey && !document.getElementById("google-maps-script")) {
   const script = document.createElement("script");

@@ -31,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       let { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).single();
       if (!data) {
-        // Auto-provision profile row for new Google OAuth or SSO user
         const meta = s.user.user_metadata || {};
         const newProfile: Profile = {
           id: s.user.id,
@@ -47,11 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile((data as Profile) ?? null);
       return (data as Profile);
     } catch {
-      // Fallback profile for seamless navigation
+      // Fallback profile for seamless navigation even if DB RLS fails
       const meta = s.user.user_metadata || {};
       const fallback: Profile = {
         id: s.user.id,
-        role: 'sme',
+        role: (meta.role as Role) || 'sme',
         full_name: meta.full_name || meta.name || s.user.email?.split('@')[0] || 'REDO Partner',
         company_name: 'REDO Logistics Partner',
         phone: '+91 9876543210',
@@ -63,20 +62,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      if (data.session) {
-        await loadProfile(data.session);
-      }
-      setLoading(false);
-    });
+    const isHashAuth =
+      window.location.hash.includes("access_token") ||
+      window.location.hash.includes("refresh_token") ||
+      window.location.href.includes("code=");
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_evt, s) => {
+    const handleSession = async (s: Session | null) => {
       setSession(s);
       if (s) {
         await loadProfile(s);
+        if (window.location.hash.includes("access_token")) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      } else {
+        setProfile(null);
       }
       setLoading(false);
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        handleSession(data.session);
+      } else if (!isHashAuth) {
+        setLoading(false);
+      }
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+      handleSession(s);
     });
 
     return () => sub.subscription.unsubscribe();
@@ -103,15 +116,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 function FullPageSpinner() {
   return (
     <div className="min-h-screen grid place-items-center bg-[#FAF9F6]">
-      <div className="animate-pulse text-slate-700 text-sm font-black flex items-center gap-2">
-        <span className="w-3 h-3 rounded-full bg-[#FFC800]"></span> Loading Redo Logistics...
+      <div className="animate-pulse text-slate-700 text-xs font-black flex items-center gap-2">
+        <span className="w-3.5 h-3.5 rounded-full bg-[#FFC800]"></span> Authenticating Redo Partner...
       </div>
     </div>
   );
 }
 
-/** Requires an authenticated session; optionally a specific role;
- *  optionally completed onboarding. Wrong role → own dashboard (§13). */
 export function Protected({ role, children, allowIncompleteOnboarding = false }: {
   role?: Role; children: ReactNode; allowIncompleteOnboarding?: boolean;
 }) {
