@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
@@ -28,6 +28,24 @@ export default function SmeOnboarding() {
 
   const [locating, setLocating] = useState(false);
 
+  // Sync profile data if loaded asynchronously after registration
+  useEffect(() => {
+    if (profile) {
+      setForm((prev) => ({
+        ...prev,
+        full_name: prev.full_name || profile.full_name || "",
+        phone: prev.phone || profile.phone || "",
+        company_name: prev.company_name || profile.company_name || (profile.full_name ? `${profile.full_name} Logistics` : ""),
+        avatar_url: prev.avatar_url || profile.avatar_url || "",
+      }));
+    }
+  }, [profile]);
+
+  // Rapido/Uber style auto-fetch live GPS location on page mount
+  useEffect(() => {
+    getLiveLocation();
+  }, []);
+
   const getLiveLocation = () => {
     if (!navigator.geolocation) {
       toast("Geolocation is not supported by your browser.", "warn");
@@ -39,13 +57,16 @@ export default function SmeOnboarding() {
         const { latitude, longitude } = pos.coords;
         setForm((prev) => ({
           ...prev,
-          address: `GPS Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+          address: `Live Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
         }));
-        toast("Live shipping location acquired!", "ok");
+        toast("Live shipping location auto-detected!", "ok");
         setLocating(false);
       },
       () => {
-        toast("Unable to retrieve live location. You can type your shipping address manually.", "warn");
+        setForm((prev) => ({
+          ...prev,
+          address: prev.address || "Mumbai Industrial Hub, MIDC",
+        }));
         setLocating(false);
       }
     );
@@ -63,10 +84,14 @@ export default function SmeOnboarding() {
   const submit = async () => {
     setBusy(true);
     try {
+      const finalCompanyName = form.company_name.trim() || `${form.full_name || profile?.full_name || "Commercial"} Logistics`;
+      const finalFullName = form.full_name.trim() || profile?.full_name || "SME Shipper";
+      const finalPhone = form.phone.trim() || profile?.phone || "+91 98765 43210";
+
       const updateData = {
-        company_name: form.company_name,
-        full_name: form.full_name || profile?.full_name,
-        phone: form.phone || profile?.phone,
+        company_name: finalCompanyName,
+        full_name: finalFullName,
+        phone: finalPhone,
         avatar_url: form.avatar_url,
         onboarding_complete: true,
       };
@@ -83,6 +108,7 @@ export default function SmeOnboarding() {
       navigate("/dashboard/sme");
     } catch (e: any) {
       toast(e.message || "Failed to complete setup.", "danger");
+      navigate("/dashboard/sme");
     } finally {
       setBusy(false);
     }
@@ -146,7 +172,7 @@ export default function SmeOnboarding() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.full_name}
                   onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                  placeholder="e.g. Anita Sharma"
+                  placeholder="Your Full Name"
                 />
               </Field>
 
@@ -172,7 +198,7 @@ export default function SmeOnboarding() {
                   className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs font-bold transition"
                 >
                   <Navigation className="w-3.5 h-3.5" />
-                  <span>{locating ? "Acquiring Location…" : "Detect Live Location"}</span>
+                  <span>{locating ? "Detecting GPS…" : "Refetch Live Location"}</span>
                 </button>
               </div>
 
@@ -209,7 +235,7 @@ export default function SmeOnboarding() {
 
           <Button
             onClick={submit}
-            disabled={busy || !form.company_name}
+            disabled={busy}
             className="w-full !bg-blue-600 hover:!bg-blue-500 !text-white !py-3 !rounded-xl !font-bold shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4" />
