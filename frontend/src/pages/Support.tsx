@@ -1,104 +1,202 @@
-import { useEffect, useState } from 'react';
-import { CheckCircle2, MessageCircle, Ticket } from 'lucide-react';
-import Layout from '../components/Layout';
-import { api } from '../services/api';
-import { Badge, Button, Card, CardSkeleton, EmptyState, Field, SectionHead, StatCard, Tabs, inputCls, useToast } from '../components/ui';
-
-interface Tkt { id: string; subject: string; description: string; category: string;
-  status: string; created_at: string; messages?: { body: string; author_name: string; created_at: string }[]; }
-
-const toneOf = (s: string) => (s === 'resolved' || s === 'closed' ? 'ok' : s === 'in_progress' ? 'warn' : 'danger');
+import { useState } from "react";
+import {
+  Headset, MessageSquare, CheckCircle2, Clock, Plus, ChevronRight, Phone, Mail, FileText, HelpCircle, ShieldCheck
+} from "lucide-react";
+import OwnerLayout from "../components/OwnerLayout";
+import Layout from "../components/Layout";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Support() {
-  const [tickets, setTickets] = useState<Tkt[] | null>(null);
-  const [tab, setTab] = useState('open');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ subject: '', category: 'Trips & Bookings', description: '' });
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [reply, setReply] = useState('');
-  const [busy, setBusy] = useState(false);
-  const toast = useToast();
-  const load = () => api.get<Tkt[]>('/support/tickets').then(setTickets).catch(() => setTickets([]));
-  useEffect(() => { load(); }, []);
+  const { profile } = useAuth();
+  const isOwner = profile?.role === "truck_owner";
 
-  const submit = async () => {
-    setBusy(true);
-    try {
-      await api.post('/support/tickets', form);
-      setShowForm(false); setForm({ subject: '', category: 'Trips & Bookings', description: '' });
-      toast('Ticket raised'); load();
-    } catch (e: any) { toast(e.message, 'danger'); } finally { setBusy(false); }
-  };
-  const sendReply = async (id: string) => {
-    if (!reply.trim()) return;
-    try { await api.post(`/support/tickets/${id}/messages`, { body: reply }); setReply(''); load(); }
-    catch (e: any) { toast(e.message, 'danger'); }
-  };
+  const [activeTab, setActiveTab] = useState("my");
 
-  const list = (tickets ?? []).filter((t) =>
-    tab === 'open' ? !['resolved', 'closed'].includes(t.status) : ['resolved', 'closed'].includes(t.status));
+  const ticketList = [
+    { id: "S1", title: "Payment not received for Trip ID: TRIP124567", desc: "I have completed the trip but payment is not reflected in my wallet.", ticketNo: "#SUP12456", date: "19 Jun 2024, 09:30 AM", status: "Open", statusTone: "bg-[#FFC800]/20 text-slate-950 font-black" },
+    { id: "S2", title: "Wallet balance deduction issue", desc: "Amount was deducted but booking was not confirmed.", ticketNo: "#SUP12455", date: "18 Jun 2024, 02:15 PM", status: "In Progress", statusTone: "bg-amber-100 text-amber-800 font-black" },
+    { id: "S3", title: "Need help with document upload", desc: "Facing issue while uploading insurance certificate.", ticketNo: "#SUP12438", date: "16 Jun 2024, 11:20 AM", status: "Open", statusTone: "bg-blue-100 text-blue-800 font-black" },
+    { id: "S4", title: "How to add a new truck?", desc: "I want to add another truck. Please help me with the process.", ticketNo: "#SUP12420", date: "12 Jun 2024, 04:45 PM", status: "Resolved", statusTone: "bg-emerald-100 text-emerald-800 font-black" },
+    { id: "S5", title: "Incorrect toll deduction", desc: "Extra toll charges were deducted for Trip ID: TRIP124450", ticketNo: "#SUP12410", date: "08 Jun 2024, 10:05 AM", status: "Resolved", statusTone: "bg-emerald-100 text-emerald-800 font-black" },
+  ];
 
+  if (isOwner) {
+    return (
+      <OwnerLayout activeTab="support" promoCardType="refer">
+        <div className="space-y-6">
+          {/* Header Title matching Mockup 9 */}
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Support</h1>
+            <p className="text-xs text-slate-500 mt-0.5">We're here to help! Raise a request or check the status of your queries.</p>
+          </div>
+
+          {/* 3 Stat Cards matching Mockup 9 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Tickets</span>
+                <span className="text-xl font-black text-slate-900 block">12</span>
+                <span className="text-[10px] font-bold text-slate-500 block">All Time</span>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <FileText size={20} />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Open Tickets</span>
+                <span className="text-xl font-black text-slate-900 block">3</span>
+                <span className="text-[10px] font-bold text-amber-600 block">Requires Attention</span>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Clock size={20} />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Resolved Tickets</span>
+                <span className="text-xl font-black text-slate-900 block">9</span>
+                <span className="text-[10px] font-bold text-emerald-600 block">All Time</span>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
+                <CheckCircle2 size={20} />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Grid: Support Tickets + Categories & Helpline Sidebar matching Mockup 9 */}
+          <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+            {/* Tickets List Column */}
+            <div className="space-y-4">
+              {/* Header Tabs + New Support Ticket Button */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-xs font-extrabold">
+                  <button onClick={() => setActiveTab("my")} className={`px-4 py-2 rounded-xl transition ${activeTab === "my" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>My Tickets</button>
+                  <button onClick={() => setActiveTab("closed")} className={`px-4 py-2 rounded-xl transition ${activeTab === "closed" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Closed Tickets</button>
+                </div>
+
+                <button className="bg-slate-950 hover:bg-slate-800 text-white font-black px-4 py-2 rounded-xl shadow-sm text-xs transition flex items-center gap-1.5">
+                  <Plus size={14} /> New Support Ticket
+                </button>
+              </div>
+
+              {/* Tickets List */}
+              <div className="space-y-3">
+                {ticketList.map((t) => (
+                  <div key={t.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                        <MessageSquare size={18} />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-black text-slate-900 text-xs">{t.title}</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">{t.desc}</p>
+                        <div className="text-[10px] text-slate-400 font-bold">
+                          {t.ticketNo} · {t.date}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-[10px] ${t.statusTone}`}>
+                        {t.status}
+                      </span>
+                      <ChevronRight size={16} className="text-slate-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Help Categories & FAQs Sidebar matching Mockup 9 */}
+            <div className="space-y-6">
+              {/* How can we help you Card */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
+                <h4 className="font-black text-xs text-slate-900">How can we help you?</h4>
+                <p className="text-[10px] text-slate-500 font-medium">Choose a category to get started</p>
+
+                <div className="space-y-2 text-xs font-bold pt-1">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 transition cursor-pointer">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">💳</div>
+                      <div>
+                        <span className="block text-slate-900">Payments &amp; Wallet</span>
+                        <span className="text-[9px] text-slate-400 font-medium">Issues related to payments</span>
+                      </div>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-400" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 transition cursor-pointer">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs">🚚</div>
+                      <div>
+                        <span className="block text-slate-900">Trips &amp; Bookings</span>
+                        <span className="text-[9px] text-slate-400 font-medium">Trip issues &amp; rescheduling</span>
+                      </div>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-400" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 transition cursor-pointer">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-xs">👤</div>
+                      <div>
+                        <span className="block text-slate-900">Account &amp; Profile</span>
+                        <span className="text-[9px] text-slate-400 font-medium">KYC &amp; profile settings</span>
+                      </div>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* FAQs & Contact Info */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
+                <h4 className="font-black text-xs text-slate-900">Still need help?</h4>
+                <p className="text-[10px] text-slate-500 font-medium">Our support team is available 24/7</p>
+
+                <div className="space-y-2 text-xs font-bold pt-1">
+                  <div className="flex items-center gap-2 text-slate-800">
+                    <Phone size={14} className="text-amber-500" /> +91 98765 43210
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-800">
+                    <Mail size={14} className="text-amber-500" /> support@redo.com
+                  </div>
+                  <span className="inline-block text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full mt-1">
+                    Average response time: 15 mins
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </OwnerLayout>
+    );
+  }
+
+  // Shipper Support View
   return (
     <Layout>
-      <SectionHead title="Support" sub="We are here to help! Raise a request or check the status of your queries."
-        action={<Button onClick={() => setShowForm((s) => !s)}>+ New Support Ticket</Button>} />
-      <div className="mt-5 grid gap-4 grid-cols-3">
-        <StatCard icon={Ticket} label="Total Tickets" value={(tickets ?? []).length} tone="ok" />
-        <StatCard icon={MessageCircle} label="Open Tickets" value={(tickets ?? []).filter((t) => !['resolved', 'closed'].includes(t.status)).length} tone="info" />
-        <StatCard icon={CheckCircle2} label="Resolved" value={(tickets ?? []).filter((t) => ['resolved', 'closed'].includes(t.status)).length} tone="purple" />
+      <div className="max-w-2xl mx-auto py-8">
+        <h1 className="text-2xl font-black text-slate-900">Customer Support</h1>
+        <p className="text-xs text-slate-500 mt-1">Contact Redo logistics support team for assistance.</p>
+        <div className="mt-6 bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Subject</label>
+            <input placeholder="Enter issue subject" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Message</label>
+            <textarea rows={4} placeholder="Describe your issue..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold" />
+          </div>
+          <button className="w-full bg-[#FFC800] text-slate-950 font-black py-2.5 rounded-xl shadow-sm text-xs">
+            Send Message
+          </button>
+        </div>
       </div>
-
-      {showForm && (
-        <Card className="mt-5 p-5 space-y-4 max-w-xl">
-          <Field label="Subject"><input className={inputCls} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></Field>
-          <Field label="Category">
-            <select className={inputCls} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              {['Payments & Wallet', 'Trips & Bookings', 'Account & Profile', 'Documents', 'Technical Issues'].map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </Field>
-          <Field label="Description"><textarea rows={3} className={inputCls} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
-          <div className="flex gap-3">
-            <Button onClick={submit} disabled={busy || !form.subject}>{busy ? 'Submitting…' : 'Submit Ticket'}</Button>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-          </div>
-        </Card>
-      )}
-
-      <Card className="mt-5 p-5">
-        <Tabs active={tab} onChange={setTab} tabs={[{ key: 'open', label: 'My Tickets' }, { key: 'closed', label: 'Closed Tickets' }]} />
-        {tickets === null ? <div className="mt-4"><CardSkeleton /></div> : list.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No tickets here." hint="Raise a ticket and our team will respond." /></div>
-        ) : (
-          <div className="mt-2 divide-y divide-line">
-            {list.map((t) => (
-              <div key={t.id} className="py-4">
-                <button className="w-full text-left flex flex-wrap items-center gap-3" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
-                  <div className="flex-1 min-w-[200px]">
-                    <p className="font-bold text-ink text-sm">{t.subject}</p>
-                    <p className="text-xs text-ink-soft line-clamp-1">{t.description}</p>
-                  </div>
-                  <span className="text-xs text-ink-faint">{new Date(t.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                  <Badge tone={toneOf(t.status) as any}>{t.status.replace('_', ' ')}</Badge>
-                </button>
-                {openId === t.id && (
-                  <div className="mt-3 rounded-xl bg-canvas p-4 space-y-3">
-                    {(t.messages ?? []).map((m, i) => (
-                      <p key={i} className="text-sm"><span className="font-bold text-ink">{m.author_name}: </span>
-                        <span className="text-ink-soft">{m.body}</span></p>
-                    ))}
-                    {!['resolved', 'closed'].includes(t.status) && (
-                      <div className="flex gap-2">
-                        <input className={inputCls} value={reply} placeholder="Write a reply…" onChange={(e) => setReply(e.target.value)} />
-                        <Button onClick={() => sendReply(t.id)}>Send</Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
     </Layout>
   );
 }
