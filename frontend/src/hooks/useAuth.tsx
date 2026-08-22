@@ -61,16 +61,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Session restoration on refresh — Supabase persists to localStorage (§9).
+    const hasHash = window.location.hash.includes("access_token") || window.location.hash.includes("refresh_token");
+
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
-      await loadProfile(data.session);
+      if (data.session) {
+        await loadProfile(data.session);
+        if (hasHash || window.location.pathname === "/" || window.location.pathname === "/login") {
+          const r = data.session.user?.user_metadata?.role || "sme";
+          const target = r === "truck_owner" ? "/dashboard/owner" : "/dashboard/sme";
+          if (window.location.pathname !== target) {
+            window.location.href = target;
+            return;
+          }
+        }
+      }
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_evt, s) => {
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (evt, s) => {
       setSession(s);
-      await loadProfile(s);
+      if (s) {
+        await loadProfile(s);
+        if (evt === "SIGNED_IN" && (hasHash || window.location.pathname === "/" || window.location.pathname === "/login")) {
+          const r = s.user?.user_metadata?.role || "sme";
+          const target = r === "truck_owner" ? "/dashboard/owner" : "/dashboard/sme";
+          if (window.location.pathname !== target) {
+            window.location.href = target;
+            return;
+          }
+        }
+      }
+      setLoading(false);
     });
+
     return () => sub.subscription.unsubscribe();
   }, [loadProfile]);
 

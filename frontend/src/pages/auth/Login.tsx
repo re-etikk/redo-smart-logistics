@@ -56,7 +56,7 @@ export default function Login() {
     try {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: `${window.location.origin}/dashboard/sme` },
       });
       if (err) throw err;
     } catch {
