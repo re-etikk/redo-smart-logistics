@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   BadgeCheck, CalendarCheck, Clock, MapPin, Navigation, ShieldCheck,
-  Tag, Truck, Users, Package, User, Menu, X, ChevronDown, Check, Sparkles
+  Tag, Truck, Users, Package, User, Menu, X, ChevronDown, Check, Sparkles, SlidersHorizontal, Settings
 } from "lucide-react";
 import Logo from "../components/Logo";
 import { Card } from "../components/ui";
@@ -176,8 +176,25 @@ export default function Landing() {
   const [toFilter, setToFilter] = useState("");
 
   // Truck & Load Selectors state
-  const [selectedTruck, setSelectedTruck] = useState(TRUCK_TYPES[3]); // 17 Feet
-  const [selectedLoad, setSelectedLoad] = useState(LOAD_TYPES[0]); // FTL
+  const [selectedTruck, setSelectedTruck] = useState({
+    name: "17 Feet",
+    capacity: "7.0 Ton",
+    desc: "Ideal for inter-city industrial goods",
+    icon: "🚛",
+    isCustom: false,
+  });
+  const [customTruckInput, setCustomTruckInput] = useState("20 Feet (12 Ton Custom)");
+  const [isCustomTruckActive, setIsCustomTruckActive] = useState(false);
+
+  const [selectedLoad, setSelectedLoad] = useState({
+    name: "Full Truck Load (FTL)",
+    badge: "Dedicated",
+    desc: "Book the entire container for your exclusive cargo",
+    isCustom: false,
+  });
+  const [customLoadInput, setCustomLoadInput] = useState("3.5 Ton Machinery Boxes");
+  const [isCustomLoadActive, setIsCustomLoadActive] = useState(false);
+
   const [showTruckModal, setShowTruckModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
 
@@ -189,6 +206,9 @@ export default function Landing() {
 
   const fromRef = useRef<HTMLDivElement>(null);
   const toRef = useRef<HTMLDivElement>(null);
+  const truckRef = useRef<HTMLDivElement>(null);
+  const loadRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -198,6 +218,15 @@ export default function Landing() {
       }
       if (toRef.current && !toRef.current.contains(e.target as Node)) {
         setShowToDropdown(false);
+      }
+      if (truckRef.current && !truckRef.current.contains(e.target as Node)) {
+        setShowTruckModal(false);
+      }
+      if (loadRef.current && !loadRef.current.contains(e.target as Node)) {
+        setShowLoadModal(false);
+      }
+      if (dateRef.current && !dateRef.current.contains(e.target as Node)) {
+        setShowDateModal(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -258,7 +287,9 @@ export default function Landing() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate(`/book?from=${encodeURIComponent(fromLoc)}&to=${encodeURIComponent(toLoc)}&type=${encodeURIComponent(selectedTruck.name)}&load=${encodeURIComponent(selectedLoad.name)}&date=${dateVal}`);
+    const truckName = isCustomTruckActive ? customTruckInput : selectedTruck.name;
+    const loadName = isCustomLoadActive ? customLoadInput : selectedLoad.name;
+    navigate(`/book?from=${encodeURIComponent(fromLoc)}&to=${encodeURIComponent(toLoc)}&type=${encodeURIComponent(truckName)}&load=${encodeURIComponent(loadName)}&date=${dateVal}`);
   };
 
   return (
@@ -336,7 +367,7 @@ export default function Landing() {
       {/* Hero Section */}
       <section className="relative max-w-7xl mx-auto px-6 pt-8 pb-12 grid gap-8 lg:grid-cols-[380px_1fr] items-center">
         
-        {/* Left Search Widget (Mockup 1 Exact Custom Elements) */}
+        {/* Left Search Widget (Zero Native HTML Elements - Pure Bespoke Modern Cards) */}
         <Card id="book" className="p-6 bg-white border border-slate-200/80 rounded-3xl shadow-xl space-y-4 relative z-20">
           <div>
             <h2 className="font-black text-slate-900 text-lg tracking-tight">Book an Empty Truck</h2>
@@ -345,7 +376,7 @@ export default function Landing() {
 
           <form onSubmit={handleSearch} className="space-y-3">
             
-            {/* 1. Rapido-Style FROM Location Field with Live Autocomplete */}
+            {/* 1. Rapido-Style FROM Location Field */}
             <div className="relative space-y-1" ref={fromRef}>
               <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-amber-400 transition">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 mr-2.5 shadow-sm"></span>
@@ -377,10 +408,8 @@ export default function Landing() {
                 </button>
               </div>
 
-              {/* Rapido-Style Location Suggestion Popup */}
               {showFromDropdown && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 max-h-64 overflow-y-auto py-2 space-y-1 divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
-                  {/* GPS Option */}
                   <div
                     onClick={() => handleUseCurrentLocation(true)}
                     className="px-3.5 py-2 hover:bg-amber-50 cursor-pointer flex items-center gap-3 text-xs font-bold text-slate-900"
@@ -394,7 +423,6 @@ export default function Landing() {
                     </div>
                   </div>
 
-                  {/* Filtered Cities / Hubs */}
                   {filteredFromLocations.map((item, idx) => (
                     <div
                       key={idx}
@@ -449,7 +477,6 @@ export default function Landing() {
                 <span className="text-slate-400 p-1"><MapPin size={14} className="text-emerald-500" /></span>
               </div>
 
-              {/* Delivery Location Suggestion Popup */}
               {showToDropdown && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 max-h-64 overflow-y-auto py-2 space-y-1 divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div
@@ -494,65 +521,121 @@ export default function Landing() {
               )}
             </div>
 
-            {/* 3. Theme Custom TRUCK TYPE Selector */}
-            <div className="relative">
+            {/* 3. Bespoke TRUCK TYPE Selector + Customize Option */}
+            <div className="relative" ref={truckRef}>
               <div
                 onClick={() => setShowTruckModal(!showTruckModal)}
                 className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 cursor-pointer hover:bg-slate-100/80 transition"
               >
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <span className="text-base">{selectedTruck.icon}</span>
+                  <span className="text-base">{isCustomTruckActive ? "⚙️" : selectedTruck.icon}</span>
                   <div className="flex-1 min-w-0">
                     <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">TRUCK TYPE</label>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-slate-900 truncate">{selectedTruck.name}</span>
-                      <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md shrink-0">
-                        {selectedTruck.capacity}
+                      <span className="text-xs font-black text-slate-900 truncate">
+                        {isCustomTruckActive ? customTruckInput : selectedTruck.name}
                       </span>
+                      {!isCustomTruckActive && (
+                        <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md shrink-0">
+                          {selectedTruck.capacity}
+                        </span>
+                      )}
+                      {isCustomTruckActive && (
+                        <span className="text-[9px] font-extrabold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md shrink-0">
+                          Custom
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${showTruckModal ? "rotate-180" : ""}`} />
               </div>
 
-              {/* Custom Truck Type Picker Modal Dropdown */}
+              {/* Bespoke Truck Picker Sheet Modal */}
               {showTruckModal && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-3 py-1">Select Truck Fleet Spec</div>
-                  {TRUCK_TYPES.map((t) => (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider px-1">
+                    <span>Select Fleet Vehicle Spec</span>
+                    <span className="text-amber-600">REDO Verified</span>
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                    {TRUCK_TYPES.map((t) => (
+                      <div
+                        key={t.name}
+                        onClick={() => {
+                          setSelectedTruck({ ...t, isCustom: false });
+                          setIsCustomTruckActive(false);
+                          setShowTruckModal(false);
+                        }}
+                        className={`p-2.5 rounded-xl cursor-pointer transition flex items-center justify-between ${
+                          !isCustomTruckActive && selectedTruck.name === t.name
+                            ? "bg-amber-100/90 border border-amber-300 shadow-sm"
+                            : "hover:bg-slate-50 border border-transparent"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl">{t.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-xs text-slate-900">{t.name}</span>
+                              <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">
+                                {t.capacity}
+                              </span>
+                            </div>
+                            <span className="block text-[10px] text-slate-500">{t.desc}</span>
+                          </div>
+                        </div>
+                        {!isCustomTruckActive && selectedTruck.name === t.name && (
+                          <Check size={16} className="text-amber-900 font-bold" />
+                        )}
+                      </div>
+                    ))}
+
+                    {/* CUSTOM TRUCK OPTION */}
                     <div
-                      key={t.name}
-                      onClick={() => {
-                        setSelectedTruck(t);
-                        setShowTruckModal(false);
-                      }}
-                      className={`p-2.5 rounded-xl cursor-pointer transition flex items-center justify-between ${
-                        selectedTruck.name === t.name
-                          ? "bg-amber-100/90 border border-amber-300 shadow-sm"
-                          : "hover:bg-slate-50"
+                      onClick={() => setIsCustomTruckActive(true)}
+                      className={`p-3 rounded-xl cursor-pointer transition border ${
+                        isCustomTruckActive
+                          ? "bg-blue-50 border-blue-300 shadow-sm"
+                          : "bg-slate-50 hover:bg-slate-100 border-slate-200"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xl">{t.icon}</span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-xs text-slate-900">{t.name}</span>
-                            <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">
-                              {t.capacity}
-                            </span>
-                          </div>
-                          <span className="block text-[10px] text-slate-500">{t.desc}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Settings size={16} className="text-blue-600" />
+                          <span className="font-extrabold text-xs text-slate-900">✨ Customize Truck Spec</span>
                         </div>
+                        <span className="text-[9px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Special Size</span>
                       </div>
-                      {selectedTruck.name === t.name && <Check size={16} className="text-amber-900 font-bold" />}
+                      
+                      {isCustomTruckActive && (
+                        <div className="mt-2.5 pt-2 border-t border-blue-200 space-y-2">
+                          <label className="block text-[10px] font-bold text-slate-600">Enter Custom Truck Length / Tonnage:</label>
+                          <input
+                            type="text"
+                            value={customTruckInput}
+                            onChange={(e) => setCustomTruckInput(e.target.value)}
+                            placeholder="e.g. 20 Feet Container (12 Ton)"
+                            className="w-full bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowTruckModal(false)}
+                            className="w-full bg-blue-600 text-white font-bold text-xs py-1.5 rounded-lg shadow-sm hover:bg-blue-700"
+                          >
+                            Apply Custom Spec
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* 4. Theme Custom LOAD TYPE Selector */}
-            <div className="relative">
+            {/* 4. Bespoke LOAD TYPE Selector + Customize Option */}
+            <div className="relative" ref={loadRef}>
               <div
                 onClick={() => setShowLoadModal(!showLoadModal)}
                 className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 cursor-pointer hover:bg-slate-100/80 transition"
@@ -562,31 +645,42 @@ export default function Landing() {
                   <div className="flex-1 min-w-0">
                     <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">LOAD TYPE</label>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-slate-900 truncate">{selectedLoad.name}</span>
-                      <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md shrink-0">
-                        {selectedLoad.badge}
+                      <span className="text-xs font-black text-slate-900 truncate">
+                        {isCustomLoadActive ? customLoadInput : selectedLoad.name}
                       </span>
+                      {!isCustomLoadActive && (
+                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md shrink-0">
+                          {selectedLoad.badge}
+                        </span>
+                      )}
+                      {isCustomLoadActive && (
+                        <span className="text-[9px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-md shrink-0">
+                          Custom Cargo
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${showLoadModal ? "rotate-180" : ""}`} />
               </div>
 
-              {/* Custom Load Type Dropdown Modal */}
+              {/* Custom Load Sheet Dropdown Modal */}
               {showLoadModal && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-3 py-1">Select Load Option</div>
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-1">Select Load Option</div>
+                  
                   {LOAD_TYPES.map((l) => (
                     <div
                       key={l.name}
                       onClick={() => {
-                        setSelectedLoad(l);
+                        setSelectedLoad({ ...l, isCustom: false });
+                        setIsCustomLoadActive(false);
                         setShowLoadModal(false);
                       }}
                       className={`p-2.5 rounded-xl cursor-pointer transition flex items-center justify-between ${
-                        selectedLoad.name === l.name
+                        !isCustomLoadActive && selectedLoad.name === l.name
                           ? "bg-amber-100/90 border border-amber-300 shadow-sm"
-                          : "hover:bg-slate-50"
+                          : "hover:bg-slate-50 border border-transparent"
                       }`}
                     >
                       <div className="space-y-0.5">
@@ -598,15 +692,55 @@ export default function Landing() {
                         </div>
                         <span className="block text-[10px] text-slate-500">{l.desc}</span>
                       </div>
-                      {selectedLoad.name === l.name && <Check size={16} className="text-amber-900 font-bold" />}
+                      {!isCustomLoadActive && selectedLoad.name === l.name && (
+                        <Check size={16} className="text-amber-900 font-bold" />
+                      )}
                     </div>
                   ))}
+
+                  {/* CUSTOM LOAD OPTION */}
+                  <div
+                    onClick={() => setIsCustomLoadActive(true)}
+                    className={`p-3 rounded-xl cursor-pointer transition border ${
+                      isCustomLoadActive
+                        ? "bg-purple-50 border-purple-300 shadow-sm"
+                        : "bg-slate-50 hover:bg-slate-100 border-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal size={16} className="text-purple-600" />
+                        <span className="font-extrabold text-xs text-slate-900">✨ Customize Load Details</span>
+                      </div>
+                      <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">Custom Weight</span>
+                    </div>
+
+                    {isCustomLoadActive && (
+                      <div className="mt-2.5 pt-2 border-t border-purple-200 space-y-2">
+                        <label className="block text-[10px] font-bold text-slate-600">Specify Custom Cargo Weight &amp; Material:</label>
+                        <input
+                          type="text"
+                          value={customLoadInput}
+                          onChange={(e) => setCustomLoadInput(e.target.value)}
+                          placeholder="e.g. 3.5 Tons / Machinery Boxes"
+                          className="w-full bg-white border border-purple-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowLoadModal(false)}
+                          className="w-full bg-purple-600 text-white font-bold text-xs py-1.5 rounded-lg shadow-sm hover:bg-purple-700"
+                        >
+                          Apply Custom Cargo
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* 5. Theme Custom WHEN (DATE) Picker */}
-            <div className="relative">
+            {/* 5. Modern Bespoke WHEN (DATE) Picker */}
+            <div className="relative" ref={dateRef}>
               <div
                 onClick={() => setShowDateModal(!showDateModal)}
                 className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 cursor-pointer hover:bg-slate-100/80 transition"
@@ -624,17 +758,20 @@ export default function Landing() {
                 <Sparkles size={14} className="text-amber-500" />
               </div>
 
-              {/* Custom Theme Date Picker Dropdown */}
+              {/* Bespoke Theme Date Sheet */}
               {showDateModal && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-3 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Quick Select Date</div>
-                  
-                  {/* Quick Chips */}
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-3.5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    <span>Select Dispatch Date</span>
+                    <span className="text-amber-600 font-extrabold">Instant Allocation</span>
+                  </div>
+
+                  {/* Preset Chips */}
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => handlePresetDate("today")}
-                      className={`py-2 text-xs font-extrabold rounded-xl border transition ${
+                      className={`py-2.5 text-xs font-extrabold rounded-xl border transition ${
                         datePreset === "Today"
                           ? "bg-[#FFC800] text-slate-950 border-amber-400 shadow-sm"
                           : "bg-slate-50 text-slate-700 hover:bg-amber-50 border-slate-200"
@@ -645,7 +782,7 @@ export default function Landing() {
                     <button
                       type="button"
                       onClick={() => handlePresetDate("tomorrow")}
-                      className={`py-2 text-xs font-extrabold rounded-xl border transition ${
+                      className={`py-2.5 text-xs font-extrabold rounded-xl border transition ${
                         datePreset === "Tomorrow"
                           ? "bg-[#FFC800] text-slate-950 border-amber-400 shadow-sm"
                           : "bg-slate-50 text-slate-700 hover:bg-amber-50 border-slate-200"
@@ -656,7 +793,7 @@ export default function Landing() {
                     <button
                       type="button"
                       onClick={() => handlePresetDate("dayAfter")}
-                      className={`py-2 text-xs font-extrabold rounded-xl border transition ${
+                      className={`py-2.5 text-xs font-extrabold rounded-xl border transition ${
                         datePreset === "Day After"
                           ? "bg-[#FFC800] text-slate-950 border-amber-400 shadow-sm"
                           : "bg-slate-50 text-slate-700 hover:bg-amber-50 border-slate-200"
@@ -666,8 +803,9 @@ export default function Landing() {
                     </button>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100">
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Pick Specific Calendar Date:</label>
+                  {/* Custom Calendar Picker */}
+                  <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">Custom Calendar Date:</label>
                     <input
                       type="date"
                       value={dateVal}
@@ -677,7 +815,7 @@ export default function Landing() {
                         setDatePreset("Custom Date");
                         setShowDateModal(false);
                       }}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="w-full bg-amber-50/50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   </div>
                 </div>
@@ -686,14 +824,14 @@ export default function Landing() {
 
             <button
               type="submit"
-              className="mt-3 w-full rounded-xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 py-3 font-black text-sm transition shadow-md flex items-center justify-center gap-2"
+              className="mt-3 w-full rounded-xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 py-3.5 font-black text-sm transition shadow-md flex items-center justify-center gap-2"
             >
               Search Empty Trucks
             </button>
           </form>
         </Card>
 
-        {/* Hero Title & White Container Truck Graphic matching Mockup 1 */}
+        {/* Hero Title & White Container Truck Graphic */}
         <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative">
           <div className="space-y-6 max-w-xl">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-950 tracking-tight leading-none">
