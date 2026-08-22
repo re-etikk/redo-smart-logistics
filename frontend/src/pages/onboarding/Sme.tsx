@@ -15,13 +15,24 @@ export default function SmeOnboarding() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
+  const getTempData = () => {
+    try {
+      const raw = localStorage.getItem("redo_signup_temp_data");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const temp = getTempData();
+
   const [form, setForm] = useState({
-    company_name: profile?.company_name || "",
-    full_name: profile?.full_name || "",
-    phone: profile?.phone || "",
-    city: "Mumbai",
+    company_name: temp?.company_name || profile?.company_name || "",
+    full_name: temp?.full_name || profile?.full_name || "",
+    phone: temp?.phone || profile?.phone || "",
+    city: temp?.city || "Mumbai",
     address: "",
-    primary_category: "Textiles",
+    primary_category: temp?.category || "Textiles",
     gstin: "",
     avatar_url: profile?.avatar_url || "",
   });
@@ -30,13 +41,14 @@ export default function SmeOnboarding() {
 
   // Sync profile data if loaded asynchronously after registration
   useEffect(() => {
-    if (profile) {
+    const t = getTempData();
+    if (profile || t) {
       setForm((prev) => ({
         ...prev,
-        full_name: prev.full_name || profile.full_name || "",
-        phone: prev.phone || profile.phone || "",
-        company_name: prev.company_name || profile.company_name || (profile.full_name ? `${profile.full_name} Logistics` : ""),
-        avatar_url: prev.avatar_url || profile.avatar_url || "",
+        full_name: prev.full_name || t?.full_name || profile?.full_name || "",
+        phone: prev.phone || t?.phone || profile?.phone || "",
+        company_name: prev.company_name || t?.company_name || profile?.company_name || (profile?.full_name ? `${profile.full_name} Logistics` : ""),
+        avatar_url: prev.avatar_url || profile?.avatar_url || "",
       }));
     }
   }, [profile]);

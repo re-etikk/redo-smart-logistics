@@ -18,24 +18,41 @@ export default function OwnerOnboarding() {
   const toast = useToast();
   const navigate = useNavigate();
 
+  const getTempData = () => {
+    try {
+      const raw = localStorage.getItem("redo_signup_temp_data");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const temp = getTempData();
+
   const [personal, setPersonal] = useState({
-    full_name: profile?.full_name || "",
-    phone: profile?.phone || "",
-    company_name: profile?.company_name || "",
+    full_name: temp?.full_name || profile?.full_name || "",
+    phone: temp?.phone || profile?.phone || "",
+    company_name: temp?.company_name || profile?.company_name || "",
   });
 
   useEffect(() => {
-    if (profile) {
+    const t = getTempData();
+    if (profile || t) {
       setPersonal((prev) => ({
         ...prev,
-        full_name: prev.full_name || profile.full_name || "",
-        phone: prev.phone || profile.phone || "",
-        company_name: prev.company_name || profile.company_name || (profile.full_name ? `${profile.full_name} Fleet` : ""),
+        full_name: prev.full_name || t?.full_name || profile?.full_name || "",
+        phone: prev.phone || t?.phone || profile?.phone || "",
+        company_name: prev.company_name || t?.company_name || profile?.company_name || (profile?.full_name ? `${profile.full_name} Fleet` : ""),
       }));
     }
   }, [profile]);
 
-  const [truck, setTruck] = useState({ registration_number: "", truck_type: "22FT", body_type: "Closed container", default_capacity_tons: "9" });
+  const [truck, setTruck] = useState({
+    registration_number: temp?.truck_number || "",
+    truck_type: temp?.truck_type || "22FT",
+    body_type: "Closed container",
+    default_capacity_tons: "9",
+  });
   const [route, setRoute] = useState({ origin: "Mumbai", destination: "Delhi", departure_at: "", available_capacity_tons: "4" });
   const [kyc, setKyc] = useState({
     dl_number: "",

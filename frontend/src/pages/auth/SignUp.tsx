@@ -4,14 +4,28 @@ import { supabase, triggerDemoLogin } from "../../lib/supabase";
 import { api } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import { Logo } from "../../components/Layout";
-import { Button, Card, useToast } from "../../components/ui";
+import { Button, Card, useToast, Badge } from "../../components/ui";
 import type { Role } from "../../lib/types";
-import { Truck, PackageCheck, ArrowRight, Eye, EyeOff, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Truck, PackageCheck, ArrowRight, Eye, EyeOff, Sparkles, CheckCircle2, ShieldCheck, MapPin } from "lucide-react";
+
+const TRUCK_TYPES = ["14FT Open", "17FT Container", "22FT Closed Container", "32FT Multi-Axle"];
+const GOODS_CATEGORIES = ["Textiles", "FMCG", "Electronics", "Auto Spare Parts", "Pharma", "Industrial Fasteners"];
 
 export default function SignUp() {
   const [params] = useSearchParams();
   const [role, setRole] = useState<Role | null>((params.get("role") as Role) || null);
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", phone: "" });
+  const [form, setForm] = useState({
+    full_name: "",
+    email: "",
+    password: "",
+    phone: "",
+    company_name: "",
+    truck_number: "",
+    truck_type: "22FT Closed Container",
+    city: "Mumbai",
+    category: "Textiles",
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,17 +33,36 @@ export default function SignUp() {
   const { refreshProfile } = useAuth();
   const toast = useToast();
 
-  const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!role) return;
     setBusy(true); setError("");
+
+    const signupTempData = {
+      full_name: form.full_name,
+      phone: form.phone,
+      email: form.email,
+      role,
+      company_name: form.company_name || `${form.full_name} ${role === "sme" ? "Logistics" : "Fleet"}`,
+      truck_number: form.truck_number,
+      truck_type: form.truck_type,
+      city: form.city,
+      category: form.category,
+    };
+
+    // Store in localStorage so Onboarding screens instantly autofill
+    try {
+      localStorage.setItem("redo_signup_temp_data", JSON.stringify(signupTempData));
+    } catch {}
+
     try {
       const { data: signUpData, error: err } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
-        options: { data: { role, full_name: form.full_name, phone: form.phone } }
+        options: { data: signupTempData }
       });
 
       if (err) throw err;
@@ -48,7 +81,7 @@ export default function SignUp() {
           role,
           full_name: form.full_name,
           phone: form.phone,
-          company_name: "",
+          company_name: signupTempData.company_name,
           avatar_url: "",
           kyc_verified: true,
           onboarding_complete: false,
@@ -57,17 +90,17 @@ export default function SignUp() {
       }
 
       try {
-        await api.post("/auth/profile", { full_name: form.full_name, phone: form.phone, role });
+        await api.post("/auth/profile", { full_name: form.full_name, phone: form.phone, role, company_name: signupTempData.company_name });
       } catch (e2: any) {}
 
       await refreshProfile();
-      toast("Account created successfully!", "ok");
+      toast(`${role === "sme" ? "SME Shipper" : "Fleet Owner"} account registered!`, "ok");
       navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
     } catch (e: any) {
-      // Fallback demo account setup if Supabase requires email verification or rate limits
+      // Fallback demo account setup
       await triggerDemoLogin(role);
       await refreshProfile();
-      toast("Registered successfully!", "ok");
+      toast("Registration successful!", "ok");
       navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
     } finally {
       setBusy(false);
@@ -94,7 +127,7 @@ export default function SignUp() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-16 grid place-items-center">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-14 grid place-items-center">
         {!role ? (
           <div className="w-full max-w-3xl space-y-8 text-center">
             <div className="space-y-3">
@@ -117,10 +150,10 @@ export default function SignUp() {
                 </div>
                 <h2 className="text-xl font-bold text-white mb-2">Fleet / Truck Owner</h2>
                 <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  Monetize empty return trips. List your return legs and receive AI-ranked partial cargo matches.
+                  Monetize empty return trips. Register your truck, list return legs, and receive AI-ranked partial cargo matches.
                 </p>
                 <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-                  <span>Continue as Fleet Owner</span>
+                  <span>Register as Fleet Owner</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
                 </div>
               </div>
@@ -135,55 +168,60 @@ export default function SignUp() {
                 </div>
                 <h2 className="text-xl font-bold text-white mb-2">SME Shipper</h2>
                 <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  Ship partial loads affordably. Pay only for your tonnage by pairing with trucks returning on your route.
+                  Ship partial loads affordably. Set your warehouse criteria and pair with trucks returning on your route.
                 </p>
                 <div className="flex items-center gap-2 text-xs font-bold text-blue-400">
-                  <span>Continue as SME Shipper</span>
+                  <span>Register as SME Shipper</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="w-full max-w-md mx-auto">
+          <div className="w-full max-w-lg mx-auto">
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-6">
               <div>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white tracking-tight">Create Account</h2>
+                  <div className="flex items-center gap-2">
+                    {role === "truck_owner" ? (
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+                        <PackageCheck className="w-4 h-4" />
+                      </div>
+                    )}
+                    <h2 className="text-2xl font-black text-white tracking-tight">
+                      {role === "truck_owner" ? "Truck Owner Registration" : "SME Shipper Registration"}
+                    </h2>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setRole(null)}
                     className="text-xs font-semibold text-blue-400 hover:text-blue-300"
                   >
-                    Change role
+                    Switch role
                   </button>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Registering as <span className="text-white font-bold">{role === "sme" ? "SME Shipper" : "Fleet / Truck Owner"}</span>
+                  {role === "truck_owner"
+                    ? "Enter your driver/fleet details to list return legs & get cargo"
+                    : "Enter your business details to dispatch partial cargo loads"}
                 </p>
               </div>
 
               <form onSubmit={submit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    {role === "truck_owner" ? "Full Name / Driver Name" : "Contact Person Name"}
+                  </label>
                   <input
                     required
                     value={form.full_name}
                     onChange={set("full_name")}
                     placeholder="e.g. Ramesh Verma"
-                    className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    value={form.email}
-                    onChange={set("email")}
-                    placeholder="name@business.com"
-                    className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   />
                 </div>
 
@@ -195,7 +233,80 @@ export default function SignUp() {
                     value={form.phone}
                     onChange={set("phone")}
                     placeholder="+91 98765 43210"
-                    className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+
+                {/* Role Specific Registration Fields */}
+                {role === "truck_owner" ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Truck RC Number</label>
+                        <input
+                          required
+                          value={form.truck_number}
+                          onChange={set("truck_number")}
+                          placeholder="e.g. MH12AB4321"
+                          className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Truck Container Type</label>
+                        <select
+                          value={form.truck_type}
+                          onChange={set("truck_type")}
+                          className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          {TRUCK_TYPES.map((t) => <option key={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Fleet / Agency Name</label>
+                      <input
+                        value={form.company_name}
+                        onChange={set("company_name")}
+                        placeholder="e.g. Royal Backhaul Transport"
+                        className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Business / Company Name</label>
+                      <input
+                        value={form.company_name}
+                        onChange={set("company_name")}
+                        placeholder="e.g. Apex Traders & Logistics"
+                        className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Primary Goods Category</label>
+                      <select
+                        value={form.category}
+                        onChange={set("category")}
+                        className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {GOODS_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={set("email")}
+                    placeholder="name@domain.com"
+                    className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   />
                 </div>
 
@@ -209,7 +320,7 @@ export default function SignUp() {
                       value={form.password}
                       onChange={set("password")}
                       placeholder="Minimum 6 characters"
-                      className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-10"
+                      className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition pr-10"
                     />
                     <button
                       type="button"
@@ -230,10 +341,14 @@ export default function SignUp() {
                 <Button
                   type="submit"
                   disabled={busy}
-                  className="w-full !bg-blue-600 hover:!bg-blue-500 !text-white !py-2.5 !rounded-xl !font-bold shadow-lg shadow-blue-600/20"
+                  className={`w-full !py-3 !rounded-xl !font-bold shadow-lg flex items-center justify-center gap-2 ${
+                    role === "truck_owner"
+                      ? "!bg-emerald-600 hover:!bg-emerald-500 !text-white shadow-emerald-600/20"
+                      : "!bg-blue-600 hover:!bg-blue-500 !text-white shadow-blue-600/20"
+                  }`}
                 >
-                  {busy ? "Registering Account…" : "Create & Start Onboarding"}
-                  {!busy && <ArrowRight className="w-4 h-4 ml-1" />}
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{busy ? "Creating Account…" : `Complete ${role === "truck_owner" ? "Fleet" : "SME"} Registration`}</span>
                 </Button>
               </form>
             </div>
@@ -250,4 +365,5 @@ export default function SignUp() {
     </div>
   );
 }
+
 
