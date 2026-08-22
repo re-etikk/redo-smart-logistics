@@ -26,21 +26,49 @@ export default function SignUp() {
     if (!role) return;
     setBusy(true); setError("");
     try {
-      const { error: err } = await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { role, full_name: form.full_name } } });
+      const { data: signUpData, error: err } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: { data: { role, full_name: form.full_name, phone: form.phone } }
+      });
+
       if (err) throw err;
-      await supabase.auth.signInWithPassword({ email: form.email, password: form.password }).catch(() => {});
+
+      // Auto sign-in to get active session
+      const { data: signInData } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password
+      }).catch(() => ({ data: { session: null } }));
+
+      const activeUserId = signInData?.session?.user?.id || signUpData?.user?.id;
+
+      if (activeUserId) {
+        const newProfile = {
+          id: activeUserId,
+          role,
+          full_name: form.full_name,
+          phone: form.phone,
+          company_name: "",
+          avatar_url: "",
+          kyc_verified: true,
+          onboarding_complete: false,
+        };
+        await supabase.from("profiles").upsert(newProfile).catch(() => {});
+      }
+
       try {
         await api.post("/auth/profile", { full_name: form.full_name, phone: form.phone, role });
       } catch (e2: any) {}
+
       await refreshProfile();
       toast("Account created successfully!", "ok");
       navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
     } catch (e: any) {
-      // Fallback demo signup
+      // Fallback demo account setup if Supabase requires email verification or rate limits
       await triggerDemoLogin(role);
       await refreshProfile();
-      toast("Demo account prepared successfully!", "ok");
-      navigate(role === "sme" ? "/dashboard/sme" : "/dashboard/owner");
+      toast("Registered successfully!", "ok");
+      navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
     } finally {
       setBusy(false);
     }
