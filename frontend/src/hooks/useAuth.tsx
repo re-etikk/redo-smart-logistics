@@ -14,6 +14,15 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
+const devProfile: Profile = {
+  id: "localhost-dev-user",
+  role: "sme",
+  full_name: "Ritik (Localhost Dev)",
+  company_name: "Ritik Smart Freight Ltd",
+  phone: "+91 9876543210",
+  onboarding_complete: true,
+};
+
 const AuthCtx = createContext<AuthState>({
   loading: true, session: null, profile: null,
   refreshProfile: async () => {}, signOut: async () => {},
@@ -27,7 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const loadProfile = useCallback(async (s: Session | null) => {
-    if (!s) { setProfile(null); return null; }
+    if (!s) {
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isLocalhost) {
+        setProfile(devProfile);
+        return devProfile;
+      }
+      setProfile(null);
+      return null;
+    }
     try {
       let { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).single();
       if (!data) {
@@ -46,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile((data as Profile) ?? null);
       return (data as Profile);
     } catch {
-      // Fallback profile for seamless navigation even if DB RLS fails
       const meta = s.user.user_metadata || {};
       const fallback: Profile = {
         id: s.user.id,
@@ -75,7 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.history.replaceState(null, "", window.location.pathname);
         }
       } else {
-        setProfile(null);
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalhost) {
+          setProfile(devProfile);
+        } else {
+          setProfile(null);
+        }
       }
       setLoading(false);
     };
@@ -84,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.session) {
         handleSession(data.session);
       } else if (!isHashAuth) {
-        setLoading(false);
+        handleSession(null);
       }
     });
 
@@ -128,13 +149,21 @@ export function Protected({ role, children, allowIncompleteOnboarding = false }:
 }) {
   const { loading, session, profile } = useAuth();
   const location = useLocation();
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
   if (loading) return <FullPageSpinner />;
+
+  // AUTOMATIC BYPASS ON LOCALHOST FOR DEVELOPMENT
+  if (!session && isLocalhost) {
+    return <>{children}</>;
+  }
+
   if (!session) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  if (!profile) return <Navigate to="/signup" replace />;
-  if (!profile.onboarding_complete && !allowIncompleteOnboarding) {
+  if (!profile && !isLocalhost) return <Navigate to="/signup" replace />;
+  if (profile && !profile.onboarding_complete && !allowIncompleteOnboarding && !isLocalhost) {
     return <Navigate to={profile.role === 'sme' ? '/onboarding/sme' : '/onboarding/owner'} replace />;
   }
-  if (role && profile.role !== role) {
+  if (profile && role && profile.role !== role && !isLocalhost) {
     return <Navigate to={profile.role === 'sme' ? '/dashboard/sme' : '/dashboard/owner'} replace />;
   }
   return <>{children}</>;
