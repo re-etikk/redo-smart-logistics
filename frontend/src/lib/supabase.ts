@@ -5,19 +5,30 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-export async function triggerDemoLogin(role: "sme" | "truck_owner" | "admin" = "sme") {
+// Return type: caller ab pata laga sakta hai success hua ya nahi
+export async function triggerDemoLogin(
+  role: "sme" | "truck_owner" | "admin" = "sme"
+): Promise<{ success: boolean; error?: string }> {
+  // README ke seeded accounts se match karta email (demo.sme@ / demo.owner@)
+  const emailMap: Record<string, string> = {
+    sme: "demo.sme@redo.app",
+    truck_owner: "demo.owner@redo.app",
+    admin: "demo.admin@redo.app",
+  };
+  const demoEmail = emailMap[role];
+  const demoPassword = import.meta.env.VITE_DEMO_PASSWORD || "password123";
+
   try {
-    const demoEmail = `${role}_demo@redo.app`;
-    const demoPassword = "password123";
     const { data, error } = await supabase.auth.signInWithPassword({
       email: demoEmail,
       password: demoPassword,
     });
+
     if (error || !data.session) {
-      // Mock session fallback for seamless demo mode
-      localStorage.setItem("redo_demo_role", role);
+      return { success: false, error: error?.message || "No session returned" };
     }
-  } catch (e) {
-    localStorage.setItem("redo_demo_role", role);
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || "Unknown error" };
   }
 }
