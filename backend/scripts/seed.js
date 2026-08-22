@@ -33,11 +33,13 @@ async function main() {
   console.log('Creating demo auth accounts…');
   const owner = await ensureUser(process.env.DEMO_OWNER_EMAIL || 'demo.owner@redo.app', { demo: true });
   const sme = await ensureUser(process.env.DEMO_SME_EMAIL || 'demo.sme@redo.app', { demo: true });
+  const ops = await ensureUser(process.env.DEMO_ADMIN_EMAIL || 'admin@redo.app', { demo: true });
 
   console.log('Creating profiles…');
   await admin.from('profiles').upsert([
     { id: owner.id, full_name: 'Rakesh Yadav (Demo)', phone: '+91-9800000001', role: 'truck_owner', onboarding_complete: true },
     { id: sme.id, full_name: 'Meera Sharma (Demo)', phone: '+91-9800000002', role: 'sme', company_name: 'Meera Traders', onboarding_complete: true },
+    { id: ops.id, full_name: 'Redo Ops (Demo)', phone: '+91-9800000003', role: 'admin', company_name: 'Redo Operations', onboarding_complete: true },
   ]);
 
   console.log('Creating demo truck + open return trip (Mumbai → Delhi, 4 T free)…');

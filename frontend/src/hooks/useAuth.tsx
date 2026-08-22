@@ -27,54 +27,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const loadProfile = useCallback(async (s: Session | null) => {
-    if (!s) {
-      setProfile(null);
-      return;
-    }
+    if (!s) { setProfile(null); return; }
     try {
-      // Use maybeSingle to prevent 406 error when row does not exist yet
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", s.user.id)
-        .maybeSingle();
-
-      if (data) {
-        setProfile(data as Profile);
-        return;
+      let { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).single();
+      if (!data) {
+        // Auto-provision profile row for new Google OAuth or SSO user
+        const meta = s.user.user_metadata || {};
+        const newProfile: Profile = {
+          id: s.user.id,
+          role: (meta.role as Role) || 'sme',
+          full_name: meta.full_name || meta.name || s.user.email?.split('@')[0] || 'REDO Partner',
+          company_name: 'REDO Logistics Partner',
+          phone: s.user.phone || '+91 9876543210',
+          onboarding_complete: true,
+        };
+        await supabase.from('profiles').upsert([newProfile]);
+        data = newProfile;
       }
-
-      // If no row exists in Supabase table yet, create default profile from metadata
-      const userMeta = s.user?.user_metadata || {};
-      const defaultProfile: Profile = {
-        id: s.user.id,
-        role: (userMeta.role as Role) || (s.user.email?.includes("owner") ? "truck_owner" : "sme"),
-        full_name: userMeta.full_name || s.user.email?.split("@")[0] || "User",
-        phone: userMeta.phone || "",
-        company_name: userMeta.company_name || "",
-        avatar_url: userMeta.avatar_url || "",
-        kyc_verified: true,
-        onboarding_complete: false,
-      };
-
-      try {
-        await supabase.from("profiles").upsert(defaultProfile);
-      } catch {}
-
-      setProfile(defaultProfile);
+      setProfile((data as Profile) ?? null);
     } catch {
-      // Robust fallback so user is NEVER trapped on /signup
-      const fallbackProfile: Profile = {
+      // Fallback profile for seamless navigation
+      const meta = s.user.user_metadata || {};
+      const fallback: Profile = {
         id: s.user.id,
-        role: (s.user?.user_metadata?.role as Role) || "sme",
-        full_name: s.user?.user_metadata?.full_name || "User",
-        phone: s.user?.user_metadata?.phone || "",
-        company_name: "",
-        avatar_url: "",
-        kyc_verified: true,
-        onboarding_complete: false,
+        role: 'sme',
+        full_name: meta.full_name || meta.name || s.user.email?.split('@')[0] || 'REDO Partner',
+        company_name: 'REDO Logistics Partner',
+        phone: '+91 9876543210',
+        onboarding_complete: true,
       };
-      setProfile(fallbackProfile);
+      setProfile(fallback);
     }
   }, []);
 

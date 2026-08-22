@@ -25,22 +25,39 @@ async function loadBookingForUser(id, profile) {
 // POST /bookings — SME requests a booking from a recommendation
 r.post("/", async (req, res, next) => {
   try {
-    if (req.profile.role !== "sme") throw apiError(403, "FORBIDDEN_ROLE", "Only shippers can request bookings.");
-    const { cargo_id, truck_id, trip_id, match_score, agreed_price_inr } = req.body || {};
+    const { cargo_id, truck_id, trip_id, match_score, agreed_price_inr, owner_initiated } = req.body || {};
     if (!cargo_id || !truck_id) throw apiError(400, "VALIDATION", "cargo_id and truck_id are required.");
+    const isOwnerFlow = owner_initiated === true;
+    if (isOwnerFlow && req.profile.role !== "truck_owner")
+      throw apiError(403, "FORBIDDEN_ROLE", "Only truck owners can accept loads.");
+    if (!isOwnerFlow && req.profile.role !== "sme")
+      throw apiError(403, "FORBIDDEN_ROLE", "Only shippers can request bookings.");
     const { data: cargo } = await supabaseAdmin.from("cargo_requests").select("*").eq("cargo_id", cargo_id).single();
-    if (!cargo || cargo.sme_id !== req.profile.id) throw apiError(403, "FORBIDDEN", "Not your cargo request.");
+    if (!cargo) throw apiError(404, "CARGO_NOT_FOUND", "Cargo request not found.");
+    if (!isOwnerFlow && cargo.sme_id !== req.profile.id) throw apiError(403, "FORBIDDEN", "Not your cargo request.");
     if (!["open", "matched"].includes(cargo.status)) throw apiError(409, "CARGO_CLOSED", "This cargo request is no longer open.");
     const { data: truck } = await supabaseAdmin.from("trucks").select("*").eq("truck_id", truck_id).single();
     if (!truck) throw apiError(404, "TRUCK_NOT_FOUND", "Truck not found.");
+    if (isOwnerFlow && truck.owner_id !== req.profile.id)
+      throw apiError(403, "FORBIDDEN", "You can only accept loads with your own truck.");
 
+    // Owner-accepted loads start at "accepted" (owner has already said yes);
+    // the shipper then confirms — same state machine, no skipped steps.
+    const initialStatus = isOwnerFlow ? "accepted" : "pending";
     const { data: booking, error } = await supabaseAdmin.from("bookings")
-      .insert({ cargo_id, truck_id, trip_id, match_score, agreed_price_inr, status: "pending" })
+      .insert({ cargo_id, truck_id, trip_id, match_score, agreed_price_inr, status: initialStatus })
       .select().single();
     if (error) throw apiError(500, "DB_ERROR", "Could not create the booking.");
     await supabaseAdmin.from("cargo_requests").update({ status: "matched" }).eq("cargo_id", cargo_id);
-    await notify(truck.owner_id, "booking_request", "New booking request",
-      `${cargo.origin} → ${cargo.destination} · ${cargo.cargo_weight_tons} T · ₹${agreed_price_inr ?? "TBD"}`);
+    if (isOwnerFlow) {
+      await supabaseAdmin.from("booking_events").insert({
+        booking_id: booking.id, from_status: "pending", to_status: "accepted", actor_id: req.profile.id });
+      await notify(cargo.sme_id, "booking_request", "A truck owner accepted your load",
+        `${cargo.origin} → ${cargo.destination} · ${truck.truck_type} · ₹${agreed_price_inr ?? "TBD"} — please confirm.`);
+    } else {
+      await notify(truck.owner_id, "booking_request", "New booking request",
+        `${cargo.origin} → ${cargo.destination} · ${cargo.cargo_weight_tons} T · ₹${agreed_price_inr ?? "TBD"}`);
+    }
     res.status(201).json(booking);
   } catch (e) { next(e); }
 });
@@ -98,6 +115,18 @@ r.patch("/:id/status", async (req, res, next) => {
       });
       await supabaseAdmin.from("impact_records").upsert({ booking_id: booking.id, ...impact });
       await supabaseAdmin.from("cargo_requests").update({ status: "delivered" }).eq("cargo_id", booking.cargo_id);
+
+      // Auto-generate the shipper invoice (18% GST). Idempotent via unique(booking_id).
+      const base = Number(booking.agreed_price_inr || 0);
+      if (base > 0) {
+        const gst = Math.round(base * 0.18);
+        await supabaseAdmin.from("invoices").upsert({
+          booking_id: booking.id,
+          invoice_no: "INV-" + booking.id.slice(0, 8).toUpperCase(),
+          sme_id: booking.cargo.sme_id,
+          base_inr: base, gst_inr: gst, total_inr: base + gst, status: "paid",
+        }, { onConflict: "booking_id" });
+      }
     }
     res.json({ id: booking.id, status: to });
   } catch (e) { next(e); }

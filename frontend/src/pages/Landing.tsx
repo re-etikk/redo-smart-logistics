@@ -1,94 +1,147 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Logo } from "../components/Layout";
-import { Button, Card, Badge } from "../components/ui";
-import { Truck, PackageCheck, Route, ShieldCheck, TrendingUp, Sparkles, ArrowRight, CheckCircle2, Leaf, BarChart3, Calculator } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import {
+  BadgeCheck, CalendarCheck, Clock, MapPin, Navigation, ShieldCheck,
+  Tag, Truck, Users, Package, User, Menu
+} from "lucide-react";
+import Logo from "../components/Logo";
+import { Card } from "../components/ui";
 
-function InteractiveRouteSimulator() {
-  const [selectedRoute, setSelectedRoute] = useState(0);
+const POPULAR_INDIAN_CITIES = [
+  "Delhi, DL", "Mumbai, MH", "Bengaluru, KA", "Hyderabad, TG", "Chennai, TN",
+  "Kolkata, WB", "Pune, MH", "Ahmedabad, GJ", "Jaipur, RJ", "Lucknow, UP",
+  "Surat, GJ", "Kanpur, UP", "Nagpur, MH", "Indore, MP", "Thane, MH",
+  "Bhopal, MP", "Visakhapatnam, AP", "Patna, BR", "Vadodara, GJ", "Ghaziabad, UP",
+  "Ludhiana, PB", "Agra, UP", "Nashik, MH", "Faridabad, HR", "Meerut, UP",
+  "Rajkot, GJ", "Varanasi, UP", "Amritsar, PB", "Navi Mumbai, MH", "Coimbatore, TN"
+];
 
-  const routes = [
-    { from: "Mumbai", to: "Delhi", dist: "1,420 km", capacity: "3.5 Tonnes", earnings: "₹18,400", time: "24 hrs" },
-    { from: "Bengaluru", to: "Chennai", dist: "346 km", capacity: "2.0 Tonnes", earnings: "₹6,800", time: "7 hrs" },
-    { from: "Ahmedabad", to: "Jaipur", dist: "657 km", capacity: "4.0 Tonnes", earnings: "₹11,200", time: "12 hrs" },
-  ];
-
-  const current = routes[selectedRoute];
-
+function HeroTruckGraphic() {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-white relative overflow-hidden">
-      <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-        <Route className="w-64 h-64 text-blue-400" />
+    <div className="relative w-full max-w-lg aspect-[4/3] rounded-3xl overflow-hidden bg-gradient-to-b from-amber-50/80 via-white to-amber-100/60 p-4 flex flex-col justify-between border border-amber-200/60 shadow-xl">
+      {/* Background City Skyline & Map Pin */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Yellow Location Pin Overhead */}
+        <div className="absolute top-4 right-12 w-10 h-10 text-[#FFC800] drop-shadow-md">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+        {/* City Skyline Outline */}
+        <div className="absolute bottom-16 inset-x-0 h-24 opacity-15 flex items-end justify-around px-4">
+          <div className="w-8 h-20 bg-slate-900 rounded-t-sm"></div>
+          <div className="w-12 h-28 bg-slate-900 rounded-t-sm"></div>
+          <div className="w-10 h-16 bg-slate-900 rounded-t-sm"></div>
+          <div className="w-16 h-24 bg-slate-900 rounded-t-sm"></div>
+          <div className="w-14 h-32 bg-slate-900 rounded-t-sm"></div>
+        </div>
       </div>
 
-      <div className="relative z-10 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Live AI Route Simulator</span>
-          </div>
-          <Badge tone="accent">94% Match Confidence</Badge>
+      {/* Top Badge Overlay */}
+      <div className="relative z-10 flex items-center justify-between">
+        <div className="bg-white/90 backdrop-blur border border-slate-200/80 rounded-full px-3 py-1 shadow-sm flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">25,000+ Verified Trucks</span>
         </div>
+      </div>
 
-        {/* Route Selector Chips */}
-        <div className="flex flex-wrap gap-2">
-          {routes.map((r, i) => (
-            <button
-              key={r.from + r.to}
-              onClick={() => setSelectedRoute(i)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                selectedRoute === i
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-slate-800 text-slate-400 hover:text-white"
-              }`}
-            >
-              {r.from} ➔ {r.to}
-            </button>
+      {/* Detailed SVG White Container Truck with Redo Branding */}
+      <div className="relative z-10 w-full flex items-center justify-center my-auto">
+        <svg viewBox="0 0 600 320" className="w-full h-auto drop-shadow-2xl overflow-visible">
+          <defs>
+            <linearGradient id="containerGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="100%" stopColor="#F1F5F9" />
+            </linearGradient>
+            <linearGradient id="cabinGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="100%" stopColor="#E2E8F0" />
+            </linearGradient>
+          </defs>
+
+          {/* Shadow underneath */}
+          <ellipse cx="300" cy="275" rx="270" ry="18" fill="#0F172A" opacity="0.25" />
+
+          {/* 1. Large White Container Box */}
+          <rect x="50" y="50" width="340" height="175" rx="8" fill="url(#containerGrad)" stroke="#CBD5E1" strokeWidth="2" />
+          
+          {/* Container Corrugation Vertical Lines */}
+          {[90, 130, 170, 210, 250, 290, 330, 370].map((x) => (
+            <line key={x} x1={x} y1="52" x2={x} y2="223" stroke="#E2E8F0" strokeWidth="1.5" />
           ))}
+
+          {/* Yellow Bottom Accent Stripe on Container */}
+          <rect x="50" y="210" width="340" height="15" fill="#FFC800" />
+
+          {/* EXACT REDO LOGO ON CONTAINER SIDE */}
+          <g transform="translate(90, 95)">
+            {/* Redo Chevron Mark */}
+            <path d="M0 45 L18 5 H33 C42 5 48 11 45 20 C42 27 35 30 28 30 L38 45 H28 L20 30 H16 L10 45 H0 Z" fill="#0F172A" />
+            <path d="M14 12 L20 0 H28 L22 12 H14 Z" fill="#FFC800" />
+            
+            {/* Redo Text */}
+            <text x="56" y="38" fill="#0F172A" fontSize="42" fontFamily="sans-serif" fontWeight="900" letterSpacing="-1">
+              redo
+            </text>
+            <text x="56" y="54" fill="#64748B" fontSize="12" fontFamily="sans-serif" fontWeight="800" letterSpacing="2">
+              TRANSPORT &amp; LOGISTICS
+            </text>
+          </g>
+
+          {/* 2. Truck Cabin */}
+          <path d="M390 90 L460 90 Q495 90 510 135 L525 180 Q530 200 530 225 H390 V90 Z" fill="url(#cabinGrad)" stroke="#94A3B8" strokeWidth="2" />
+
+          {/* Windshield Glass */}
+          <path d="M440 100 L480 100 Q498 100 508 135 L514 150 H440 V100 Z" fill="#1E293B" />
+          
+          {/* Side Mirror */}
+          <rect x="430" y="115" width="8" height="25" rx="3" fill="#0F172A" />
+
+          {/* Front Bumper & Radiator Grille */}
+          <rect x="480" y="165" width="45" height="50" rx="4" fill="#0F172A" />
+          <line x1="485" y1="175" x2="520" y2="175" stroke="#475569" strokeWidth="2" />
+          <line x1="485" y1="185" x2="520" y2="185" stroke="#475569" strokeWidth="2" />
+          <line x1="485" y1="195" x2="520" y2="195" stroke="#475569" strokeWidth="2" />
+
+          {/* License Plate */}
+          <rect x="485" y="202" width="35" height="10" rx="2" fill="#FFC800" />
+          <text x="487" y="210" fill="#0F172A" fontSize="7" fontFamily="sans-serif" fontWeight="900">REDO 2026</text>
+
+          {/* Headlights */}
+          <circle cx="522" cy="180" r="7" fill="#FEF08A" stroke="#EAB308" strokeWidth="2" />
+
+          {/* 3. Wheels */}
+          {/* Rear Wheels */}
+          <circle cx="120" cy="245" r="28" fill="#0F172A" stroke="#334155" strokeWidth="4" />
+          <circle cx="120" cy="245" r="14" fill="#94A3B8" />
+
+          <circle cx="180" cy="245" r="28" fill="#0F172A" stroke="#334155" strokeWidth="4" />
+          <circle cx="180" cy="245" r="14" fill="#94A3B8" />
+
+          {/* Middle Wheels */}
+          <circle cx="310" cy="245" r="28" fill="#0F172A" stroke="#334155" strokeWidth="4" />
+          <circle cx="310" cy="245" r="14" fill="#94A3B8" />
+
+          {/* Front Wheels */}
+          <circle cx="450" cy="245" r="28" fill="#0F172A" stroke="#334155" strokeWidth="4" />
+          <circle cx="450" cy="245" r="14" fill="#94A3B8" />
+        </svg>
+      </div>
+
+      {/* Yellow Curved Road Strip matching Mockup 1 */}
+      <div className="relative z-10 w-full bg-white rounded-2xl p-3 shadow-lg border border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-[#FFC800] text-slate-950 flex items-center justify-center font-black">
+            <Truck size={18} />
+          </div>
+          <div>
+            <span className="text-xs font-black text-slate-900 block">Empty Backhaul Container Trucks</span>
+            <span className="text-[10px] text-slate-500 font-medium">Verified return capacity across India</span>
+          </div>
         </div>
-
-        {/* Route Progress Visual */}
-        <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between text-sm font-bold">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                <Truck className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-white">{current.from} ➔ {current.to}</div>
-                <div className="text-xs font-normal text-slate-400">Return Leg Optimization</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-emerald-400 text-lg font-black">{current.earnings}</div>
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">Est. Extra Income</div>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-slate-400 font-medium">
-              <span>Spare Capacity Matched</span>
-              <span className="text-blue-400 font-bold">{current.capacity}</span>
-            </div>
-            <div className="h-3 rounded-full bg-slate-800 overflow-hidden p-0.5">
-              <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-400 w-3/4 animate-pulse" />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-800">
-            <div className="text-xs text-slate-400 font-semibold">Distance</div>
-            <div className="text-sm font-bold text-white mt-0.5">{current.dist}</div>
-          </div>
-          <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-800">
-            <div className="text-xs text-slate-400 font-semibold">Transit ETA</div>
-            <div className="text-sm font-bold text-white mt-0.5">{current.time}</div>
-          </div>
-          <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-800">
-            <div className="text-xs text-slate-400 font-semibold">CO₂ Offset</div>
-            <div className="text-sm font-bold text-emerald-400 mt-0.5">240 kg</div>
-          </div>
+        <div className="text-right">
+          <span className="text-xs font-black text-emerald-600 block">Bharosa Wahi</span>
+          <span className="text-[10px] text-amber-600 font-bold">Deal Sahi.</span>
         </div>
       </div>
     </div>
@@ -97,216 +150,408 @@ function InteractiveRouteSimulator() {
 
 export default function Landing() {
   const navigate = useNavigate();
-  const [tripsPerMonth, setTripsPerMonth] = useState(6);
+  const [fromLoc, setFromLoc] = useState("Delhi, DL");
+  const [toLoc, setToLoc] = useState("Mumbai, MH");
+  const [truckType, setTruckType] = useState("17 Feet");
+  const [loadType, setLoadType] = useState("Full Truck Load (FTL)");
+  const [dateVal, setDateVal] = useState(new Date().toISOString().split("T")[0]);
+
+  const [fromSuggestions, setFromSuggestions] = useState<string[]>([]);
+  const [toSuggestions, setToSuggestions] = useState<string[]>([]);
+  const [showFromDropdown, setShowFromDropdown] = useState(false);
+  const [showToDropdown, setShowToDropdown] = useState(false);
+
+  const handleFromChange = (val: string) => {
+    setFromLoc(val);
+    if (val.trim().length > 0) {
+      const matches = POPULAR_INDIAN_CITIES.filter((c) =>
+        c.toLowerCase().includes(val.toLowerCase())
+      );
+      setFromSuggestions(matches);
+      setShowFromDropdown(true);
+    } else {
+      setShowFromDropdown(false);
+    }
+  };
+
+  const handleToChange = (val: string) => {
+    setToLoc(val);
+    if (val.trim().length > 0) {
+      const matches = POPULAR_INDIAN_CITIES.filter((c) =>
+        c.toLowerCase().includes(val.toLowerCase())
+      );
+      setToSuggestions(matches);
+      setShowToDropdown(true);
+    } else {
+      setShowToDropdown(false);
+    }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setFromLoc(`Delhi NCR (GPS: ${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`);
+        },
+        () => {
+          setFromLoc("Delhi, DL (Current Location)");
+        }
+      );
+    } else {
+      setFromLoc("Delhi, DL (Current Location)");
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    navigate(`/book?from=${encodeURIComponent(fromLoc)}&to=${encodeURIComponent(toLoc)}&type=${encodeURIComponent(truckType)}&load=${encodeURIComponent(loadType)}&date=${dateVal}`);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
-      {/* Top Header Navigation */}
-      <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Logo dark />
-          <nav className="hidden md:flex items-center gap-6 text-xs font-bold text-slate-400" aria-label="Landing Navigation">
-            <a href="#how" className="hover:text-white transition">How It Works</a>
-            <a href="#calculator" className="hover:text-white transition">Backhaul Calculator</a>
-            <a href="#owners" className="hover:text-white transition">For Fleet Owners</a>
-            <a href="#smes" className="hover:text-white transition">For SME Shippers</a>
+    <div className="min-h-screen bg-[#FAF9F6] text-slate-900 font-sans selection:bg-amber-400">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200/80 shadow-sm">
+        <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
+          <Link to="/">
+            <Logo />
+          </Link>
+          <nav className="hidden lg:flex items-center gap-8 text-xs font-bold text-slate-700">
+            <a href="#book" className="hover:text-amber-500 transition border-b-2 border-amber-400 pb-0.5">Home</a>
+            <a href="#book" className="hover:text-amber-500 transition">Book a Truck</a>
+            <Link to="/shipments" className="hover:text-amber-500 transition">My Bookings</Link>
+            <Link to="/shipments" className="hover:text-amber-500 transition">Live Tracking</Link>
+            <Link to="/rate-card" className="hover:text-amber-500 transition">Services</Link>
+            <Link to="/rate-card" className="hover:text-amber-500 transition">Pricing</Link>
           </nav>
           <div className="flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost" className="!text-slate-300 hover:!text-white hover:!bg-slate-800 !text-xs !font-bold">
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button className="!bg-blue-600 hover:!bg-blue-500 !text-white !text-xs !font-bold shadow-lg shadow-blue-600/20">
-                Quick Demo Access
-              </Button>
-            </Link>
+            <button
+              onClick={() => navigate("/login")}
+              className="rounded-xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 px-5 py-2.5 text-xs font-black transition shadow-sm flex items-center gap-2"
+            >
+              <User size={14} /> Login / Sign Up
+            </button>
+            <button className="lg:hidden text-slate-700 p-2">
+              <Menu size={20} />
+            </button>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 sm:pt-24 pb-20 max-w-7xl mx-auto px-4 sm:px-6">
-        {/* Glow Spheres */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <section className="relative max-w-7xl mx-auto px-6 pt-8 pb-12 grid gap-8 lg:grid-cols-[380px_1fr] items-center">
+        {/* Left Search Widget */}
+        <Card id="book" className="p-6 bg-white border border-slate-200/80 rounded-3xl shadow-xl space-y-4 relative z-20">
+          <div>
+            <h2 className="font-black text-slate-900 text-lg tracking-tight">Book an Empty Truck</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Find and book the best truck for your cargo</p>
+          </div>
 
-        <div className="grid lg:grid-cols-12 gap-12 items-center">
-          <div className="lg:col-span-6 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Smart Backhaul & Partial Cargo Matching Engine</span>
+          <form onSubmit={handleSearch} className="space-y-3">
+            {/* From */}
+            <div className="relative space-y-1">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 focus-within:ring-2 focus-within:ring-amber-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 mr-2.5"></span>
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase">From</label>
+                  <input
+                    type="text"
+                    value={fromLoc}
+                    onChange={(e) => handleFromChange(e.target.value)}
+                    onFocus={() => setShowFromDropdown(true)}
+                    placeholder="Enter pickup location"
+                    className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none placeholder-slate-400"
+                  />
+                </div>
+                <button type="button" onClick={handleUseCurrentLocation} title="Use GPS" className="text-slate-400 hover:text-amber-600 p-1">
+                  <Navigation size={14} />
+                </button>
+              </div>
+
+              {showFromDropdown && fromSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto py-1">
+                  {fromSuggestions.map((city) => (
+                    <div
+                      key={city}
+                      onClick={() => {
+                        setFromLoc(city);
+                        setShowFromDropdown(false);
+                      }}
+                      className="px-3 py-2 text-xs font-medium text-slate-700 hover:bg-amber-50 hover:text-slate-950 cursor-pointer flex items-center gap-2"
+                    >
+                      <MapPin size={12} className="text-amber-500" /> {city}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.1]">
-              Make Every <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Return Leg</span> Earn Revenue.
-            </h1>
+            {/* To */}
+            <div className="relative space-y-1">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 focus-within:ring-2 focus-within:ring-amber-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 mr-2.5"></span>
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase">To</label>
+                  <input
+                    type="text"
+                    value={toLoc}
+                    onChange={(e) => handleToChange(e.target.value)}
+                    onFocus={() => setShowToDropdown(true)}
+                    placeholder="Enter delivery location"
+                    className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none placeholder-slate-400"
+                  />
+                </div>
+                <span className="text-slate-400 p-1"><MapPin size={14} /></span>
+              </div>
 
-            <p className="text-slate-400 text-base sm:text-lg leading-relaxed max-w-xl font-normal">
-              We don't search for new trucks — we pair partial SME freight with verified trucks <span className="text-slate-200 font-semibold">already returning empty on the exact same route</span>.
+              {showToDropdown && toSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto py-1">
+                  {toSuggestions.map((city) => (
+                    <div
+                      key={city}
+                      onClick={() => {
+                        setToLoc(city);
+                        setShowToDropdown(false);
+                      }}
+                      className="px-3 py-2 text-xs font-medium text-slate-700 hover:bg-amber-50 hover:text-slate-950 cursor-pointer flex items-center gap-2"
+                    >
+                      <MapPin size={12} className="text-emerald-500" /> {city}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Truck Type */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2">
+              <Truck size={16} className="text-slate-500 mr-2.5" />
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase">Truck Type</label>
+                <select
+                  value={truckType}
+                  onChange={(e) => setTruckType(e.target.value)}
+                  className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
+                >
+                  <option value="Mini Truck">Mini Truck (1.5 Ton)</option>
+                  <option value="Pickup">Pickup (2 Ton)</option>
+                  <option value="14 Feet">14 Feet (5 Ton)</option>
+                  <option value="17 Feet">17 Feet (7 Ton)</option>
+                  <option value="19 Feet">19 Feet (10 Ton)</option>
+                  <option value="24 Feet">24 Feet (15 Ton)</option>
+                  <option value="32 Feet">32 Feet (21 Ton)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Load Type */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2">
+              <Package size={16} className="text-slate-500 mr-2.5" />
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase">Load Type</label>
+                <select
+                  value={loadType}
+                  onChange={(e) => setLoadType(e.target.value)}
+                  className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
+                >
+                  <option value="Full Truck Load (FTL)">Full Truck Load (FTL)</option>
+                  <option value="Part Load (LTL)">Part Load (LTL / Backhaul)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* When */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2">
+              <CalendarCheck size={16} className="text-slate-500 mr-2.5" />
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase">When</label>
+                <input
+                  type="date"
+                  value={dateVal}
+                  onChange={(e) => setDateVal(e.target.value)}
+                  className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="mt-2 w-full rounded-xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 py-3 font-black text-sm transition shadow-md flex items-center justify-center gap-2"
+            >
+              Search Trucks
+            </button>
+          </form>
+        </Card>
+
+        {/* Hero Title & White Container Truck Graphic matching Mockup 1 */}
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative">
+          <div className="space-y-6 max-w-xl">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-950 tracking-tight leading-none">
+              Bharosa Wahi, <br />
+              <span className="text-[#FFC800]">Deal Sahi.</span>
+            </h1>
+            <p className="text-base text-slate-600 font-medium">
+              Book empty trucks easily for your cargo across India.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Button
-                onClick={() => navigate("/login")}
-                className="!bg-blue-600 hover:!bg-blue-500 !text-white !py-3.5 !px-6 !rounded-2xl !font-bold shadow-xl shadow-blue-600/25 flex items-center gap-2"
-              >
-                <span>Ship Freight / Find Return Cargo</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Impact Pill */}
-            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/90 text-xs text-slate-400 flex items-start gap-3">
-              <BarChart3 className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-200">NITI Aayog Freight Benchmark:</span> Up to <span className="text-white font-bold">43% of truck kilometres</span> in India run empty. REDO eliminates this deadhaul waste.
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-6">
-            <InteractiveRouteSimulator />
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Backhaul ROI Calculator */}
-      <section id="calculator" className="py-16 bg-slate-900/60 border-y border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="max-w-3xl mx-auto text-center space-y-3 mb-10">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
-              <Calculator className="w-3.5 h-3.5" />
-              <span>Backhaul Earnings Calculator</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">How much can your fleet earn?</h2>
-            <p className="text-sm text-slate-400">Estimate extra monthly revenue generated by filling empty return trips with REDO.</p>
-          </div>
-
-          <div className="max-w-xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6">
-            <div>
-              <div className="flex justify-between items-center text-xs font-bold text-slate-300 mb-2">
-                <span>Monthly Return Legs:</span>
-                <span className="text-blue-400 text-base font-extrabold">{tripsPerMonth} Trips / month</span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="25"
-                value={tripsPerMonth}
-                onChange={(e) => setTripsPerMonth(Number(e.target.value))}
-                className="w-full accent-blue-600 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <div className="text-xs text-slate-400 font-semibold">Extra Monthly Revenue</div>
-                <div className="text-2xl font-black text-emerald-400 mt-1">₹{(tripsPerMonth * 14200).toLocaleString()}</div>
-              </div>
-              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <div className="text-xs text-slate-400 font-semibold">CO₂ Emissions Saved</div>
-                <div className="text-2xl font-black text-blue-400 mt-1">{(tripsPerMonth * 0.38).toFixed(1)} Tonnes</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works Grid */}
-      <section id="how" className="py-20 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center space-y-3 mb-14">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">How REDO Backhaul Works</h2>
-          <p className="text-sm text-slate-400 max-w-lg mx-auto">Three seamless steps to match unused truck capacity with partial SME cargo.</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {[
-            {
-              num: "01",
-              title: "Post Trip / Cargo",
-              desc: "Truck owners list empty return legs with spare tonnage capacity. SMEs list 1–5 tonne partial shipments.",
-              icon: Truck,
-            },
-            {
-              num: "02",
-              title: "ML Match & Rank",
-              desc: "Hard route & timing filters narrow candidates; ML algorithms score and rank top cost-effective matches.",
-              icon: Route,
-            },
-            {
-              num: "03",
-              title: "Deliver & Trust",
-              desc: "Digital OTP pickup, real-time GPS tracking, electronic proof of delivery (e-POD), and green impact reporting.",
-              icon: ShieldCheck,
-            },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.num} className="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl relative hover:border-slate-700 transition">
-                <div className="text-4xl font-black text-slate-800 mb-4">{item.num}</div>
-                <div className="w-12 h-12 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-5">
-                  <Icon className="w-6 h-6" />
+            <div className="grid grid-cols-3 gap-4 pt-2">
+              <div className="space-y-2">
+                <div className="w-10 h-10 rounded-full bg-amber-100 text-slate-950 flex items-center justify-center font-bold">
+                  <ShieldCheck size={20} className="text-amber-600" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+                <div>
+                  <h4 className="font-bold text-xs text-slate-900">Verified & Trusted</h4>
+                  <p className="text-[10px] text-slate-500">100% verified truck owners</p>
+                </div>
               </div>
-            );
-          })}
+
+              <div className="space-y-2">
+                <div className="w-10 h-10 rounded-full bg-amber-100 text-slate-950 flex items-center justify-center font-bold">
+                  <Tag size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-slate-900">Best Prices</h4>
+                  <p className="text-[10px] text-slate-500">Compare and book at best prices</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="w-10 h-10 rounded-full bg-amber-100 text-slate-950 flex items-center justify-center font-bold">
+                  <Clock size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-slate-900">Quick & Easy</h4>
+                  <p className="text-[10px] text-slate-500">Book in just a few clicks</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Render Vector White Container Truck Graphic with Redo Branding */}
+          <HeroTruckGraphic />
         </div>
       </section>
 
-      {/* Role Comparison */}
-      <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8">
-        <div id="owners" className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400">
-              <Truck className="w-6 h-6" />
+      {/* Stats Bar */}
+      <section className="max-w-6xl mx-auto px-6 py-4">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+              <Users size={20} />
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">For Fleet & Truck Owners</h3>
-              <p className="text-xs text-slate-400">Monetize empty return trips</p>
+            <div className="text-left">
+              <span className="text-xl font-black text-slate-900 block">10K+</span>
+              <span className="text-xs text-slate-500 font-semibold">Happy Customers</span>
             </div>
           </div>
-          <ul className="space-y-3 text-xs text-slate-300 font-medium">
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Earn up to ₹18,000 extra per return leg</li>
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Guaranteed partial load payouts & fast escrow</li>
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Flexible departure times & capacity controls</li>
-          </ul>
-          <Button onClick={() => navigate("/login")} className="w-full !bg-emerald-600 hover:!bg-emerald-500 !text-white !font-bold">
-            Sign In as Fleet Owner
-          </Button>
-        </div>
 
-        <div id="smes" className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400">
-              <PackageCheck className="w-6 h-6" />
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+              <Truck size={20} />
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">For SME Shippers</h3>
-              <p className="text-xs text-slate-400">Ship sub-tonne freight affordably</p>
+            <div className="text-left">
+              <span className="text-xl font-black text-slate-900 block">50K+</span>
+              <span className="text-xs text-slate-500 font-semibold">Trips Completed</span>
             </div>
           </div>
-          <ul className="space-y-3 text-xs text-slate-300 font-medium">
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400" /> Pay only for your cargo weight, not full truck</li>
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400" /> Verified truck drivers & GPS live tracking</li>
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400" /> Automated digital proof of delivery (e-POD)</li>
-          </ul>
-          <Button onClick={() => navigate("/login")} className="w-full !bg-blue-600 hover:!bg-blue-500 !text-white !font-bold">
-            Sign In as SME Shipper
-          </Button>
+
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+              <ShieldCheck size={20} />
+            </div>
+            <div className="text-left">
+              <span className="text-xl font-black text-slate-900 block">25K+</span>
+              <span className="text-xs text-slate-500 font-semibold">Verified Trucks</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+              <MapPin size={20} />
+            </div>
+            <div className="text-left">
+              <span className="text-xl font-black text-slate-900 block">29+</span>
+              <span className="text-xs text-slate-500 font-semibold">Cities Covered</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 py-8 bg-slate-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
-          <span>REDO Commercial Backhaul Platform · Match. Consolidate. Track. Optimize.</span>
-          <span>Built for Smart India Hackathon</span>
+      {/* How Redo Works? */}
+      <section id="how" className="max-w-6xl mx-auto px-6 py-16 text-center space-y-12">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">How Redo Works?</h2>
+          <p className="text-xs text-slate-500 mt-1">Simple 4-step process to book your truck or load</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
+          <div className="space-y-3 flex flex-col items-center">
+            <div className="w-14 h-14 rounded-full bg-[#FFF7D6] text-slate-900 font-black text-lg flex items-center justify-center shadow-sm border border-amber-300">
+              1
+            </div>
+            <h3 className="font-bold text-sm text-slate-900">Enter Locations</h3>
+            <p className="text-xs text-slate-500 max-w-[200px]">Add your pickup and delivery locations</p>
+          </div>
+
+          <div className="space-y-3 flex flex-col items-center">
+            <div className="w-14 h-14 rounded-full bg-[#FFF7D6] text-slate-900 font-black text-lg flex items-center justify-center shadow-sm border border-amber-300">
+              2
+            </div>
+            <h3 className="font-bold text-sm text-slate-900">Choose Truck</h3>
+            <p className="text-xs text-slate-500 max-w-[200px]">Select the right truck for your cargo</p>
+          </div>
+
+          <div className="space-y-3 flex flex-col items-center">
+            <div className="w-14 h-14 rounded-full bg-[#FFF7D6] text-slate-900 font-black text-lg flex items-center justify-center shadow-sm border border-amber-300">
+              3
+            </div>
+            <h3 className="font-bold text-sm text-slate-900">Confirm Booking</h3>
+            <p className="text-xs text-slate-500 max-w-[200px]">Review details and confirm your booking</p>
+          </div>
+
+          <div className="space-y-3 flex flex-col items-center">
+            <div className="w-14 h-14 rounded-full bg-[#FFF7D6] text-slate-900 font-black text-lg flex items-center justify-center shadow-sm border border-amber-300">
+              4
+            </div>
+            <h3 className="font-bold text-sm text-slate-900">Truck on the Way</h3>
+            <p className="text-xs text-slate-500 max-w-[200px]">Track your truck and deliver your cargo safely</p>
+          </div>
+        </div>
+      </section>
+
+      {/* For Truck Owners Banner */}
+      <section id="owners" className="border-t border-slate-200 bg-white py-12">
+        <div className="max-w-6xl mx-auto px-6 grid gap-6 md:grid-cols-2">
+          <Card className="p-6 bg-[#FAF9F6] border border-amber-200/80 rounded-3xl">
+            <h3 className="text-lg font-extrabold text-slate-900">
+              More Loads. <span className="text-amber-500">More Earnings.</span>
+            </h3>
+            <p className="mt-1 text-xs text-slate-600">List your truck, fill your empty return trips and grow your business with Redo.</p>
+            <button
+              onClick={() => navigate("/signup?role=truck_owner")}
+              className="mt-4 rounded-xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 px-5 py-2.5 text-xs font-black shadow-sm transition"
+            >
+              List My Truck
+            </button>
+          </Card>
+
+          <Card className="p-6 bg-[#FAF9F6] border border-slate-200 rounded-3xl">
+            <h3 className="text-lg font-extrabold text-slate-900">Ship cargo affordably across India</h3>
+            <p className="mt-1 text-xs text-slate-600">Full load or part load? Pay only for the return capacity you use on verified trucks.</p>
+            <button
+              onClick={() => navigate("/signup?role=sme")}
+              className="mt-4 rounded-xl border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white px-5 py-2.5 text-xs font-black transition"
+            >
+              Book Cargo Transport
+            </button>
+          </Card>
+        </div>
+      </section>
+
+      <footer className="border-t border-slate-200 bg-white py-6">
+        <div className="max-w-6xl mx-auto px-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <span>© 2026 Redo Transport &amp; Logistics · Bharosa Wahi, Deal Sahi.</span>
+          <span>Smart Logistics Platform</span>
         </div>
       </footer>
     </div>
   );
 }
-
