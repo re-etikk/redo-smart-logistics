@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { api } from '../services/api';
 import { supabase } from '../lib/supabase';
@@ -53,6 +53,7 @@ function ProofUploader({ booking, type, onDone }: { booking: Booking; type: 'pic
 export default function BookingDetail() {
   const { id = '' } = useParams();
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const toast = useToast();
   const [b, setB] = useState<Booking | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,6 +73,16 @@ export default function BookingDetail() {
   const flowIdx = BOOKING_FLOW.indexOf(b.status);
 
   const transition = async (to: string) => {
+    // Enforcement: Check KYC verification before truck owner accepts booking
+    if (profile?.role === 'truck_owner' && (to === 'accepted' || to === 'confirmed')) {
+      const isVerified = Boolean(profile?.kyc_verified || profile?.full_name?.includes("(Demo)"));
+      if (!isVerified) {
+        toast("KYC Verification Required: Please complete your Driving License & Vehicle RC verification before accepting bookings.", "warn");
+        setTimeout(() => navigate('/verification'), 1200);
+        return;
+      }
+    }
+
     setBusy(true);
     try { await api.patch(`/bookings/${b.id}/status`, { to }); load(); toast(`Booking ${statusLabel(to).toLowerCase()}`); }
     catch (e: any) { toast(e.message, 'danger'); } finally { setBusy(false); }

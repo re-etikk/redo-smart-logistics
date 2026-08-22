@@ -3,6 +3,7 @@ export type Role = "truck_owner" | "sme";
 export interface Profile {
   id: string; full_name: string; phone?: string; role: Role;
   company_name?: string; avatar_url?: string; onboarding_complete: boolean;
+  kyc_verified?: boolean; dl_number?: string; aadhaar_number?: string; rc_number?: string; face_verified?: boolean;
 }
 
 export interface Recommendation {
