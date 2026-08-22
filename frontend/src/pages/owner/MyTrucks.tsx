@@ -111,7 +111,11 @@ export default function MyTrucks() {
       statusFilter === "all" ||
       (statusFilter === "active" && t.status === "Active") ||
       (statusFilter === "inactive" && t.status === "Inactive");
-    return matchesSearch && matchesStatus;
+    const matchesType =
+      typeFilter === "all" ||
+      t.type.toLowerCase().includes(typeFilter.toLowerCase()) ||
+      t.name.toLowerCase().includes(typeFilter.toLowerCase());
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   return (
