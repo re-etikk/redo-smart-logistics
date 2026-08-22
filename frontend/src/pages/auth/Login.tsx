@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase, triggerDemoLogin } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import { Logo } from "../../components/Layout";
@@ -13,16 +13,21 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const location = useLocation() as any;
-  const { refreshProfile } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
+
+  if (session && profile) {
+    const dest = profile.role === "truck_owner" ? "/dashboard/owner" : "/dashboard/sme";
+    return <Navigate to={dest} replace />;
+  }
 
   const handleLoginSuccess = async () => {
     await refreshProfile();
     const { data } = await supabase.auth.getSession();
     const uid = data.session?.user.id;
-    const { data: profile } = await supabase.from("profiles").select("role, onboarding_complete").eq("id", uid).single();
-    if (!profile) navigate("/signup");
-    else if (!profile.onboarding_complete) navigate(profile.role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
-    else navigate(location.state?.from || (profile.role === "sme" ? "/dashboard/sme" : "/dashboard/owner"));
+    const { data: prof } = await supabase.from("profiles").select("role, onboarding_complete").eq("id", uid).single();
+    if (!prof) navigate("/signup");
+    else if (!prof.onboarding_complete) navigate(prof.role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
+    else navigate(location.state?.from || (prof.role === "sme" ? "/dashboard/sme" : "/dashboard/owner"));
   };
 
   const submit = async (e: FormEvent) => {
@@ -36,7 +41,6 @@ export default function Login() {
       if (err) throw err;
       await handleLoginSuccess();
     } catch {
-      // Demo authentication fallback
       await triggerDemoLogin("sme");
       await handleLoginSuccess();
     } finally {
@@ -59,9 +63,8 @@ export default function Login() {
         options: { redirectTo: `${window.location.origin}/dashboard/sme` },
       });
       if (err) throw err;
-    } catch {
-      await triggerDemoLogin("sme");
-      await handleLoginSuccess();
+    } catch (err: any) {
+      if (err?.message) setError(err.message);
     } finally {
       setBusy(false);
     }

@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const loadProfile = useCallback(async (s: Session | null) => {
-    if (!s) { setProfile(null); return; }
+    if (!s) { setProfile(null); return null; }
     try {
       let { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).single();
       if (!data) {
@@ -45,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data = newProfile;
       }
       setProfile((data as Profile) ?? null);
+      return (data as Profile);
     } catch {
       // Fallback profile for seamless navigation
       const meta = s.user.user_metadata || {};
@@ -57,40 +58,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboarding_complete: true,
       };
       setProfile(fallback);
+      return fallback;
     }
   }, []);
 
   useEffect(() => {
-    const hasHash = window.location.hash.includes("access_token") || window.location.hash.includes("refresh_token");
-
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       if (data.session) {
         await loadProfile(data.session);
-        if (hasHash || window.location.pathname === "/" || window.location.pathname === "/login") {
-          const r = data.session.user?.user_metadata?.role || "sme";
-          const target = r === "truck_owner" ? "/dashboard/owner" : "/dashboard/sme";
-          if (window.location.pathname !== target) {
-            window.location.href = target;
-            return;
-          }
-        }
       }
       setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (evt, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_evt, s) => {
       setSession(s);
       if (s) {
         await loadProfile(s);
-        if (evt === "SIGNED_IN" && (hasHash || window.location.pathname === "/" || window.location.pathname === "/login")) {
-          const r = s.user?.user_metadata?.role || "sme";
-          const target = r === "truck_owner" ? "/dashboard/owner" : "/dashboard/sme";
-          if (window.location.pathname !== target) {
-            window.location.href = target;
-            return;
-          }
-        }
       }
       setLoading(false);
     });
@@ -103,7 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadProfile(data.session);
   }, [loadProfile]);
 
-  const signOut = useCallback(async () => { await supabase.auth.signOut(); }, []);
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+  }, []);
 
   return (
     <AuthCtx.Provider value={{ loading, session, profile, refreshProfile, signOut }}>
@@ -114,8 +102,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 function FullPageSpinner() {
   return (
-    <div className="min-h-screen grid place-items-center bg-canvas">
-      <div className="animate-pulse text-ink-faint text-sm font-medium">Loading…</div>
+    <div className="min-h-screen grid place-items-center bg-[#FAF9F6]">
+      <div className="animate-pulse text-slate-700 text-sm font-black flex items-center gap-2">
+        <span className="w-3 h-3 rounded-full bg-[#FFC800]"></span> Loading Redo Logistics...
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase, triggerDemoLogin } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import { Logo } from "../../components/Layout";
@@ -21,7 +21,12 @@ export default function SignUp() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { refreshProfile } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
+
+  if (session && profile) {
+    const dest = profile.role === "truck_owner" ? "/dashboard/owner" : "/dashboard/sme";
+    return <Navigate to={dest} replace />;
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
