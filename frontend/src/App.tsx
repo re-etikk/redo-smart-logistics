@@ -12,6 +12,7 @@ import MyTrucks from './pages/owner/MyTrucks';
 import AvailableLoads from './pages/owner/AvailableLoads';
 import Earnings from './pages/owner/Earnings';
 import Trips from './pages/owner/Trips';
+import Payments from './pages/owner/Payments';
 import Reviews from './pages/owner/Reviews';
 import SmeDashboard from './pages/sme/Dashboard';
 import BookShipment from './pages/sme/BookShipment';
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="/loads" element={<Protected role="truck_owner"><AvailableLoads /></Protected>} />
             <Route path="/earnings" element={<Protected role="truck_owner"><Earnings /></Protected>} />
             <Route path="/trips" element={<Protected role="truck_owner"><Trips /></Protected>} />
+            <Route path="/payments" element={<Protected role="truck_owner"><Payments /></Protected>} />
             <Route path="/reviews" element={<Protected role="truck_owner"><Reviews /></Protected>} />
             <Route path="/documents" element={<Protected role="truck_owner"><Documents /></Protected>} />
 
