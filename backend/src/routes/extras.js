@@ -167,3 +167,5 @@ extrasRouter.get('/reviews', async (req, res, next) => {
     })));
   } catch (e) { next(e); }
 });
+
+export default extrasRouter;
