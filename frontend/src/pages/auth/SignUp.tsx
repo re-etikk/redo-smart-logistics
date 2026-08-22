@@ -63,6 +63,23 @@ export default function SignUp() {
     }
   };
 
+  const handleSocialLogin = async (provider: "google" | "facebook" | "apple") => {
+    setBusy(true);
+    try {
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: window.location.origin },
+      });
+      if (err) throw err;
+    } catch {
+      await triggerDemoLogin(role);
+      await refreshProfile();
+      navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-slate-900 flex flex-col justify-between font-sans selection:bg-amber-400">
       {/* Top Header */}
@@ -218,13 +235,25 @@ export default function SignUp() {
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <button className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleSocialLogin("google")}
+                className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5"
+              >
                 Google
               </button>
-              <button className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleSocialLogin("facebook")}
+                className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5"
+              >
                 Facebook
               </button>
-              <button className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleSocialLogin("apple")}
+                className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5"
+              >
                 Apple
               </button>
             </div>

@@ -36,9 +36,8 @@ import Diagnostics from './pages/Diagnostics';
 function Home() {
   const { session, profile, loading } = useAuth();
   if (loading) return null;
-  if (session && profile?.onboarding_complete) {
-    const dest = profile.role === 'sme' ? '/dashboard/sme'
-      : profile.role === 'admin' ? '/admin' : '/dashboard/owner';
+  if (session) {
+    const dest = profile?.role === 'truck_owner' ? '/dashboard/owner' : '/dashboard/sme';
     return <Navigate to={dest} replace />;
   }
   return <Landing />;
