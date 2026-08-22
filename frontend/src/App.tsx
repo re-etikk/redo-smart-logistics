@@ -18,6 +18,7 @@ import Payments from './pages/owner/Payments';
 import OwnerDocuments from './pages/owner/Documents';
 import Reviews from './pages/owner/Reviews';
 import OwnerSupport from './pages/owner/Support';
+import OwnerBookings from './pages/owner/Bookings';
 import OwnerSettings from './pages/owner/Settings';
 
 // Customer / Shipper dedicated pages
@@ -98,7 +99,7 @@ export default function App() {
             <Route path="/owner/reviews" element={<Protected role="truck_owner"><Reviews /></Protected>} />
             <Route path="/owner/support" element={<Protected role="truck_owner"><OwnerSupport /></Protected>} />
             <Route path="/owner/settings" element={<Protected role="truck_owner"><OwnerSettings /></Protected>} />
-            <Route path="/owner/bookings" element={<Protected role="truck_owner"><Bookings /></Protected>} />
+            <Route path="/owner/bookings" element={<Protected role="truck_owner"><OwnerBookings /></Protected>} />
 
             {/* Admin */}
             <Route path="/admin" element={<Protected role="admin"><AdminDashboard /></Protected>} />
