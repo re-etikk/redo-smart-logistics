@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Truck, CalendarCheck, IndianRupee, MapPin, CreditCard,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../hooks/useAuth";
+import { getWallet } from "../lib/walletStore";
 
 interface OwnerLayoutProps {
   children: ReactNode;
@@ -26,6 +27,13 @@ export default function OwnerLayout({
   const location = useLocation();
   const { profile, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(() => getWallet().balance);
+
+  useEffect(() => {
+    const update = () => setWalletBalance(getWallet().balance);
+    window.addEventListener("redo_wallet_updated", update);
+    return () => window.removeEventListener("redo_wallet_updated", update);
+  }, []);
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -83,13 +91,17 @@ export default function OwnerLayout({
           {/* Header Right Actions */}
           <div className="flex items-center gap-3">
             {/* Wallet Balance Chip */}
-            <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+            <Link
+              to="/payments"
+              className="hidden sm:flex items-center gap-2 bg-slate-50 hover:bg-amber-50/60 border border-slate-200 hover:border-amber-300 rounded-xl px-3 py-1.5 shadow-sm transition cursor-pointer"
+              title="Click to manage wallet and payouts"
+            >
               <Wallet size={15} className="text-amber-500" />
               <div>
                 <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block leading-none">Wallet Balance</span>
-                <span className="text-xs font-black text-slate-900">₹24,560</span>
+                <span className="text-xs font-black text-slate-900">₹{walletBalance.toLocaleString("en-IN")}</span>
               </div>
-            </div>
+            </Link>
 
             {/* Notifications Bell */}
             <button
