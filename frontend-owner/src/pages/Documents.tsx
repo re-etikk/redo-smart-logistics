@@ -1,217 +1,402 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  FileText, CheckCircle2, Clock, AlertTriangle, Upload, Search, Filter, Eye, Download, HardDrive
+  FileText, CheckCircle2, Clock, AlertTriangle, Upload, Search, Filter, Eye,
+  Download, HardDrive, Plus, ShieldCheck, X, Check, ArrowRight
 } from "lucide-react";
 import OwnerLayout from "../components/OwnerLayout";
+import {
+  getDocuments, uploadDocument, getKycStatus,
+  type DocumentItem, type KycStatus
+} from "../lib/documentStore";
 
 export default function OwnerDocuments() {
+  const [documents, setDocuments] = useState<DocumentItem[]>(getDocuments());
+  const [kycStatus, setKycStatus] = useState<KycStatus>(getKycStatus());
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
-  const docList = [
-    { id: "D1", title: "RC (Registration Certificate)", desc: "HR55 AB 1234", expiry: "Expiry: 18 Aug 2026", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "pdf", category: "vehicle" },
-    { id: "D2", title: "Insurance Certificate", desc: "Bajaj Allianz", expiry: "Expiry: 20 Sep 2026", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "pdf", category: "insurance" },
-    { id: "D3", title: "PUC Certificate", desc: "HR55 AB 1234", expiry: "Expiry: 10 Jul 2026", status: "Expiring Soon", statusTone: "bg-amber-100 text-amber-800", type: "pdf", category: "vehicle" },
-    { id: "D4", title: "Driving License", desc: "Owner: Rohit Sharma", expiry: "Expiry: 28 Jan 2028", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "jpg", category: "owner" },
-    { id: "D5", title: "Permit (National)", desc: "All India Permit", expiry: "Expiry: 05 Oct 2026", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "pdf", category: "permits" },
-    { id: "D6", title: "Fitness Certificate", desc: "HR55 AB 1234", expiry: "Expiry: 12 Sep 2026", status: "Expiring Soon", statusTone: "bg-amber-100 text-amber-800", type: "pdf", category: "vehicle" },
-    { id: "D7", title: "Tax Token", desc: "HR55 AB 1234", expiry: "Expiry: 31 Mar 2026", status: "Expired", statusTone: "bg-rose-100 text-rose-800", type: "pdf", category: "vehicle" },
-    { id: "D8", title: "Owner ID Proof", desc: "Aadhar Card", expiry: "Expiry: — (Permanent)", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "jpg", category: "owner" },
-    { id: "D9", title: "Bank Details", desc: "Account Linked", expiry: "Updated: 10 May 2024", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "pdf", category: "owner" },
-    { id: "D10", title: "Vehicle Photo", desc: "Updated: 15 May 2024", expiry: "Valid", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "jpg", category: "vehicle" },
-    { id: "D11", title: "Pollution Norms", desc: "BS6 Compliance", expiry: "Expiry: 10 Jul 2026", status: "Valid", statusTone: "bg-emerald-100 text-emerald-800", type: "pdf", category: "vehicle" },
-  ];
+  // Modals
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
+
+  // Upload Form
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadForm, setUploadForm] = useState({
+    title: "Commercial Driving License (DL)",
+    desc: "DL Number / State RTO",
+    category: "owner" as const,
+    fileUrl: "",
+    fileName: "",
+  });
+
+  const refresh = () => {
+    setDocuments(getDocuments());
+    setKycStatus(getKycStatus());
+  };
+
+  useEffect(() => {
+    refresh();
+    window.addEventListener("redo_docs_updated", refresh);
+    return () => window.removeEventListener("redo_docs_updated", refresh);
+  }, []);
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setUploadForm(prev => ({
+          ...prev,
+          fileUrl: event.target!.result as string,
+          fileName: file.name
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const docId = `DOC-${uploadForm.title.split(" ")[0].toUpperCase()}`;
+    uploadDocument(docId, {
+      title: uploadForm.title,
+      desc: uploadForm.desc || "Verified Commercial Document",
+      fileUrl: uploadForm.fileUrl || "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80",
+    });
+
+    setIsUploadOpen(false);
+    refresh();
+  };
+
+  const filteredDocs = documents.filter((doc) => {
+    const matchesSearch =
+      doc.title.toLowerCase().includes(search.toLowerCase()) ||
+      doc.desc.toLowerCase().includes(search.toLowerCase()) ||
+      doc.category.toLowerCase().includes(search.toLowerCase());
+
+    const matchesTab =
+      activeTab === "all" ||
+      (activeTab === "vehicle" && doc.category === "vehicle") ||
+      (activeTab === "insurance" && doc.category === "insurance") ||
+      (activeTab === "owner" && doc.category === "owner") ||
+      (activeTab === "permits" && doc.category === "permits");
+
+    return matchesSearch && matchesTab;
+  });
+
+  const validCount = documents.filter(d => d.status === "Valid").length;
+  const expiringSoonCount = documents.filter(d => d.status === "Expiring Soon").length;
+  const expiredCount = documents.filter(d => d.status === "Expired" || d.status === "Missing").length;
 
   return (
     <OwnerLayout activeTab="documents" promoCardType="refer">
       <div className="space-y-6">
-        {/* Header Title matching Mockup 7 */}
+        {/* Header Title */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Documents</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage all your truck and owner documents in one place.</p>
+            <h1 className="text-2xl font-black tracking-tight">Compliance &amp; KYC Documents</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Upload your RC, Insurance, Driving License &amp; National Permits to get verified.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-64">
-              <Search size={14} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search documents..."
-                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
+          <button
+            onClick={() => setIsUploadOpen(true)}
+            className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl shadow-md transition text-xs flex items-center gap-2 cursor-pointer"
+          >
+            <Upload size={15} /> Upload New Document
+          </button>
+        </div>
+
+        {/* KYC Verification Banner Card */}
+        <div className={`p-6 rounded-3xl border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+          kycStatus.isFullyVerified
+            ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-300"
+            : "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-300"
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl shrink-0 shadow-sm ${
+              kycStatus.isFullyVerified ? "bg-emerald-500 text-white" : "bg-amber-400 text-slate-950"
+            }`}>
+              {kycStatus.isFullyVerified ? <ShieldCheck size={26} /> : <AlertTriangle size={24} />}
             </div>
-            <button className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">
-              <Filter size={16} />
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black">
+                  {kycStatus.isFullyVerified ? "KYC Verification Complete (100%)" : "KYC Documents Verification in Progress"}
+                </h3>
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-white/80 dark:bg-slate-900 border border-current shadow-xs">
+                  {kycStatus.verifiedCount} of {kycStatus.totalRequired} Mandatory Verified
+                </span>
+              </div>
+              <p className="text-xs opacity-85 mt-0.5">
+                {kycStatus.isFullyVerified
+                  ? "Your fleet is 100% compliant and receives high priority on all spot backhaul matches."
+                  : "Upload all required documents (RC, DL, Insurance, PAN) to activate full verified account badge."}
+              </p>
+            </div>
+          </div>
+
+          {!kycStatus.isFullyVerified && (
+            <button
+              onClick={() => setIsUploadOpen(true)}
+              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs shadow-sm transition whitespace-nowrap cursor-pointer"
+            >
+              Complete Verification
             </button>
+          )}
+        </div>
+
+        {/* 4 Stat Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Tracked</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white block">{documents.length}</span>
+            <span className="text-[10px] font-bold text-slate-500 block">Fleet &amp; Owner Records</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Valid Documents</span>
+            <span className="text-2xl font-black text-emerald-600 block">{validCount}</span>
+            <span className="text-[10px] font-bold text-emerald-600 block">100% Active</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Expiring Soon</span>
+            <span className="text-2xl font-black text-amber-600 block">{expiringSoonCount}</span>
+            <span className="text-[10px] font-bold text-amber-600 block">Next 30 Days</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Action Needed</span>
+            <span className="text-2xl font-black text-rose-600 block">{expiredCount}</span>
+            <span className="text-[10px] font-bold text-rose-600 block">Upload Renewal</span>
           </div>
         </div>
 
-        {/* 5 Stat Cards matching Mockup 7 */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <FileText size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">Total Documents</span>
-            <span className="text-lg font-black text-slate-900 block">16</span>
-            <span className="text-[10px] font-bold text-slate-500 block">All Documents</span>
+        {/* Filter Bar */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto text-xs font-bold">
+            {["all", "vehicle", "insurance", "owner", "permits"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3.5 py-1.5 rounded-xl capitalize transition cursor-pointer ${
+                  activeTab === tab
+                    ? "bg-[#FFC800] text-slate-950 font-black shadow-sm"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-              <CheckCircle2 size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">Valid Documents</span>
-            <span className="text-lg font-black text-slate-900 block">12</span>
-            <span className="text-[10px] font-bold text-emerald-600 block">Up to date</span>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">Expiring Soon</span>
-            <span className="text-lg font-black text-slate-900 block">3</span>
-            <span className="text-[10px] font-bold text-amber-600 block">Within 30 days</span>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
-              <AlertTriangle size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">Expired</span>
-            <span className="text-lg font-black text-slate-900 block">1</span>
-            <span className="text-[10px] font-bold text-rose-600 block">Action Required</span>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1 col-span-2 md:col-span-1">
-            <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Upload size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">Uploaded This Month</span>
-            <span className="text-lg font-black text-slate-900 block">4</span>
-            <span className="text-[10px] font-bold text-purple-600 block">New Uploads</span>
+          <div className="relative w-full md:w-64">
+            <Search size={14} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search documents..."
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm flex items-center gap-2 overflow-x-auto text-xs font-extrabold">
-          <button onClick={() => setActiveTab("all")} className={`px-4 py-2 rounded-xl transition ${activeTab === "all" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>All Documents</button>
-          <button onClick={() => setActiveTab("vehicle")} className={`px-4 py-2 rounded-xl transition ${activeTab === "vehicle" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Vehicle Documents</button>
-          <button onClick={() => setActiveTab("owner")} className={`px-4 py-2 rounded-xl transition ${activeTab === "owner" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Owner Documents</button>
-          <button onClick={() => setActiveTab("insurance")} className={`px-4 py-2 rounded-xl transition ${activeTab === "insurance" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Insurance</button>
-          <button onClick={() => setActiveTab("permits")} className={`px-4 py-2 rounded-xl transition ${activeTab === "permits" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Permits &amp; Licenses</button>
-        </div>
-
-        {/* Main Grid: Document Cards + Right Expiries Sidebar matching Mockup 7 */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          {/* Document Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {docList.map((doc) => (
-              <div key={doc.id} className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition space-y-3">
-                <div className="flex items-start justify-between gap-2">
+        {/* Documents Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredDocs.map((doc) => (
+            <div
+              key={doc.id}
+              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-bold">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-400 flex items-center justify-center">
                       <FileText size={20} />
                     </div>
                     <div>
-                      <h4 className="font-black text-slate-900 text-xs">{doc.title}</h4>
-                      <span className="text-[10px] text-slate-500 font-medium block">{doc.desc}</span>
+                      <h4 className="font-black text-xs sm:text-sm">{doc.title}</h4>
+                      <p className="text-[11px] text-slate-500 font-medium">{doc.desc}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold ${doc.statusTone}`}>
+
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs ${
+                    doc.status === "Valid"
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400"
+                      : doc.status === "Expiring Soon"
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400"
+                      : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-400"
+                  }`}>
                     {doc.status}
                   </span>
                 </div>
 
-                <div className="text-[10px] text-slate-400 font-semibold pt-1 border-t border-slate-100 flex items-center justify-between">
-                  <span>{doc.expiry}</span>
-                  <div className="flex items-center gap-2">
-                    <button className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-bold hover:bg-slate-100 flex items-center gap-1">
-                      <Download size={12} /> {doc.type.toUpperCase()}
-                    </button>
-                    <button className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-bold hover:bg-slate-100 flex items-center gap-1">
-                      <Eye size={12} /> View
-                    </button>
+                <div className="text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 text-[10px] uppercase font-semibold">Validity / Expiry</span>
+                    <span className="text-slate-900 dark:text-white">{doc.expiry}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 text-[10px] uppercase font-semibold">Last Updated</span>
+                    <span className="text-slate-900 dark:text-white">{doc.uploadedAt}</span>
                   </div>
                 </div>
               </div>
-            ))}
 
-            {/* Upload New Document Box */}
-            <div className="border-2 border-dashed border-slate-200 hover:border-amber-400 rounded-2xl p-6 text-center flex flex-col items-center justify-center gap-2 bg-slate-50/50 cursor-pointer transition">
-              <div className="w-12 h-12 rounded-full bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-600">
-                <Upload size={20} />
-              </div>
-              <span className="font-black text-slate-900 text-xs">Upload Document</span>
-              <span className="text-[10px] text-slate-400">Drag &amp; drop or click to upload PDF, JPG (Max 10MB)</span>
-            </div>
-          </div>
-
-          {/* Right Expiries & Storage Sidebar */}
-          <div className="space-y-6">
-            {/* Upcoming Expiries Box */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h4 className="font-black text-xs text-slate-900">Upcoming Expiries</h4>
-                <span className="text-[10px] font-bold text-amber-600 cursor-pointer">View All</span>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/60">
-                  <div>
-                    <span className="font-black text-slate-900 text-xs block">PUC Certificate</span>
-                    <span className="text-[10px] text-slate-500 font-medium">HR55 AB 1234</span>
-                  </div>
-                  <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                    10 Jul 2026 (20 days left)
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/60">
-                  <div>
-                    <span className="font-black text-slate-900 text-xs block">Fitness Certificate</span>
-                    <span className="text-[10px] text-slate-500 font-medium">HR55 AB 1234</span>
-                  </div>
-                  <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                    12 Sep 2026 (53 days left)
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/60">
-                  <div>
-                    <span className="font-black text-slate-900 text-xs block">Insurance Certificate</span>
-                    <span className="text-[10px] text-slate-500 font-medium">HR55 AB 1234</span>
-                  </div>
-                  <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                    20 Sep 2026 (61 days left)
-                  </span>
-                </div>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => setSelectedDoc(doc)}
+                  className="flex-1 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <Eye size={14} /> View Document
+                </button>
+                <button
+                  onClick={() => {
+                    setUploadForm({
+                      title: doc.title,
+                      desc: doc.desc,
+                      category: doc.category,
+                      fileUrl: "",
+                      fileName: "",
+                    });
+                    setIsUploadOpen(true);
+                  }}
+                  className="p-2 text-slate-500 hover:text-amber-600 bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 rounded-xl transition cursor-pointer"
+                  title="Re-upload / Update"
+                >
+                  <Upload size={16} />
+                </button>
               </div>
             </div>
+          ))}
+        </div>
+      </div>
 
-            {/* Document Storage Usage */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-black text-xs text-slate-900 flex items-center gap-1.5">
-                  <HardDrive size={14} className="text-amber-500" /> Document Storage
-                </span>
-                <span className="text-[10px] font-bold text-slate-400">48%</span>
+      {/* ========================================================================= */}
+      {/* UPLOAD DOCUMENT MODAL */}
+      {/* ========================================================================= */}
+      {isUploadOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-lg font-black">Upload KYC / Vehicle Document</h3>
+                <p className="text-xs text-slate-500">Government approved RTO and identity proofs</p>
+              </div>
+              <button onClick={() => setIsUploadOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-slate-700 dark:text-slate-300 block mb-1">Document Type *</label>
+                <select
+                  value={uploadForm.title}
+                  onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5"
+                >
+                  <option>RC (Registration Certificate)</option>
+                  <option>Comprehensive Insurance</option>
+                  <option>Commercial Driving License (DL)</option>
+                  <option>Owner PAN / Aadhaar Card</option>
+                  <option>National Goods Permit</option>
+                  <option>Vehicle Fitness Certificate</option>
+                  <option>PUC Certificate</option>
+                </select>
               </div>
 
               <div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-[#FFC800] h-full w-[48%] rounded-full"></div>
-                </div>
-                <span className="text-[10px] text-slate-500 font-medium block pt-1.5">2.4 GB used of 5 GB</span>
+                <label className="text-slate-700 dark:text-slate-300 block mb-1">Document Reference / ID Number</label>
+                <input
+                  required
+                  value={uploadForm.desc}
+                  onChange={(e) => setUploadForm({ ...uploadForm, desc: e.target.value })}
+                  placeholder="e.g. DL-042018009876 or Vehicle RC"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-mono"
+                />
               </div>
+
+              <div>
+                <label className="text-slate-700 dark:text-slate-300 block mb-1">Select File (PDF, JPG, PNG)</label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFilePick}
+                  accept="image/*,.pdf"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-amber-400 rounded-2xl flex flex-col items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-800/50 cursor-pointer transition"
+                >
+                  <Upload size={20} className="text-amber-500" />
+                  <span className="text-slate-900 dark:text-white font-black text-xs">
+                    {uploadForm.fileName ? uploadForm.fileName : "Click to Browse File"}
+                  </span>
+                  <span className="text-[10px] text-slate-400">Max size 5MB (Secure Cloud Storage)</span>
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl shadow-md transition text-xs flex items-center justify-center gap-2 cursor-pointer mt-2"
+              >
+                <span>Upload &amp; Submit for Verification</span>
+                <Check size={16} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VIEW DOCUMENT MODAL */}
+      {/* ========================================================================= */}
+      {selectedDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black">{selectedDoc.title}</h3>
+                <p className="text-xs text-slate-500">{selectedDoc.desc}</p>
+              </div>
+              <button onClick={() => setSelectedDoc(null)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs font-bold bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Document Status:</span>
+                <span className="text-emerald-600 font-black">✓ {selectedDoc.status}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Validity:</span>
+                <span className="text-slate-900 dark:text-white">{selectedDoc.expiry}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Verified By:</span>
+                <span className="text-slate-900 dark:text-white">REDO Automated Compliance Check</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setSelectedDoc(null)}
+                className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs shadow-sm"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </OwnerLayout>
   );
 }

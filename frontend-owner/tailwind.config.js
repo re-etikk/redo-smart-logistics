@@ -1,6 +1,7 @@
 /** REDO Transport & Logistics — design tokens.
  *  Brand: yellow/black. Role accents via CSS vars: shipper=blue, owner=yellow, admin=slate. */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}", "../shared/**/*.{ts,tsx}"],
   theme: {
     extend: {

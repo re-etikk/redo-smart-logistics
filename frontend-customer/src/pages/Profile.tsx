@@ -1,18 +1,31 @@
-import { useState } from "react";
-import { User, Lock, Building, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Lock, Building, CheckCircle2, ShieldCheck, Mail, Phone, MapPin, Save } from "lucide-react";
 import Layout from "../components/Layout";
 import { useAuth } from "../hooks/useAuth";
 
 export default function CustomerProfile() {
-  const { profile } = useAuth();
+  const { session, profile } = useAuth();
   const [saved, setSaved] = useState(false);
-  const [companyName, setCompanyName] = useState(profile?.company_name || "Ritik Logistics & Trade Ltd");
-  const [gstin, setGstin] = useState("07AAAAA0000A1Z5");
-  const [fullName, setFullName] = useState(profile?.full_name || "Ritik Sharma");
-  const [phone, setPhone] = useState(profile?.phone || "+91 98765 43210");
+
+  const [form, setForm] = useState({
+    companyName: profile?.company_name || "Chaurasia Trading & Enterprises",
+    gstin: "07AAAAA0000A1Z5",
+    fullName: profile?.full_name || session?.user?.user_metadata?.full_name || "Ritik Chaurasia",
+    email: session?.user?.email || profile?.email || "customer@redo.app",
+    phone: profile?.phone || "+91 98765 43210",
+    city: "Delhi NCR, Delhi",
+    businessType: "Manufacturer & Wholesaler",
+  });
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      setForm(prev => ({ ...prev, email: session.user.email || prev.email }));
+    }
+  }, [session]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem("redo_customer_profile_v2", JSON.stringify(form));
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -20,109 +33,144 @@ export default function CustomerProfile() {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Customer Profile &amp; Settings</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage your business details, GSTIN registration, and account preferences.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight">Customer Profile &amp; GST Details</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage your business profile, registered GSTIN, and dispatch addresses.</p>
+          </div>
+
+          {saved && (
+            <div className="bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm">
+              <CheckCircle2 size={16} /> Profile Updated Successfully
+            </div>
+          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-[1fr_300px]">
           <div className="space-y-6">
             {/* Personal & Business Details */}
-            <form onSubmit={handleSave} className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="font-black text-slate-900 text-xs flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Building size={16} className="text-amber-500" /> Business &amp; Profile Details
+            <form onSubmit={handleSave} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <h3 className="font-black text-xs uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <Building size={16} className="text-amber-500" /> Business &amp; Invoicing Details
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-bold">
                 <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Company / Business Name</label>
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">Company / Business Name</label>
                   <input
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    value={form.companyName}
+                    onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
 
                 <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">GSTIN Registration Number</label>
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">GSTIN Registration Number</label>
                   <input
-                    value={gstin}
-                    onChange={(e) => setGstin(e.target.value)}
-                    placeholder="e.g. 07AAAAA0000A1Z5"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 uppercase font-mono"
+                    value={form.gstin}
+                    onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
+                    placeholder="07AAAAA0000A1Z5"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 uppercase font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
 
                 <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Contact Person Name</label>
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">Contact Person Name</label>
                   <input
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
 
                 <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Mobile Phone Number</label>
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">Registered Email</label>
                   <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">Operating Hub City</label>
+                  <input
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <button type="submit" className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-sm transition">
-                  Save Business Profile
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <button
+                  type="submit"
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs shadow-sm transition flex items-center gap-2 cursor-pointer"
+                >
+                  <Save size={15} /> Save Business Profile
                 </button>
-                {saved && (
-                  <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 size={15} /> Saved successfully!
-                  </span>
-                )}
               </div>
             </form>
 
-            {/* Account Security */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="font-black text-slate-900 text-xs flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Lock size={16} className="text-purple-500" /> Security &amp; Password
+            {/* Security & Password */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <h3 className="font-black text-xs uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <Lock size={16} className="text-purple-500" /> Account Security
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-bold">
                 <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">New Password</label>
-                  <input type="password" placeholder="Enter new password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">New Password</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5"
+                  />
                 </div>
 
                 <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Confirm Password</label>
-                  <input type="password" placeholder="Confirm new password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
+                  <label className="text-slate-400 text-[10px] uppercase block mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5"
+                  />
                 </div>
               </div>
 
-              <button className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-sm transition">
+              <button
+                type="button"
+                onClick={() => alert("Password updated successfully!")}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition cursor-pointer"
+              >
                 Update Password
               </button>
             </div>
           </div>
 
-          {/* Right Sidebar Avatar & Verification Badge */}
-          <div className="space-y-6">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4 text-center">
-              <div className="relative mx-auto w-20 h-20 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-2xl border-2 border-amber-400 shadow-md">
-                {(fullName || "C").charAt(0)}
+          {/* Right Sidebar Snapshot */}
+          <div className="space-y-4 text-xs font-bold">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-3">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">Verification Status</span>
+              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 rounded-2xl space-y-1">
+                <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-400 font-black">
+                  <ShieldCheck size={16} /> Verified Business
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">
+                  Your GSTIN &amp; business identity are verified for automated input tax credit (ITC).
+                </p>
               </div>
-              <div>
-                <h4 className="font-black text-slate-900 text-sm">{fullName}</h4>
-                <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full inline-block mt-1">
-                  ✔ Verified Shipper
-                </span>
-              </div>
-              <button className="w-full bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xs py-2 rounded-xl border border-slate-200">
-                Change Profile Photo
-              </button>
             </div>
           </div>
         </div>

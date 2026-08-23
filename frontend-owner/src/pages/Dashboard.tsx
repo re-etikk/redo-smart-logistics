@@ -38,8 +38,8 @@ export default function OwnerDashboard() {
                 + Add Truck
               </button>
               <button
-                onClick={() => navigate("/shipments")}
-                className="bg-white hover:bg-slate-50 text-slate-900 font-black px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm transition text-xs"
+                onClick={() => navigate("/bookings")}
+                className="bg-white hover:bg-slate-50 text-slate-900 font-black px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm transition text-xs cursor-pointer"
               >
                 View Bookings
               </button>
