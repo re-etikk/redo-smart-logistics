@@ -14,6 +14,7 @@ import {
   getInitialTheme, applyTheme, getInitialLanguage, setLanguage,
   SUPPORTED_LANGUAGES, type ThemeMode, type LanguageCode
 } from "../lib/themeStore";
+import { useTranslation } from "../lib/i18n";
 
 interface OwnerLayoutProps {
   children: ReactNode;
@@ -111,18 +112,20 @@ export default function OwnerLayout({
     refreshAll();
   };
 
+  const { t } = useTranslation();
+
   const navItems = [
-    { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { id: "trucks", label: "My Trucks", path: "/trucks", icon: Truck },
-    { id: "loads", label: "Available Loads", path: "/loads", icon: Box },
-    { id: "bookings", label: "My Bookings", path: "/bookings", icon: CalendarCheck },
-    { id: "earnings", label: "Earnings", path: "/earnings", icon: IndianRupee },
-    { id: "trips", label: "Trips", path: "/trips", icon: MapPin },
-    { id: "payments", label: "Payments", path: "/payments", icon: CreditCard },
-    { id: "documents", label: "Documents", path: "/documents", icon: FileText },
-    { id: "reviews", label: "Reviews", path: "/reviews", icon: Star },
-    { id: "support", label: "Support", path: "/support", icon: Headset },
-    { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+    { id: "dashboard", label: t("dashboard"), path: "/dashboard", icon: LayoutDashboard },
+    { id: "trucks", label: t("myTrucks"), path: "/trucks", icon: Truck },
+    { id: "loads", label: t("findLoads"), path: "/loads", icon: Box },
+    { id: "bookings", label: t("myBookings"), path: "/bookings", icon: CalendarCheck },
+    { id: "earnings", label: t("earnings"), path: "/earnings", icon: IndianRupee },
+    { id: "trips", label: t("trips"), path: "/trips", icon: MapPin },
+    { id: "payments", label: t("payments"), path: "/payments", icon: CreditCard },
+    { id: "documents", label: t("documents"), path: "/documents", icon: FileText },
+    { id: "reviews", label: t("reviews"), path: "/reviews", icon: Star },
+    { id: "support", label: t("support"), path: "/support", icon: Headset },
+    { id: "settings", label: t("settings"), path: "/settings", icon: Settings },
   ];
 
   const displayName = userData.full_name || profile?.full_name || session?.user?.user_metadata?.full_name || "Ritik Chaurasia";
@@ -145,28 +148,28 @@ export default function OwnerLayout({
             {/* Horizontal Sub-Nav */}
             <nav className="hidden xl:flex items-center gap-5 text-xs font-bold">
               <Link to="/dashboard" className={`transition hover:text-amber-500 ${location.pathname === "/dashboard" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                Dashboard
+                {t("dashboard")}
               </Link>
               <Link to="/trucks" className={`transition hover:text-amber-500 ${location.pathname === "/trucks" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                My Trucks
+                {t("myTrucks")}
               </Link>
               <Link to="/loads" className={`transition hover:text-amber-500 ${location.pathname === "/loads" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                Find Loads
+                {t("findLoads")}
               </Link>
               <Link to="/bookings" className={`transition hover:text-amber-500 ${location.pathname === "/bookings" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                My Bookings
+                {t("myBookings")}
               </Link>
               <Link to="/earnings" className={`transition hover:text-amber-500 ${location.pathname === "/earnings" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                Earnings
+                {t("earnings")}
               </Link>
               <Link to="/trips" className={`transition hover:text-amber-500 ${location.pathname === "/trips" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                Trips
+                {t("trips")}
               </Link>
               <Link to="/payments" className={`transition hover:text-amber-500 ${location.pathname === "/payments" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                Payments
+                {t("payments")}
               </Link>
               <Link to="/support" className={`transition hover:text-amber-500 ${location.pathname === "/support" ? "text-amber-500 border-b-2 border-amber-400 pb-1 font-black" : ""}`}>
-                Support
+                {t("support")}
               </Link>
             </nav>
           </div>
