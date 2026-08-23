@@ -1,315 +1,689 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  Truck, CalendarCheck, IndianRupee, Search, Plus, MoreVertical, ShieldCheck, AlertTriangle, Check
+  Truck, CalendarCheck, IndianRupee, Search, Plus, MoreVertical, ShieldCheck,
+  AlertTriangle, Check, X, Phone, FileText, MapPin, Upload, Image as ImageIcon,
+  Trash2, Edit, CheckCircle2, User, Gauge
 } from "lucide-react";
 import OwnerLayout from "../components/OwnerLayout";
+import { getTrucks, addTruck, deleteTruck, updateTruck, PRESET_TRUCK_PHOTOS, type TruckItem } from "../lib/truckStore";
 
 export default function MyTrucks() {
+  const [trucks, setTrucks] = useState<TruckItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
-  const truckList = [
-    {
-      id: "T1",
-      name: "Eicher 17 Feet",
-      status: "Active",
-      type: "17 Feet",
-      capacity: "7 Ton",
-      body: "Enclosed",
-      regNo: "HR55 AB 1234",
-      insurance: "Valid till 20 Aug 2024",
-      insuranceStatus: "valid",
-      puc: "Valid till 10 Jul 2024",
-      pucStatus: "valid",
-      availability: "Available",
-      location: "Delhi, Delhi",
-      earnings: "₹45,600",
-      bookings: "8",
-      emoji: "🚛",
-    },
-    {
-      id: "T2",
-      name: "BharatBenz 19 Feet",
-      status: "Active",
-      type: "19 Feet",
-      capacity: "10 Ton",
-      body: "Enclosed",
-      regNo: "HR55 CD 5678",
-      insurance: "Valid till 18 Sep 2024",
-      insuranceStatus: "valid",
-      puc: "Valid till 05 Aug 2024",
-      pucStatus: "valid",
-      availability: "On Trip",
-      location: "Mumbai, Maharashtra",
-      earnings: "₹52,300",
-      bookings: "10",
-      emoji: "🚚",
-    },
-    {
-      id: "T3",
-      name: "Tata 14 Feet",
-      status: "Inactive",
-      type: "14 Feet",
-      capacity: "5 Ton",
-      body: "Open Body",
-      regNo: "HR55 EF 9012",
-      insurance: "Expired on 10 May 2024",
-      insuranceStatus: "expired",
-      puc: "Valid till 01 Jun 2024",
-      pucStatus: "valid",
-      availability: "Not Available",
-      location: "Indore, Madhya Pradesh",
-      earnings: "₹12,800",
-      bookings: "3",
-      emoji: "🚛",
-    },
-    {
-      id: "T4",
-      name: "Mahindra Pickup",
-      status: "Active",
-      type: "Pickup",
-      capacity: "1.5 Ton",
-      body: "Open Body",
-      regNo: "HR55 GH 3456",
-      insurance: "Valid till 15 Oct 2024",
-      insuranceStatus: "valid",
-      puc: "Valid till 20 Aug 2024",
-      pucStatus: "valid",
-      availability: "Available",
-      location: "Delhi, Delhi",
-      earnings: "₹9,250",
-      bookings: "2",
-      emoji: "🛻",
-    },
-    {
-      id: "T5",
-      name: "BharatBenz 32 Feet",
-      status: "Active",
-      type: "32 Feet",
-      capacity: "16 Ton",
-      body: "Tipper",
-      regNo: "HR55 IJ 7890",
-      insurance: "Valid till 25 Sep 2024",
-      insuranceStatus: "valid",
-      puc: "Valid till 12 Aug 2024",
-      pucStatus: "valid",
-      availability: "On Trip",
-      location: "Bengaluru, Karnataka",
-      earnings: "₹28,800",
-      bookings: "5",
-      emoji: "🚛",
-    },
-  ];
+  // Modals
+  const [selectedTruck, setSelectedTruck] = useState<TruckItem | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const filteredTrucks = truckList.filter((t) => {
+  // Add Truck Form State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [newTruck, setNewTruck] = useState({
+    name: "",
+    regNo: "",
+    type: "17 Feet",
+    body: "Enclosed Container",
+    capacity: "7.0 Ton",
+    capacityTons: 7.0,
+    status: "Active" as const,
+    availability: "Available" as const,
+    location: "Delhi NCR, Delhi",
+    photoUrl: PRESET_TRUCK_PHOTOS[0].url,
+    driverName: "",
+    driverPhone: "",
+    driverLicense: "",
+    insuranceValidTill: "20 Dec 2026",
+    fitnessValidTill: "15 Jan 2027",
+    pucValidTill: "10 Oct 2026",
+  });
+
+  const loadFleet = () => {
+    setTrucks(getTrucks());
+  };
+
+  useEffect(() => {
+    loadFleet();
+    window.addEventListener("redo_fleet_updated", loadFleet);
+    return () => window.removeEventListener("redo_fleet_updated", loadFleet);
+  }, []);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setNewTruck(prev => ({ ...prev, photoUrl: event.target!.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCreateTruck = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTruck.regNo || !newTruck.name) return;
+
+    addTruck({
+      ...newTruck,
+      capacity: `${newTruck.capacityTons} Ton`,
+      capacityTons: Number(newTruck.capacityTons) || 7.0,
+    });
+
+    setIsAddModalOpen(false);
+    loadFleet();
+    // Reset
+    setNewTruck({
+      name: "",
+      regNo: "",
+      type: "17 Feet",
+      body: "Enclosed Container",
+      capacity: "7.0 Ton",
+      capacityTons: 7.0,
+      status: "Active",
+      availability: "Available",
+      location: "Delhi NCR, Delhi",
+      photoUrl: PRESET_TRUCK_PHOTOS[0].url,
+      driverName: "",
+      driverPhone: "",
+      driverLicense: "",
+      insuranceValidTill: "20 Dec 2026",
+      fitnessValidTill: "15 Jan 2027",
+      pucValidTill: "10 Oct 2026",
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Are you sure you want to remove this truck from your fleet?")) {
+      deleteTruck(id);
+      setSelectedTruck(null);
+      loadFleet();
+    }
+  };
+
+  // Filter logic
+  const filteredTrucks = trucks.filter((t) => {
     const matchesSearch =
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       t.regNo.toLowerCase().includes(search.toLowerCase()) ||
-      t.type.toLowerCase().includes(search.toLowerCase());
+      t.location.toLowerCase().includes(search.toLowerCase()) ||
+      t.driverName.toLowerCase().includes(search.toLowerCase());
+
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "active" && t.status === "Active") ||
-      (statusFilter === "inactive" && t.status === "Inactive");
+      (statusFilter === "inactive" && t.status === "Inactive") ||
+      (statusFilter === "on_trip" && t.availability === "On Trip");
+
     const matchesType =
       typeFilter === "all" ||
-      t.type.toLowerCase().includes(typeFilter.toLowerCase()) ||
-      t.name.toLowerCase().includes(typeFilter.toLowerCase());
+      t.type.toLowerCase().includes(typeFilter.toLowerCase());
+
     return matchesSearch && matchesStatus && matchesType;
   });
 
+  const activeCount = trucks.filter((t) => t.status === "Active").length;
+  const onTripCount = trucks.filter((t) => t.availability === "On Trip").length;
+  const availableCount = trucks.filter((t) => t.availability === "Available").length;
+
   return (
-    <OwnerLayout activeTab="trucks" promoCardType="refer">
+    <OwnerLayout activeTab="trucks" promoCardType="truck" onAddTruckClick={() => setIsAddModalOpen(true)}>
       <div className="space-y-6">
-        {/* Header Title + Add New Truck Button matching Mockup 2 */}
+        {/* Header Title with Action Button */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Trucks</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage your trucks, view status and track performance.</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Fleet</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Manage your registered commercial vehicles, drivers and documentation.</p>
           </div>
 
           <button
-            className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl shadow-sm transition text-xs flex items-center gap-2"
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-xl shadow-sm transition text-xs flex items-center gap-1.5 cursor-pointer"
           >
             <Plus size={16} /> Add New Truck
           </button>
         </div>
 
-        {/* 4 Stat Cards matching Mockup 2 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Trucks</span>
-              <span className="text-xl font-black text-slate-900 block">5</span>
-              <span className="text-[10px] font-bold text-emerald-600 block">Active</span>
+        {/* 4 Fleet Stat Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Fleet</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-slate-900">{trucks.length}</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Truck size={16} />
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Truck size={20} />
-            </div>
+            <span className="text-[10px] font-bold text-slate-500 block">Registered Vehicles</span>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Active Trucks</span>
-              <span className="text-xl font-black text-slate-900 block">4</span>
-              <span className="text-[10px] font-bold text-blue-600 block">On the road</span>
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Available Trucks</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-slate-900">{availableCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Check size={16} />
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-              <CalendarCheck size={20} />
-            </div>
+            <span className="text-[10px] font-bold text-emerald-600 block">Ready for Loads</span>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Bookings</span>
-              <span className="text-xl font-black text-slate-900 block">28</span>
-              <span className="text-[10px] font-bold text-purple-600 block">This Month</span>
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">On the Road</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-slate-900">{onTripCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <MapPin size={16} />
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
-              <CalendarCheck size={20} />
-            </div>
+            <span className="text-[10px] font-bold text-blue-600 block">Active Corridors</span>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Earnings</span>
-              <span className="text-xl font-black text-slate-900 block">₹1,48,750</span>
-              <span className="text-[10px] font-bold text-amber-600 block">This Month</span>
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Verified RC</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-slate-900">{activeCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                <ShieldCheck size={16} />
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-              <IndianRupee size={20} />
-            </div>
+            <span className="text-[10px] font-bold text-purple-600 block">100% Compliant</span>
           </div>
         </div>
 
-        {/* Filter Toolbar matching Mockup 2 */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-          <div className="relative sm:col-span-2">
-            <Search size={16} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Filter & Search Bar */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="relative w-full md:w-80">
+            <Search size={16} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by truck number or type"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold"
+              placeholder="Search by RC, model, city, driver..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
-          <div>
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto text-xs font-bold">
+            {/* Status Filter */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold focus:outline-none cursor-pointer"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
+              <option value="on_trip">On Trip</option>
               <option value="inactive">Inactive</option>
             </select>
-          </div>
 
-          <div>
+            {/* Type Filter */}
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold focus:outline-none cursor-pointer"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
-              <option value="all">All Types</option>
+              <option value="all">All Vehicle Types</option>
+              <option value="14">14 Feet</option>
               <option value="17">17 Feet</option>
               <option value="19">19 Feet</option>
-              <option value="14">14 Feet</option>
+              <option value="22">22 Feet</option>
+              <option value="32">32 Feet</option>
               <option value="pickup">Pickup</option>
             </select>
           </div>
         </div>
 
-        {/* Truck List Cards matching Mockup 2 */}
-        <div className="space-y-3">
-          {filteredTrucks.map((t) => (
-            <div
-              key={t.id}
-              className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+        {/* Truck List with Real Photos */}
+        {filteredTrucks.length === 0 ? (
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+            <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl">
+              🚛
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-900">No trucks found</h3>
+              <p className="text-xs text-slate-500">Try changing your filters or add a new truck to your fleet.</p>
+            </div>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl shadow-sm text-xs"
             >
-              {/* Left Truck Info */}
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-3xl shrink-0">
-                  {t.emoji}
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-black text-slate-900 text-sm">{t.name}</h3>
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
-                        t.status === "Active"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {t.status}
+              + Add Your First Truck
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {filteredTrucks.map((truck) => (
+              <div
+                key={truck.id}
+                className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
+              >
+                {/* Truck Photo Header */}
+                <div className="relative h-44 bg-slate-900 overflow-hidden group">
+                  <img
+                    src={truck.photoUrl}
+                    alt={truck.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = PRESET_TRUCK_PHOTOS[0].url;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/20" />
+
+                  {/* Top Badges */}
+                  <div className="absolute top-3 left-3 flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur-md shadow-sm ${
+                      truck.availability === "Available"
+                        ? "bg-emerald-500/90 text-white"
+                        : truck.availability === "On Trip"
+                        ? "bg-blue-500/90 text-white"
+                        : "bg-slate-500/90 text-white"
+                    }`}>
+                      {truck.availability}
+                    </span>
+                    <span className="bg-black/60 backdrop-blur-md text-amber-400 font-mono font-bold text-[10px] px-2 py-1 rounded-full border border-amber-400/30">
+                      {truck.type}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500 font-semibold flex flex-wrap items-center gap-2">
-                    <span>{t.type}</span>
-                    <span>|</span>
-                    <span>{t.capacity}</span>
-                    <span>|</span>
-                    <span>{t.body}</span>
+
+                  {/* Rating Badge */}
+                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-slate-900 font-black text-xs px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                    <span className="text-amber-500">★</span>
+                    <span>{truck.rating}</span>
                   </div>
-                  <div className="text-xs font-black text-slate-700">{t.regNo}</div>
+
+                  {/* Bottom Image Overlay Details */}
+                  <div className="absolute bottom-3 left-3 right-3 text-white">
+                    <span className="font-mono font-black text-xs tracking-wider bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md inline-block shadow-sm mb-1">
+                      {truck.regNo}
+                    </span>
+                    <h3 className="font-black text-base truncate">{truck.name}</h3>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    {/* Specs Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">Capacity</span>
+                        <span className="text-slate-900">{truck.capacity}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">Body Type</span>
+                        <span className="text-slate-900">{truck.body}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">Driver</span>
+                        <span className="text-slate-900 truncate block">{truck.driverName || "Assigned Driver"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">Location</span>
+                        <span className="text-slate-900 truncate block">{truck.location}</span>
+                      </div>
+                    </div>
+
+                    {/* Current Trip Status */}
+                    {truck.currentTrip && (
+                      <div className="text-xs p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 font-bold space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase text-amber-800 font-black">Active Route</span>
+                          <span className="text-[10px] text-emerald-700 font-extrabold">{truck.currentTrip.status}</span>
+                        </div>
+                        <p className="text-slate-900 text-xs">
+                          {truck.currentTrip.origin} ➔ {truck.currentTrip.dest}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => setSelectedTruck(truck)}
+                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black py-2.5 rounded-xl text-xs transition text-center shadow-sm cursor-pointer"
+                    >
+                      View Details &amp; Specs
+                    </button>
+                    <button
+                      onClick={() => handleDelete(truck.id)}
+                      className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                      title="Delete Truck"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL 1: VIEW TRUCK DETAILS */}
+      {/* ========================================================================= */}
+      {selectedTruck && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6">
+            {/* Modal Image Header */}
+            <div className="relative h-64 bg-slate-950">
+              <img
+                src={selectedTruck.photoUrl}
+                alt={selectedTruck.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+
+              <button
+                onClick={() => setSelectedTruck(null)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="absolute bottom-4 left-6 right-6 text-white space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-black text-xs tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-md">
+                    {selectedTruck.regNo}
+                  </span>
+                  <span className="bg-emerald-500 text-white font-black text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <ShieldCheck size={12} /> Verified RC
+                  </span>
+                </div>
+                <h2 className="text-2xl font-black">{selectedTruck.name}</h2>
+                <p className="text-xs text-slate-300 font-medium">
+                  {selectedTruck.type} • {selectedTruck.body} • Base Hub: {selectedTruck.location}
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 pt-0 space-y-6">
+              {/* Technical Specifications */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Gauge size={16} className="text-amber-500" /> Vehicle Specifications
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-bold">
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] text-slate-400 uppercase block font-semibold">Tonnage</span>
+                    <span className="text-slate-900 text-sm">{selectedTruck.capacity}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] text-slate-400 uppercase block font-semibold">Length</span>
+                    <span className="text-slate-900 text-sm">{selectedTruck.type}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] text-slate-400 uppercase block font-semibold">Total Trips</span>
+                    <span className="text-slate-900 text-sm">{selectedTruck.totalTrips} Completed</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] text-slate-400 uppercase block font-semibold">Total Revenue</span>
+                    <span className="text-emerald-700 text-sm">{selectedTruck.totalEarnings}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Middle Documents Validity */}
-              <div className="space-y-1 text-xs border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-6">
-                <div className="flex items-center gap-2">
-                  {t.insuranceStatus === "valid" ? (
-                    <Check size={14} className="text-emerald-500" />
-                  ) : (
-                    <AlertTriangle size={14} className="text-rose-500" />
-                  )}
-                  <span className={`text-[11px] font-semibold ${t.insuranceStatus === "expired" ? "text-rose-600 font-bold" : "text-slate-600"}`}>
-                    Insurance: {t.insurance}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-emerald-500" />
-                  <span className="text-[11px] font-semibold text-slate-600">
-                    PUC: {t.puc}
-                  </span>
-                </div>
-              </div>
-
-              {/* Right Availability & Earnings */}
-              <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-t-0 border-slate-100 pt-3 md:pt-0">
-                <div className="text-left md:text-right">
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Availability</span>
-                  <span
-                    className={`text-xs font-black block ${
-                      t.availability === "Available"
-                        ? "text-emerald-600"
-                        : t.availability === "On Trip"
-                        ? "text-blue-600"
-                        : "text-rose-600"
-                    }`}
+              {/* Assigned Driver Profile */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <User size={16} className="text-amber-500" /> Assigned Driver Information
+                </h3>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 font-black text-lg flex items-center justify-center shadow-sm">
+                      {selectedTruck.driverName.charAt(0) || "D"}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-900 text-sm">{selectedTruck.driverName || "Driver Not Assigned"}</h4>
+                      <p className="text-xs text-slate-500 font-medium">Driving License: {selectedTruck.driverLicense}</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`tel:${selectedTruck.driverPhone}`}
+                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition"
                   >
-                    {t.availability}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-medium">{t.location}</span>
+                    <Phone size={14} /> Call Driver ({selectedTruck.driverPhone})
+                  </a>
                 </div>
+              </div>
 
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Earnings</span>
-                  <span className="text-sm font-black text-slate-900 block">{t.earnings}</span>
-                  <span className="text-[10px] text-slate-500 font-medium">Bookings: {t.bookings}</span>
+              {/* Document Validity Check */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText size={16} className="text-amber-500" /> Compliance &amp; Permits
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
+                  <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1 text-emerald-800 font-black">
+                      <CheckCircle2 size={14} /> Comprehensive Insurance
+                    </div>
+                    <span className="text-[10px] text-slate-600 block">Valid till {selectedTruck.insuranceValidTill}</span>
+                  </div>
+                  <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1 text-emerald-800 font-black">
+                      <CheckCircle2 size={14} /> Fitness Certificate
+                    </div>
+                    <span className="text-[10px] text-slate-600 block">Valid till {selectedTruck.fitnessValidTill}</span>
+                  </div>
+                  <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1 text-emerald-800 font-black">
+                      <CheckCircle2 size={14} /> PUC &amp; National Permit
+                    </div>
+                    <span className="text-[10px] text-slate-600 block">Valid till {selectedTruck.pucValidTill}</span>
+                  </div>
                 </div>
+              </div>
 
-                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition">
-                  <MoreVertical size={18} />
+              {/* Modal Actions */}
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => handleDelete(selectedTruck.id)}
+                  className="px-4 py-2.5 rounded-xl border border-rose-200 text-rose-600 font-bold text-xs hover:bg-rose-50 transition"
+                >
+                  Delete Truck
+                </button>
+                <button
+                  onClick={() => setSelectedTruck(null)}
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs shadow-sm transition"
+                >
+                  Close Details
                 </button>
               </div>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: ADD NEW TRUCK */}
+      {/* ========================================================================= */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-900">Add New Commercial Vehicle</h2>
+                <p className="text-xs text-slate-500">Add your truck with genuine photos and start earning backhaul revenue.</p>
+              </div>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTruck} className="space-y-4 text-xs font-bold">
+              {/* Photo Selector */}
+              <div className="space-y-2">
+                <label className="text-slate-800 block">Truck Photo (Upload or Select Real Preset) *</label>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-28 h-20 rounded-2xl bg-slate-900 overflow-hidden border-2 border-amber-400 shrink-0 shadow-sm">
+                    <img
+                      src={newTruck.photoUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition"
+                    >
+                      <Upload size={14} /> Upload Custom Photo from Device
+                    </button>
+                    <p className="text-[10px] text-slate-400">Or pick an authentic Indian truck preset below:</p>
+                  </div>
+                </div>
+
+                {/* Presets */}
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-1">
+                  {PRESET_TRUCK_PHOTOS.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setNewTruck({ ...newTruck, photoUrl: preset.url })}
+                      className={`relative h-14 rounded-xl overflow-hidden border-2 transition ${
+                        newTruck.photoUrl === preset.url ? "border-amber-500 ring-2 ring-amber-400/40" : "border-slate-200 opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={preset.url} alt={preset.label} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Model Name & RC Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-700 block mb-1">Truck Model &amp; Make *</label>
+                  <input
+                    required
+                    value={newTruck.name}
+                    onChange={(e) => setNewTruck({ ...newTruck, name: e.target.value })}
+                    placeholder="e.g. Eicher Pro 2049"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-700 block mb-1">Registration Number (RC) *</label>
+                  <input
+                    required
+                    value={newTruck.regNo}
+                    onChange={(e) => setNewTruck({ ...newTruck, regNo: e.target.value.toUpperCase() })}
+                    placeholder="e.g. DL 01 AB 1234"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 uppercase font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
+
+              {/* Type, Body, Capacity */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-slate-700 block mb-1">Vehicle Length</label>
+                  <select
+                    value={newTruck.type}
+                    onChange={(e) => setNewTruck({ ...newTruck, type: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                  >
+                    <option>14 Feet</option>
+                    <option>17 Feet</option>
+                    <option>19 Feet</option>
+                    <option>22 Feet</option>
+                    <option>32 Feet Single Axle</option>
+                    <option>32 Feet Multi Axle</option>
+                    <option>Pickup / Mini Truck</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-slate-700 block mb-1">Body Type</label>
+                  <select
+                    value={newTruck.body}
+                    onChange={(e) => setNewTruck({ ...newTruck, body: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                  >
+                    <option>Enclosed Container</option>
+                    <option>Open Body</option>
+                    <option>Tarpaulin Covered</option>
+                    <option>Flatbed</option>
+                    <option>Tipper</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-slate-700 block mb-1">Max Payload (Tons)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={newTruck.capacityTons}
+                    onChange={(e) => setNewTruck({ ...newTruck, capacityTons: parseFloat(e.target.value) || 0 })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                  />
+                </div>
+              </div>
+
+              {/* Driver Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-slate-700 block mb-1">Assigned Driver Name</label>
+                  <input
+                    value={newTruck.driverName}
+                    onChange={(e) => setNewTruck({ ...newTruck, driverName: e.target.value })}
+                    placeholder="Driver Name"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-700 block mb-1">Driver Phone Number</label>
+                  <input
+                    value={newTruck.driverPhone}
+                    onChange={(e) => setNewTruck({ ...newTruck, driverPhone: e.target.value })}
+                    placeholder="+91 98765 43210"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-700 block mb-1">Base Hub City</label>
+                  <input
+                    value={newTruck.location}
+                    onChange={(e) => setNewTruck({ ...newTruck, location: e.target.value })}
+                    placeholder="e.g. Delhi NCR"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl shadow-md transition cursor-pointer"
+                >
+                  Save &amp; Activate Truck
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </OwnerLayout>
   );
 }
