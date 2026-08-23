@@ -7,7 +7,7 @@ import {
 import OwnerLayout from "../components/OwnerLayout";
 import { useTranslation } from "../lib/i18n";
 import { getTrucks } from "../lib/truckStore";
-import { getSharedCargoList, assignTruckToCargo, type CargoItem } from "../lib/cargoStore";
+import { getSharedCargoList, syncFromCloud, assignTruckToCargo, type CargoItem } from "../lib/cargoStore";
 
 export default function AvailableLoads() {
   const navigate = useNavigate();

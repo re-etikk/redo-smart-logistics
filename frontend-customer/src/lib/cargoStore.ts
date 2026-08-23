@@ -30,7 +30,6 @@ export interface CargoItem {
 const STORAGE_KEY = "redo_shared_cargo_v2";
 const CLOUD_SYNC_ENDPOINT = "https://kvdb.io/4y9q8Pj7vYqF2WfB4hWq5q/redo_live_cargo_v3";
 
-// Preset initial consignments so Find Loads always has rich freight even before custom postings
 export const DEFAULT_CONSIGNMENTS: CargoItem[] = [
   {
     id: "CARGO-801",
@@ -83,34 +82,14 @@ export const DEFAULT_CONSIGNMENTS: CargoItem[] = [
   }
 ];
 
-// Supabase Realtime Broadcast Channel across both domains
-const channel = typeof window !== "undefined" ? supabase.channel("redo_cross_domain_freight") : null;
-if (channel) {
-  channel
-    .on("broadcast", { event: "NEW_CARGO" }, (payload: { payload: CargoItem }) => {
-      if (payload?.payload) {
-        mergeRemoteCargo([payload.payload]);
-      }
-    })
-    .on("broadcast", { event: "CARGO_UPDATED" }, (payload: { payload: CargoItem[] }) => {
-      if (Array.isArray(payload?.payload)) {
-        saveSharedCargoList(payload.payload, false);
-      }
-    })
-    .subscribe();
-}
-
+// Pure getter without any recursive side-effects
 export function getSharedCargoList(): CargoItem[] {
   if (typeof window === "undefined") return DEFAULT_CONSIGNMENTS;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) {
-      saveSharedCargoList(DEFAULT_CONSIGNMENTS, true);
-      return DEFAULT_CONSIGNMENTS;
-    }
+    if (!saved) return DEFAULT_CONSIGNMENTS;
     const parsed = JSON.parse(saved);
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      saveSharedCargoList(DEFAULT_CONSIGNMENTS, true);
       return DEFAULT_CONSIGNMENTS;
     }
     return parsed;
@@ -126,30 +105,19 @@ export function saveSharedCargoList(list: CargoItem[], syncToCloud = true): void
     window.dispatchEvent(new CustomEvent("redo_cargo_updated", { detail: list }));
 
     if (syncToCloud) {
-      // 1. Sync to Cloud KV endpoint (cross-domain Vercel relay)
       fetch(CLOUD_SYNC_ENDPOINT, {
         method: "POST",
         body: JSON.stringify(list),
         headers: { "Content-Type": "application/json" },
       }).catch(() => {});
-
-      // 2. Broadcast via Supabase Realtime Channel
-      if (channel) {
-        channel.send({
-          type: "broadcast",
-          event: "CARGO_UPDATED",
-          payload: list,
-        }).catch(() => {});
-      }
     }
   } catch {}
 }
 
-export function mergeRemoteCargo(remoteList: CargoItem[]): void {
-  if (!Array.isArray(remoteList) || remoteList.length === 0) return;
+export function mergeRemoteCargo(remoteList: CargoItem[]): CargoItem[] {
+  if (!Array.isArray(remoteList) || remoteList.length === 0) return getSharedCargoList();
   const current = getSharedCargoList();
   const map = new Map<string, CargoItem>();
-  // Put remote first so newer entries are indexed
   for (const item of remoteList) {
     if (item && item.id) map.set(item.id, item);
   }
@@ -160,17 +128,16 @@ export function mergeRemoteCargo(remoteList: CargoItem[]): void {
   }
   const merged = Array.from(map.values());
   saveSharedCargoList(merged, false);
+  return merged;
 }
 
-// Background poller from Cloud KV endpoint
 export async function syncFromCloud(): Promise<CargoItem[]> {
   try {
     const res = await fetch(CLOUD_SYNC_ENDPOINT, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        mergeRemoteCargo(data);
-        return getSharedCargoList();
+        return mergeRemoteCargo(data);
       }
     }
   } catch {}
@@ -188,16 +155,6 @@ export function postNewCargo(cargo: Omit<CargoItem, "id" | "status" | "createdAt
 
   list.unshift(newCargo);
   saveSharedCargoList(list, true);
-
-  // Broadcast single new cargo
-  if (channel) {
-    channel.send({
-      type: "broadcast",
-      event: "NEW_CARGO",
-      payload: newCargo,
-    }).catch(() => {});
-  }
-
   return newCargo;
 }
 
