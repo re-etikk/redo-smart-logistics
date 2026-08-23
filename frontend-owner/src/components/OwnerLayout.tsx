@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Truck, CalendarCheck, IndianRupee, MapPin, CreditCard,
   FileText, Star, Headset, Settings, Bell, Wallet, ChevronDown, User, Gift,
-  ShieldCheck, AlertTriangle, Plus, Landmark, Box, Moon, Sun, Globe, Phone, X, Check
+  ShieldCheck, AlertTriangle, Plus, Landmark, Box, Moon, Sun, Globe, Phone, X, Check, Menu
 } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../hooks/useAuth";
@@ -37,6 +37,7 @@ export default function OwnerLayout({
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   // Dynamic Stores State
   const [walletBalance, setWalletBalance] = useState<number>(() => getWallet().balance);
@@ -53,9 +54,12 @@ export default function OwnerLayout({
     setWalletBalance(getWallet().balance);
     setKycStatus(getKycStatus());
     const prof = getUserProfile();
-    // Sync with session if available
     if (session?.user?.email && prof.email !== session.user.email) {
       prof.email = session.user.email;
+    }
+    const realGoogleName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name;
+    if (realGoogleName && prof.full_name === "Ritik Chaurasia" && session?.user?.email && !session.user.email.includes("ritik")) {
+      prof.full_name = realGoogleName;
     }
     setUserData(prof);
   };
@@ -67,7 +71,6 @@ export default function OwnerLayout({
   useEffect(() => {
     refreshAll();
 
-    // Check if phone is missing after google login
     const prof = getUserProfile();
     if (!prof.phone || prof.phone === "+91 98765 43210" || prof.phone === "") {
       const hasDismissed = sessionStorage.getItem("redo_phone_prompt_dismissed");
@@ -128,7 +131,9 @@ export default function OwnerLayout({
     { id: "settings", label: t("settings"), path: "/settings", icon: Settings },
   ];
 
-  const displayName = userData.full_name || profile?.full_name || session?.user?.user_metadata?.full_name || "Ritik Chaurasia";
+  // Dynamic user name from Google OAuth session
+  const googleName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || (session?.user?.email ? session.user.email.split('@')[0] : "");
+  const displayName = session?.user ? (googleName || profile?.full_name || userData.full_name) : (userData.full_name || "Truck Owner");
   const displayEmail = session?.user?.email || userData.email || "owner@redo.app";
 
   return (
@@ -139,8 +144,20 @@ export default function OwnerLayout({
       <header className={`sticky top-0 z-40 border-b shadow-sm transition-colors ${
         theme === "dark" ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200/80 text-slate-900"
       }`}>
-        <div className="mx-auto max-w-[1500px] px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="mx-auto max-w-[1500px] px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4 sm:gap-6">
+            {/* 3 Lines Hamburger Menu Button for all screens */}
+            <button
+              onClick={() => setMobileDrawerOpen(true)}
+              className={`p-2 rounded-xl border transition cursor-pointer ${
+                theme === "dark" ? "bg-slate-800 border-slate-700 text-white hover:bg-slate-700" : "bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100"
+              }`}
+              title="Open Navigation Menu"
+              aria-label="Navigation Menu"
+            >
+              <Menu size={20} />
+            </button>
+
             <Link to="/dashboard">
               <Logo />
             </Link>
@@ -175,12 +192,12 @@ export default function OwnerLayout({
           </div>
 
           {/* Header Right Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Language Selector Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
-                className={`p-2 rounded-xl border flex items-center gap-1 text-xs font-bold transition ${
+                className={`p-2 rounded-xl border flex items-center gap-1 text-xs font-bold transition cursor-pointer ${
                   theme === "dark" ? "bg-slate-800 border-slate-700 hover:bg-slate-700" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}
                 title="Select Language"
@@ -190,7 +207,7 @@ export default function OwnerLayout({
               </button>
 
               {langMenuOpen && (
-                <div className={`absolute right-0 mt-2 w-44 rounded-2xl shadow-xl z-50 py-1 font-bold text-xs border ${
+                <div className={`absolute right-0 mt-2 w-48 rounded-2xl shadow-xl z-50 py-1 font-bold text-xs border ${
                   theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
                 }`}>
                   <div className="px-3 py-1.5 text-[10px] uppercase font-mono text-slate-400 border-b border-slate-200/40">
@@ -200,7 +217,7 @@ export default function OwnerLayout({
                     <button
                       key={l.code}
                       onClick={() => handleSelectLanguage(l.code)}
-                      className={`w-full text-left px-3.5 py-2 flex items-center justify-between hover:bg-amber-400/20 transition ${
+                      className={`w-full text-left px-3.5 py-2 flex items-center justify-between hover:bg-amber-400/20 transition cursor-pointer ${
                         currentLang === l.code ? "text-amber-500 font-black" : ""
                       }`}
                     >
@@ -215,7 +232,7 @@ export default function OwnerLayout({
             {/* Dark / Light Mode Toggle */}
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-xl border transition ${
+              className={`p-2 rounded-xl border transition cursor-pointer ${
                 theme === "dark" ? "bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700" : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
               }`}
               title={theme === "dark" ? "Switch to Day Mode" : "Switch to Dark Mode"}
@@ -240,25 +257,11 @@ export default function OwnerLayout({
               </div>
             </Link>
 
-            {/* Notifications Bell */}
-            <button
-              onClick={() => navigate("/notifications")}
-              className={`relative p-2 rounded-xl border transition ${
-                theme === "dark" ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-              }`}
-              title="Notifications"
-            >
-              <Bell size={17} />
-              <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-amber-500 text-slate-950 text-[8px] font-black rounded-full flex items-center justify-center">
-                3
-              </span>
-            </button>
-
             {/* User Profile Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className={`flex items-center gap-2 p-1.5 rounded-xl border transition ${
+                className={`flex items-center gap-2 p-1.5 rounded-xl border transition cursor-pointer ${
                   theme === "dark" ? "bg-slate-800 border-slate-700 hover:bg-slate-700" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                 }`}
               >
@@ -300,7 +303,7 @@ export default function OwnerLayout({
                       await signOut();
                       navigate("/login");
                     }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-rose-500/20 text-rose-500 font-bold border-t border-slate-200/40 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2.5 hover:bg-rose-500/20 text-rose-500 font-bold border-t border-slate-200/40 flex items-center gap-2 cursor-pointer"
                   >
                     Logout
                   </button>
@@ -311,16 +314,83 @@ export default function OwnerLayout({
         </div>
       </header>
 
+      {/* Slide-over Drawer for 3-Lines Hamburger Menu */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-fadeIn" onClick={() => setMobileDrawerOpen(false)} />
+          <div className={`absolute inset-y-0 left-0 w-80 shadow-2xl flex flex-col justify-between p-5 border-r animate-slideRight ${
+            theme === "dark" ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+          }`}>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200/40 pb-4">
+                <Logo />
+                <button onClick={() => setMobileDrawerOpen(false)} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* User badge */}
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700">
+                <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-sm border border-amber-400">
+                  {displayName.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-black truncate">{displayName}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{displayEmail}</p>
+                </div>
+              </div>
+
+              {/* Navigation Menu */}
+              <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.id}
+                      to={item.path}
+                      onClick={() => setMobileDrawerOpen(false)}
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-black transition ${
+                        isActive
+                          ? "bg-[#FFC800] text-slate-950 shadow-sm"
+                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <Icon size={16} className={isActive ? "text-slate-950" : "text-amber-500"} />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Drawer Bottom Actions */}
+            <div className="pt-4 border-t border-slate-200/40 space-y-2">
+              <button
+                onClick={toggleTheme}
+                className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold"
+              >
+                <span className="flex items-center gap-2">
+                  {theme === "dark" ? <Moon size={15} className="text-amber-400" /> : <Sun size={15} className="text-amber-500" />}
+                  <span>{theme === "dark" ? "Night Mode Active" : "Day Mode Active"}</span>
+                </span>
+                <span className="text-[10px] text-amber-500 font-mono">Switch</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid with Left Sidebar & Content */}
-      <div className="mx-auto max-w-[1500px] px-6 py-6 grid gap-6 lg:grid-cols-[240px_1fr]">
+      <div className="mx-auto max-w-[1500px] px-4 sm:px-6 py-6 grid gap-6 lg:grid-cols-[240px_1fr]">
         
-        {/* Left Sidebar */}
-        <aside className="space-y-4">
+        {/* Left Sidebar (Desktop) */}
+        <aside className="hidden lg:block space-y-4">
           {/* Owner Profile Badge Card with Dynamic KYC Verification */}
           <div className={`border rounded-2xl p-4 shadow-sm flex items-center gap-3 ${
             theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200/80"
           }`}>
-            <div className="relative w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl shrink-0 shadow-sm">
+            <div className="relative w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 flex items-center justify-center text-2xl shrink-0 shadow-sm">
               🚛
             </div>
             <div className="min-w-0 flex-1">
@@ -388,7 +458,7 @@ export default function OwnerLayout({
                 <Landmark size={14} /> + Add Bank Details
               </button>
             </div>
-          ) : promoCardType === "truck" ? (
+          ) : (
             <div className={`border rounded-2xl p-4 shadow-sm space-y-3 relative overflow-hidden ${
               theme === "dark" ? "bg-slate-900 border-amber-500/30" : "bg-white border-amber-200/80"
             }`}>
@@ -400,23 +470,6 @@ export default function OwnerLayout({
               </div>
               <button
                 onClick={() => onAddTruckClick ? onAddTruckClick() : navigate("/trucks")}
-                className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-[11px] py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Plus size={14} /> + Add New Truck
-              </button>
-            </div>
-          ) : (
-            <div className={`border rounded-2xl p-4 shadow-sm space-y-3 relative overflow-hidden ${
-              theme === "dark" ? "bg-slate-900 border-amber-500/30" : "bg-white border-amber-200/80"
-            }`}>
-              <div className="space-y-1">
-                <span className="text-xs font-black block">Earn More, Every Trip!</span>
-                <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                  Keep your trucks active and earn more with REDO smart backhaul matching.
-                </p>
-              </div>
-              <button
-                onClick={() => navigate("/trucks")}
                 className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-[11px] py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Plus size={14} /> + Add New Truck

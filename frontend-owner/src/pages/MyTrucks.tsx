@@ -146,44 +146,44 @@ export default function MyTrucks() {
 
         {/* 4 Fleet Stat Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Fleet</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-slate-900">{trucks.length}</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{trucks.length}</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                 <Truck size={16} />
               </div>
             </div>
             <span className="text-[10px] font-bold text-slate-500 block">Registered Vehicles</span>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Available Trucks</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-slate-900">{availableCount}</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{availableCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <Check size={16} />
               </div>
             </div>
             <span className="text-[10px] font-bold text-emerald-600 block">Ready for Loads</span>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">On the Road</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-slate-900">{onTripCount}</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{onTripCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                 <MapPin size={16} />
               </div>
             </div>
             <span className="text-[10px] font-bold text-blue-600 block">Active Corridors</span>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Verified RC</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-slate-900">{activeCount}</span>
-              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{activeCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                 <ShieldCheck size={16} />
               </div>
             </div>
@@ -192,7 +192,7 @@ export default function MyTrucks() {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="relative w-full md:w-80">
             <Search size={16} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
@@ -200,7 +200,7 @@ export default function MyTrucks() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by RC, model, city, driver..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -209,7 +209,7 @@ export default function MyTrucks() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -221,7 +221,7 @@ export default function MyTrucks() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
               <option value="all">All Vehicle Types</option>
               <option value="14">14 Feet</option>
@@ -236,17 +236,17 @@ export default function MyTrucks() {
 
         {/* Truck List with Real Photos */}
         {filteredTrucks.length === 0 ? (
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-12 text-center space-y-4 shadow-sm">
-            <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+            <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto text-2xl">
               🚛
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-black text-slate-900">No trucks found</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-white">No trucks found</h3>
               <p className="text-xs text-slate-500">Try changing your filters or add a new truck to your fleet.</p>
             </div>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl shadow-sm text-xs"
+              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl shadow-sm text-xs cursor-pointer"
             >
               + Add Your First Truck
             </button>
@@ -256,7 +256,7 @@ export default function MyTrucks() {
             {filteredTrucks.map((truck) => (
               <div
                 key={truck.id}
-                className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
               >
                 {/* Truck Photo Header */}
                 <div className="relative h-44 bg-slate-900 overflow-hidden group">
@@ -305,33 +305,33 @@ export default function MyTrucks() {
                 <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
                   <div className="space-y-3">
                     {/* Specs Grid */}
-                    <div className="grid grid-cols-2 gap-2 text-xs font-bold bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-700/60">
                       <div>
                         <span className="text-[10px] text-slate-400 uppercase block font-semibold">Capacity</span>
-                        <span className="text-slate-900">{truck.capacity}</span>
+                        <span className="text-slate-900 dark:text-white">{truck.capacity}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 uppercase block font-semibold">Body Type</span>
-                        <span className="text-slate-900">{truck.body}</span>
+                        <span className="text-slate-900 dark:text-white">{truck.body}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 uppercase block font-semibold">Driver</span>
-                        <span className="text-slate-900 truncate block">{truck.driverName || "Assigned Driver"}</span>
+                        <span className="text-slate-900 dark:text-white truncate block">{truck.driverName || "Assigned Driver"}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 uppercase block font-semibold">Location</span>
-                        <span className="text-slate-900 truncate block">{truck.location}</span>
+                        <span className="text-slate-900 dark:text-white truncate block">{truck.location}</span>
                       </div>
                     </div>
 
                     {/* Current Trip Status */}
                     {truck.currentTrip && (
-                      <div className="text-xs p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 font-bold space-y-1">
+                      <div className="text-xs p-2.5 rounded-xl bg-amber-50/70 dark:bg-slate-800 border border-amber-200/60 dark:border-slate-700 font-bold space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase text-amber-800 font-black">Active Route</span>
-                          <span className="text-[10px] text-emerald-700 font-extrabold">{truck.currentTrip.status}</span>
+                          <span className="text-[10px] uppercase text-amber-800 dark:text-amber-400 font-black">Active Route</span>
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-extrabold">{truck.currentTrip.status}</span>
                         </div>
-                        <p className="text-slate-900 text-xs">
+                        <p className="text-slate-900 dark:text-white text-xs">
                           {truck.currentTrip.origin} ➔ {truck.currentTrip.dest}
                         </p>
                       </div>
@@ -339,7 +339,7 @@ export default function MyTrucks() {
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                     <button
                       onClick={() => setSelectedTruck(truck)}
                       className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black py-2.5 rounded-xl text-xs transition text-center shadow-sm cursor-pointer"
