@@ -24,7 +24,7 @@ export default function Earnings() {
       amount: "₹22,000",
       status: "Paid",
       tone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-      photoUrl: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80",
+      photoUrl: "/assets/redo_truck.jpg",
     },
     {
       id: "T2",

@@ -32,27 +32,27 @@ export interface TruckItem {
 }
 
 export const PRESET_TRUCK_PHOTOS = [
+  { label: "REDO Official 19ft Container Truck", url: "/assets/redo_truck.jpg" },
   { label: "Eicher 17ft Closed Container", url: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80" },
   { label: "BharatBenz 19ft Heavy Truck", url: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=600&q=80" },
   { label: "Tata 14ft Open Body", url: "https://images.unsplash.com/photo-1592838064575-70ed626d3a0e?auto=format&fit=crop&w=600&q=80" },
   { label: "Mahindra Bolero Maxi Truck", url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80" },
   { label: "32ft Multi-Axle Container", url: "https://images.unsplash.com/photo-1506015391300-4802dc74de2e?auto=format&fit=crop&w=600&q=80" },
-  { label: "Ashok Leyland 22ft Tarpaulin", url: "https://images.unsplash.com/photo-1586191582056-a6b18974a44e?auto=format&fit=crop&w=600&q=80" },
 ];
 
 const INITIAL_TRUCKS: TruckItem[] = [
   {
     id: "TRUCK-101",
-    name: "Eicher Pro 2049",
-    regNo: "HR 55 AB 1234",
-    type: "17 Feet",
+    name: "REDO Express Container",
+    regNo: "REDO 2024",
+    type: "19 Feet",
     body: "Enclosed Container",
-    capacity: "7.0 Ton",
-    capacityTons: 7.0,
+    capacity: "8.5 Ton",
+    capacityTons: 8.5,
     status: "Active",
     availability: "Available",
     location: "Delhi NCR, Delhi",
-    photoUrl: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80",
+    photoUrl: "/assets/redo_truck.jpg",
     driverName: "Sandeep Kumar",
     driverPhone: "+91 98765 11223",
     driverLicense: "DL-042018009876",

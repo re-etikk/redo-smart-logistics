@@ -29,7 +29,7 @@ export default function OwnerBookings() {
       status: "Completed",
       statusDesc: "Trip completed on 21 May 2024, 08:30 PM",
       statusTone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-      photoUrl: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80",
+      photoUrl: "/assets/redo_truck.jpg",
       driverName: "Mukesh Yadav",
       driverPhone: "+91 98112 34567",
       regNo: "HR55 AB 1234",

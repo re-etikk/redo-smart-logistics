@@ -103,38 +103,13 @@ export default function OwnerDashboard() {
             </div>
           </div>
 
-          {/* SVG Container Truck Visual */}
+          {/* Official REDO Container Truck Image */}
           <div className="w-full max-w-xs lg:max-w-md shrink-0">
-            <svg viewBox="0 0 500 240" className="w-full h-auto drop-shadow-xl">
-              <rect x="40" y="40" width="280" height="140" rx="6" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="2" className="dark:fill-slate-800 dark:stroke-slate-700" />
-              {[70, 110, 150, 190, 230, 270].map((x) => (
-                <line key={x} x1={x} y1="42" x2={x} y2="178" stroke="#E2E8F0" strokeWidth="1.5" className="dark:stroke-slate-700" />
-              ))}
-              <rect x="40" y="165" width="280" height="15" fill="#FFC800" />
-              
-              <g transform="translate(80, 75)">
-                <path d="M0 30 L12 3 H22 C28 3 32 7 30 13 C28 18 23 20 18 20 L25 30 H18 L13 20 H10 L6 30 H0 Z" fill="#0F172A" className="dark:fill-white" />
-                <path d="M9 8 L13 0 H18 L14 8 H9 Z" fill="#FFC800" />
-                <text x="36" y="24" fill="#0F172A" fontSize="28" fontFamily="sans-serif" fontWeight="900" className="dark:fill-white">redo</text>
-                <text x="36" y="34" fill="#64748B" fontSize="8" fontFamily="sans-serif" fontWeight="800">TRANSPORT &amp; LOGISTICS</text>
-              </g>
-
-              <path d="M320 70 L370 70 Q395 70 405 105 L415 140 Q420 160 420 180 H320 V70 Z" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="2" className="dark:fill-slate-800 dark:stroke-slate-700" />
-              <path d="M360 80 L390 80 Q402 80 410 105 H360 V80 Z" fill="#1E293B" />
-              <circle cx="414" cy="145" r="5" fill="#FEF08A" stroke="#EAB308" strokeWidth="1.5" />
-
-              <circle cx="100" cy="195" r="22" fill="#0F172A" stroke="#334155" strokeWidth="3" />
-              <circle cx="100" cy="195" r="10" fill="#94A3B8" />
-
-              <circle cx="150" cy="195" r="22" fill="#0F172A" stroke="#334155" strokeWidth="3" />
-              <circle cx="150" cy="195" r="10" fill="#94A3B8" />
-
-              <circle cx="260" cy="195" r="22" fill="#0F172A" stroke="#334155" strokeWidth="3" />
-              <circle cx="260" cy="195" r="10" fill="#94A3B8" />
-
-              <circle cx="360" cy="195" r="22" fill="#0F172A" stroke="#334155" strokeWidth="3" />
-              <circle cx="360" cy="195" r="10" fill="#94A3B8" />
-            </svg>
+            <img
+              src="/assets/redo_truck.jpg"
+              alt="Official REDO Container Truck"
+              className="w-full h-auto max-h-56 object-contain drop-shadow-2xl rounded-2xl"
+            />
           </div>
         </div>
 
