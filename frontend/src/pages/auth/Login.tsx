@@ -56,7 +56,17 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
       <header className="bg-white border-b border-line">
-        <div className="mx-auto max-w-6xl px-4 h-14 flex items-center"><Link to="/"><Logo /></Link></div>
+        <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="text-xs font-bold text-ink-muted hover:text-ink bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition">
+              ← Back to Home
+            </Link>
+            <Link to="/"><Logo /></Link>
+          </div>
+          <Link to="/signup" className="text-xs font-semibold text-accent hover:underline">
+            Create account →
+          </Link>
+        </div>
       </header>
       <main className="flex-1 grid place-items-center px-4 py-10">
         <Card className="w-full max-w-sm p-6">

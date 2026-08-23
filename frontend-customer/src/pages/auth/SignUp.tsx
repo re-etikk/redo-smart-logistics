@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import Logo from "../../components/Logo";
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Tag, Radio, ArrowRight, User, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, Tag, Radio, ArrowRight, ArrowLeft, User, AlertCircle } from "lucide-react";
 
 export default function CustomerSignUp() {
   const [fullName, setFullName] = useState("");
@@ -94,9 +94,18 @@ export default function CustomerSignUp() {
     <div className="min-h-screen bg-[#FDFCF9] text-slate-900 font-sans selection:bg-amber-400 flex flex-col justify-between">
       {/* Top Header */}
       <header className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between">
-        <Link to="/">
-          <Logo />
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 text-xs font-black text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Home</span>
+          </Link>
+          <Link to="/" className="hidden sm:block">
+            <Logo />
+          </Link>
+        </div>
 
         <div className="text-xs font-bold text-slate-600">
           <span>Already have an account? </span>

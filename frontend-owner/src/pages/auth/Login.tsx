@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import Logo from "../../components/Logo";
-import { Eye, EyeOff, Lock, Mail, Truck, IndianRupee, ShieldCheck, Zap, ArrowRight, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Truck, IndianRupee, ShieldCheck, Zap, ArrowRight, ArrowLeft, X, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function OwnerLogin() {
   const [email, setEmail] = useState("");
@@ -116,11 +116,20 @@ export default function OwnerLogin() {
     <div className="min-h-screen bg-[#FDFCF9] text-slate-900 font-sans selection:bg-amber-400 flex flex-col justify-between">
       {/* Top Header */}
       <header className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Logo />
-          <span className="text-amber-500 font-black text-xs uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300">
-            OWNER
-          </span>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 text-xs font-black text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Home</span>
+          </Link>
+          <div className="hidden sm:flex items-center gap-2">
+            <Logo />
+            <span className="text-amber-500 font-black text-xs uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300">
+              OWNER
+            </span>
+          </div>
         </div>
 
         <div className="text-xs font-bold text-slate-600">
