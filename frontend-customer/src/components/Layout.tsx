@@ -59,7 +59,8 @@ export default function Layout({ children }: { children: ReactNode }) {
     setLangMenuOpen(false);
   };
 
-  const displayName = profile?.full_name || session?.user?.user_metadata?.full_name || "Ritik Chaurasia";
+  const googleName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || (session?.user?.email ? session.user.email.split('@')[0] : "");
+  const displayName = session?.user ? (googleName || profile?.full_name) : (profile?.full_name || "Customer");
   const displayEmail = session?.user?.email || profile?.email || "customer@redo.app";
 
   const SideNav = (
@@ -99,7 +100,12 @@ export default function Layout({ children }: { children: ReactNode }) {
       }`}>
         <div className="h-16 px-4 flex items-center justify-between max-w-[1400px] mx-auto w-full">
           <div className="flex items-center gap-3">
-            <button className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Menu" onClick={() => setDrawer(true)}>
+            <button
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-white transition cursor-pointer"
+              aria-label="Menu"
+              onClick={() => setDrawer(true)}
+              title="Open Navigation Drawer"
+            >
               <Menu size={20} />
             </button>
             <button onClick={() => navigate("/dashboard")} className="shrink-0">

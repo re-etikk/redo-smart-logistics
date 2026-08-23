@@ -1,208 +1,553 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, CheckCircle2, Clock, ShieldCheck, Truck } from 'lucide-react';
+import { useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Box, CheckCircle2, Clock, ShieldCheck, Truck, MapPin, Calendar, Scale,
+  Zap, ArrowRight, ArrowLeft, Upload, Camera, X, Check, Phone, Info, Sparkles
+} from "lucide-react";
 import Layout from "../components/Layout";
-import { api } from "../lib/api";
-import { Button, Card, Field, SectionHead, inputCls, useToast } from "../components/ui";
+import { useAuth } from "../hooks/useAuth";
+import { postNewCargo } from "../lib/cargoStore";
+import { searchLocations, estimateHighwayDistance, estimateFairPrice, type LocationHub } from "../lib/locationService";
+import { useTranslation } from "../lib/i18n";
 
-const CITY = ['Mumbai', 'Delhi', 'Pune', 'Jaipur', 'Surat'];
-const TYPES = ['Textiles', 'FMCG', 'Electronics', 'Auto parts', 'Pharma', 'Furniture'];
-const STEPS = ['Basic Details', 'Pickup & Delivery', 'Cargo Details', 'Review & Confirm'];
+const STEPS = ["Shipment Type", "Route & Schedule", "Cargo Details", "Review & Confirm"];
+
+const QUICK_SLOTS = [
+  { id: "immediate", label: "Immediate (Within 2 Hours)", desc: "Priority backhaul pickup", badge: "⚡ Fastest" },
+  { id: "today_evening", label: "Today Evening (04:00 PM – 08:00 PM)", desc: "Same-day highway dispatch", badge: "Popular" },
+  { id: "tomorrow_morning", label: "Tomorrow Morning (08:00 AM – 12:00 PM)", desc: "Standard morning loading", badge: "Economical" },
+  { id: "custom", label: "Custom Date & Time", desc: "Select preferred calendar slot", badge: "Flexible" },
+];
 
 export default function BookShipment() {
+  const navigate = useNavigate();
+  const { session, profile } = useAuth();
+  const { t } = useTranslation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const toast = useToast();
-  const [form, setForm] = useState({
-    shipment_type: 'LTL', origin: 'Mumbai', destination: 'Delhi', pickup_at: '',
-    cargo_type: 'Textiles', description: '', cargo_weight_tons: '1.5',
-    urgency: 'normal', special_handling: [] as string[],
-  });
-  const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
-  const summary: [string, string][] = useMemo(() => [
-    ['Shipment Type', form.shipment_type === 'FTL' ? 'Full Truck Load' : 'Part Load (LTL)'],
-    ['Pickup Location', form.origin],
-    ['Delivery Location', form.destination],
-    ['Cargo Type', form.cargo_type],
-    ['Total Weight', `${form.cargo_weight_tons} T`],
-    ['Pickup', form.pickup_at ? new Date(form.pickup_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
-  ], [form]);
+  // Form State
+  const [shipmentType, setShipmentType] = useState<"LTL" | "FTL">("LTL");
+  const [origin, setOrigin] = useState("Mumbai (Bhiwandi Logistics Park)");
+  const [destination, setDestination] = useState("Delhi NCR (Okhla Industrial Area)");
+  const [selectedSlot, setSelectedSlot] = useState("immediate");
+  const [customDate, setCustomDate] = useState("");
+  const [customTimeSlot, setCustomTimeSlot] = useState("Morning (08:00 AM - 12:00 PM)");
+  const [urgency, setUrgency] = useState<"Immediate Dispatch" | "High Priority" | "Standard Delivery">("Immediate Dispatch");
+  
+  const [cargoType, setCargoType] = useState("Textiles & Garments");
+  const [cargoWeightTons, setCargoWeightTons] = useState("2.5");
+  const [truckRequired, setTruckRequired] = useState("17-19 Feet Closed Container");
+  const [cargoPhoto, setCargoPhoto] = useState<string>("");
+  const [specialHandling, setSpecialHandling] = useState<string[]>(["Fragile Cargo", "Waterproof Tarp"]);
 
-  const toggleHandling = (h: string) => set('special_handling',
-    form.special_handling.includes(h) ? form.special_handling.filter((x) => x !== h) : [...form.special_handling, h]);
+  // Location suggestions
+  const [originSuggestions, setOriginSuggestions] = useState<LocationHub[]>([]);
+  const [destSuggestions, setDestSuggestions] = useState<LocationHub[]>([]);
+  const [showOriginDrop, setShowOriginDrop] = useState(false);
+  const [showDestDrop, setShowDestDrop] = useState(false);
 
-  const submit = async () => {
-    setBusy(true); setError('');
-    try {
-      const cargo = await api.post<{ cargo_id: string }>('/cargo', {
-        origin: form.origin, destination: form.destination, cargo_type: form.cargo_type,
-        cargo_weight_tons: +form.cargo_weight_tons, pickup_at: form.pickup_at, urgency: form.urgency,
-        special_handling: [form.shipment_type, form.description, ...form.special_handling].filter(Boolean).join(' · ') || null,
-      });
-      toast('Shipment posted — finding matching trucks');
-      navigate(`/find-trucks/${cargo.cargo_id}`);
-    } catch (e: any) { setError(e.message); setBusy(false); }
+  // Distance & Price Calculation
+  const { distanceKm, transitHours } = estimateHighwayDistance(origin, destination);
+  const estFreightInr = estimateFairPrice(distanceKm, parseFloat(cargoWeightTons) || 1);
+
+  // Pickup Date Formatter
+  const formattedPickup = useMemo(() => {
+    if (selectedSlot === "immediate") return "Today (Immediate Dispatch ~2 hrs)";
+    if (selectedSlot === "today_evening") return "Today Evening (04:00 PM – 08:00 PM)";
+    if (selectedSlot === "tomorrow_morning") return "Tomorrow Morning (08:00 AM – 12:00 PM)";
+    return customDate ? `${customDate} • ${customTimeSlot}` : "Custom Scheduled Date";
+  }, [selectedSlot, customDate, customTimeSlot]);
+
+  const handleOriginChange = (val: string) => {
+    setOrigin(val);
+    setOriginSuggestions(searchLocations(val));
+    setShowOriginDrop(true);
   };
 
-  const canNext = step === 1 ? (form.origin !== form.destination && !!form.pickup_at)
-    : step === 2 ? +form.cargo_weight_tons > 0 : true;
+  const handleDestChange = (val: string) => {
+    setDestination(val);
+    setDestSuggestions(searchLocations(val));
+    setShowDestDrop(true);
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setCargoPhoto(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const toggleHandling = (item: string) => {
+    setSpecialHandling(prev =>
+      prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item]
+    );
+  };
+
+  const submitBooking = () => {
+    setBusy(true);
+
+    const newCargo = postNewCargo({
+      origin,
+      destination,
+      cargoType,
+      weightTons: parseFloat(cargoWeightTons) || 1.5,
+      truckRequired,
+      distanceKm,
+      pickupDate: formattedPickup,
+      offeredPriceInr: estFreightInr,
+      shipperName: profile?.full_name || session?.user?.user_metadata?.full_name || "Enterprise Shipper",
+      shipperPhone: profile?.phone || "+91 98765 43210",
+      shipperEmail: session?.user?.email || "customer@redo.app",
+      urgency,
+      cargoPhotoUrl: cargoPhoto || undefined,
+      specialInstructions: specialHandling.join(", "),
+    });
+
+    // Navigate to recommendations where real trucks are matched!
+    navigate(`/recommendations?cargoId=${newCargo.id}`);
+  };
 
   return (
     <Layout>
-      <SectionHead title="Book Shipment" sub="Fill in the details below to book your shipment." />
+      <div className="max-w-4xl mx-auto space-y-6 py-4 text-slate-900 dark:text-white">
+        {/* Header Title */}
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-black">
+            <Sparkles size={14} className="text-amber-500" />
+            <span>AI Freight Booking Engine</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+            Book Commercial Freight Shipment
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Select route, choose verified pickup schedule, and match directly with live return fleet.
+          </p>
+        </div>
 
-      {/* Stepper */}
-      <ol className="mt-6 flex items-center gap-0 overflow-x-auto" aria-label="Booking steps">
-        {STEPS.map((s, i) => (
-          <li key={s} className="flex items-center flex-1 last:flex-none min-w-fit">
-            <div className="flex flex-col items-center gap-1 px-2">
-              <span className={`h-8 w-8 rounded-full grid place-items-center text-sm font-bold
-                ${i < step ? 'bg-ok text-white' : i === step ? 'bg-accent text-accent-fg' : 'bg-white border border-line text-ink-faint'}`}>
-                {i < step ? '✓' : i + 1}
-              </span>
-              <span className={`text-[11px] font-semibold whitespace-nowrap ${i <= step ? 'text-ink' : 'text-ink-faint'}`}>{s}</span>
-            </div>
-            {i < STEPS.length - 1 && <div className={`h-0.5 flex-1 ${i < step ? 'bg-ok' : 'bg-line'}`} />}
-          </li>
-        ))}
-      </ol>
-
-      <div className="mt-6 grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
-          {step === 0 && (
-            <Card className="p-5">
-              <h2 className="font-bold text-ink">Shipment Type</h2>
-              <div className="mt-3 grid sm:grid-cols-2 gap-3">
-                {[
-                  { k: 'FTL', t: 'Full Truck Load (FTL)', d: 'Dedicated truck for your shipment', icon: Truck },
-                  { k: 'LTL', t: 'Part Load / LTL', d: 'Share backhaul space and pay for what you use', icon: Box },
-                ].map(({ k, t, d, icon: Icon }) => (
-                  <button key={k} onClick={() => set('shipment_type', k)} aria-pressed={form.shipment_type === k}
-                    className={`rounded-xl border-2 p-4 text-left transition
-                      ${form.shipment_type === k ? 'border-accent bg-accent-soft' : 'border-line hover:border-ink/30'}`}>
-                    <Icon size={20} className="text-accent" />
-                    <span className="mt-2 block font-bold text-ink text-sm">{t}</span>
-                    <span className="block text-xs text-ink-soft mt-0.5">{d}</span>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {step === 1 && (
-            <Card className="p-5 space-y-4">
-              <h2 className="font-bold text-ink">Route Details</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Pickup Location *">
-                  <select className={inputCls} value={form.origin} onChange={(e) => set('origin', e.target.value)}>
-                    {CITY.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Delivery Location *" error={form.origin === form.destination ? 'Pickup and delivery must differ.' : ''}>
-                  <select className={inputCls} value={form.destination} onChange={(e) => set('destination', e.target.value)}>
-                    {CITY.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </Field>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Pickup Date & Time *">
-                  <input type="datetime-local" className={inputCls} value={form.pickup_at} onChange={(e) => set('pickup_at', e.target.value)} />
-                </Field>
-                <Field label="Urgency">
-                  <select className={inputCls} value={form.urgency} onChange={(e) => set('urgency', e.target.value)}>
-                    {['normal', 'urgent', 'flexible'].map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </Field>
-              </div>
-            </Card>
-          )}
-
-          {step === 2 && (
-            <Card className="p-5 space-y-4">
-              <h2 className="font-bold text-ink">Cargo Information</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Cargo Type *">
-                  <select className={inputCls} value={form.cargo_type} onChange={(e) => set('cargo_type', e.target.value)}>
-                    {TYPES.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Total Weight (tonnes) *">
-                  <input type="number" min="0.1" step="0.1" className={inputCls} value={form.cargo_weight_tons}
-                    onChange={(e) => set('cargo_weight_tons', e.target.value)} />
-                </Field>
-              </div>
-              <Field label="Goods Description">
-                <input className={inputCls} value={form.description} onChange={(e) => set('description', e.target.value)}
-                  placeholder="e.g. 40 cartons of finished garments" />
-              </Field>
-              <div>
-                <p className="text-sm font-semibold text-ink">Additional Requirements <span className="text-ink-faint font-normal">(Optional)</span></p>
-                <div className="mt-2 grid sm:grid-cols-2 gap-2">
-                  {['Door Pickup', 'Door Delivery', 'Insurance', 'Fragile / Special Handling'].map((h) => (
-                    <label key={h} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm font-medium cursor-pointer">
-                      <input type="checkbox" checked={form.special_handling.includes(h)} onChange={() => toggleHandling(h)}
-                        className="accent-[rgb(var(--accent))]" />
-                      {h}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {step === 3 && (
-            <Card className="p-5">
-              <h2 className="font-bold text-ink">Review & Confirm</h2>
-              <dl className="mt-3 divide-y divide-line">
-                {summary.map(([k, v]) => (
-                  <div key={k} className="flex justify-between py-2.5 text-sm">
-                    <dt className="text-ink-faint font-medium">{k}</dt><dd className="font-bold text-ink">{v}</dd>
+        {/* Stepper Progress Bar */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            {STEPS.map((s, idx) => (
+              <div key={s} className="flex items-center flex-1 last:flex-none">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => idx < step && setStep(idx)}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs transition ${
+                    idx < step
+                      ? "bg-emerald-500 text-white shadow-sm"
+                      : idx === step
+                      ? "bg-[#FFC800] text-slate-950 shadow-sm ring-4 ring-amber-400/20"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700"
+                  }`}>
+                    {idx < step ? <Check size={14} /> : idx + 1}
                   </div>
-                ))}
-              </dl>
-              {form.special_handling.length > 0 && (
-                <p className="mt-2 text-xs text-ink-soft">Requirements: {form.special_handling.join(', ')}</p>
-              )}
-              {error && <p className="mt-3 text-sm font-medium text-danger">{error}</p>}
-              <p className="mt-3 text-xs text-ink-faint">
-                On confirm we post this shipment and run the two-stage matcher (hard filters + ML ranking) on live return-trip capacity.
-              </p>
-            </Card>
-          )}
-
-          <div className="flex justify-between">
-            <Button variant="secondary" onClick={() => (step === 0 ? navigate(-1) : setStep(step - 1))}>
-              {step === 0 ? 'Cancel' : 'Back'}
-            </Button>
-            {step < 3
-              ? <Button onClick={() => setStep(step + 1)} disabled={!canNext}>Save & Continue →</Button>
-              : <Button onClick={submit} disabled={busy}>{busy ? 'Finding trucks…' : 'Confirm & Find Trucks'}</Button>}
+                  <span className={`hidden sm:inline-block text-xs font-black ${
+                    idx === step ? "text-slate-900 dark:text-white" : "text-slate-400"
+                  }`}>
+                    {s}
+                  </span>
+                </div>
+                {idx < STEPS.length - 1 && (
+                  <div className={`flex-1 h-0.5 mx-2 sm:mx-4 rounded-full ${
+                    idx < step ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-800"
+                  }`} />
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Summary sidebar */}
-        <div className="space-y-4">
-          <Card className="p-5">
-            <h2 className="font-bold text-ink">Shipment Summary</h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              {summary.map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-3">
-                  <dt className="text-ink-faint">{k}</dt><dd className="font-semibold text-ink text-right">{v}</dd>
+        {/* Form Wizard Step Contents */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          {/* Main Step Form */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            
+            {/* ================= STEP 0: SHIPMENT TYPE ================= */}
+            {step === 0 && (
+              <div className="space-y-5">
+                <h3 className="font-black text-base">Select Load Type</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div
+                    onClick={() => setShipmentType("LTL")}
+                    className={`p-5 rounded-2xl border-2 transition cursor-pointer space-y-2 ${
+                      shipmentType === "LTL"
+                        ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/30 ring-2 ring-amber-400/20"
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center font-black">
+                      <Box size={20} />
+                    </div>
+                    <h4 className="font-black text-sm">Part Load / Backhaul (LTL)</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                      Share empty returning truck space. Pay only for the tonnage you use and save up to 35%.
+                    </p>
+                    <span className="inline-block text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+                      ✓ Best for 0.5T – 10T Loads
+                    </span>
+                  </div>
+
+                  <div
+                    onClick={() => setShipmentType("FTL")}
+                    className={`p-5 rounded-2xl border-2 transition cursor-pointer space-y-2 ${
+                      shipmentType === "FTL"
+                        ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/30 ring-2 ring-amber-400/20"
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-900 flex items-center justify-center font-black">
+                      <Truck size={20} />
+                    </div>
+                    <h4 className="font-black text-sm">Full Dedicated Truck (FTL)</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                      Book the entire vehicle exclusively for your cargo with direct non-stop transit.
+                    </p>
+                    <span className="inline-block text-[10px] font-black text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full">
+                      ✓ Complete Container Security
+                    </span>
+                  </div>
                 </div>
-              ))}
-            </dl>
-          </Card>
-          <Card className="p-5 bg-accent-soft border-0">
-            <p className="font-bold text-ink text-sm">Why book with Redo?</p>
-            <ul className="mt-3 space-y-2.5 text-xs text-ink-soft">
-              <li className="flex gap-2"><ShieldCheck size={15} className="text-ok shrink-0" /> Verified transporters with document checks</li>
-              <li className="flex gap-2"><Clock size={15} className="text-info shrink-0" /> ML-ranked matches on live return capacity</li>
-              <li className="flex gap-2"><CheckCircle2 size={15} className="text-warn shrink-0" /> Transparent pricing — pay for what you use</li>
-            </ul>
-          </Card>
+              </div>
+            )}
+
+            {/* ================= STEP 1: ROUTE & ADVANCED SCHEDULE ================= */}
+            {step === 1 && (
+              <div className="space-y-5 text-xs font-bold">
+                <h3 className="font-black text-base">Route Corridor &amp; Pickup Timing</h3>
+
+                {/* Origin / Destination with Suggestions */}
+                <div className="grid sm:grid-cols-2 gap-4 relative">
+                  <div className="relative">
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1.5 flex items-center gap-1">
+                      <MapPin size={12} className="text-emerald-500" /> Pickup Hub *
+                    </label>
+                    <input
+                      required
+                      value={origin}
+                      onChange={(e) => handleOriginChange(e.target.value)}
+                      onFocus={() => setShowOriginDrop(true)}
+                      placeholder="Type Indian City or Logistics Hub"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    {showOriginDrop && originSuggestions.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 max-h-44 overflow-y-auto py-1">
+                        {originSuggestions.map((h, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => { setOrigin(h.name); setShowOriginDrop(false); }}
+                            className="w-full text-left px-3.5 py-2 hover:bg-amber-100 dark:hover:bg-slate-700 flex items-center justify-between"
+                          >
+                            <span>{h.name}</span>
+                            <span className="text-[10px] text-slate-400">{h.hub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1.5 flex items-center gap-1">
+                      <MapPin size={12} className="text-rose-500" /> Destination Hub *
+                    </label>
+                    <input
+                      required
+                      value={destination}
+                      onChange={(e) => handleDestChange(e.target.value)}
+                      onFocus={() => setShowDestDrop(true)}
+                      placeholder="Type Indian City or Delivery Destination"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    {showDestDrop && destSuggestions.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 max-h-44 overflow-y-auto py-1">
+                        {destSuggestions.map((h, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => { setDestination(h.name); setShowDestDrop(false); }}
+                            className="w-full text-left px-3.5 py-2 hover:bg-amber-100 dark:hover:bg-slate-700 flex items-center justify-between"
+                          >
+                            <span>{h.name}</span>
+                            <span className="text-[10px] text-slate-400">{h.hub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Advanced Pickup Schedule Slot Picker */}
+                <div className="space-y-3 pt-2">
+                  <label className="text-[10px] uppercase text-slate-400 block flex items-center gap-1">
+                    <Calendar size={12} className="text-amber-500" /> Preferred Pickup Window *
+                  </label>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {QUICK_SLOTS.map((slot) => (
+                      <div
+                        key={slot.id}
+                        onClick={() => setSelectedSlot(slot.id)}
+                        className={`p-3.5 rounded-2xl border-2 transition cursor-pointer space-y-1 ${
+                          selectedSlot === slot.id
+                            ? "border-amber-400 bg-amber-50/60 dark:bg-amber-950/40"
+                            : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-xs text-slate-900 dark:text-white">{slot.label}</span>
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200">
+                            {slot.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">{slot.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedSlot === "custom" && (
+                    <div className="grid sm:grid-cols-2 gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 mt-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Select Pickup Date</label>
+                        <input
+                          type="date"
+                          value={customDate}
+                          onChange={(e) => setCustomDate(e.target.value)}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Time Slot Window</label>
+                        <select
+                          value={customTimeSlot}
+                          onChange={(e) => setCustomTimeSlot(e.target.value)}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold"
+                        >
+                          <option>Morning (08:00 AM - 12:00 PM)</option>
+                          <option>Afternoon (12:00 PM - 04:00 PM)</option>
+                          <option>Evening (04:00 PM - 08:00 PM)</option>
+                          <option>Night (08:00 PM - 12:00 AM)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ================= STEP 2: CARGO SPECS & PHOTO ================= */}
+            {step === 2 && (
+              <div className="space-y-5 text-xs font-bold">
+                <h3 className="font-black text-base">Cargo Details &amp; Packaging</h3>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Cargo Commodity *</label>
+                    <input
+                      value={cargoType}
+                      onChange={(e) => setCargoType(e.target.value)}
+                      placeholder="e.g. FMCG, Textiles, Electronics"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Total Weight (Tons) *</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.5"
+                      max="35"
+                      value={cargoWeightTons}
+                      onChange={(e) => setCargoWeightTons(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Preferred Vehicle Body</label>
+                  <select
+                    value={truckRequired}
+                    onChange={(e) => setTruckRequired(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
+                  >
+                    <option>17-19 Feet Closed Container</option>
+                    <option>14 Feet Open Body</option>
+                    <option>Mahindra Bolero Pickup</option>
+                    <option>32 Feet Multi-Axle Container</option>
+                    <option>20 Feet Flatbed Container</option>
+                  </select>
+                </div>
+
+                {/* Cargo Photo Upload */}
+                <div>
+                  <label className="text-[10px] uppercase text-slate-400 block mb-1.5 flex items-center gap-1">
+                    <Camera size={12} className="text-amber-500" /> Upload Consignment Photo (Optional — Shows to Driver)
+                  </label>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  {cargoPhoto ? (
+                    <div className="relative rounded-2xl overflow-hidden border border-amber-400 max-h-40 flex items-center justify-center bg-slate-900">
+                      <img src={cargoPhoto} alt="Cargo Preview" className="h-36 object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => setCargoPhoto("")}
+                        className="absolute top-2 right-2 bg-rose-600 text-white p-1.5 rounded-full"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-amber-400 rounded-2xl flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-800/40 cursor-pointer transition"
+                    >
+                      <Upload size={18} className="text-amber-500" />
+                      <span className="font-bold">Click to Upload Cargo Photo</span>
+                      <span className="text-[10px] text-slate-400">Truck owner will see this real cargo photo</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Special Handling Options */}
+                <div>
+                  <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Special Handling Tags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["Fragile Cargo", "Waterproof Tarp", "Stackable Boxes", "Hazardous Material", "Temperature Sensitive"].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleHandling(tag)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                          specialHandling.includes(tag)
+                            ? "bg-amber-400 text-slate-950 font-black"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                        }`}
+                      >
+                        {specialHandling.includes(tag) ? "✓ " : "+ "} {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= STEP 3: REVIEW & CONFIRM ================= */}
+            {step === 3 && (
+              <div className="space-y-5 text-xs font-bold">
+                <h3 className="font-black text-base">Review &amp; Instant AI Matching</h3>
+
+                <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
+                    <span className="text-slate-400">Load Type:</span>
+                    <span className="font-black text-slate-900 dark:text-white">{shipmentType === "LTL" ? "Part Load Backhaul (LTL)" : "Dedicated Truck (FTL)"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
+                    <span className="text-slate-400">Route Corridor:</span>
+                    <span className="font-black text-slate-900 dark:text-white">{origin} ➔ {destination}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
+                    <span className="text-slate-400">Distance &amp; ETA:</span>
+                    <span>{distanceKm} km • ~{transitHours} hrs</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
+                    <span className="text-slate-400">Pickup Window:</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-black">{formattedPickup}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
+                    <span className="text-slate-400">Commodity &amp; Weight:</span>
+                    <span>{cargoType} • {cargoWeightTons} Tons</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Estimated Fair Freight:</span>
+                    <span className="text-base font-black text-slate-900 dark:text-white">₹{estFreightInr.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 rounded-2xl flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                  <ShieldCheck size={18} />
+                  <span>100% Escrow Protection • Goods Transit Insurance Included</span>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+              {step > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <ArrowLeft size={14} /> Back
+                </button>
+              ) : <div />}
+
+              {step < STEPS.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(step + 1)}
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                >
+                  Continue <ArrowRight size={14} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submitBooking}
+                  disabled={busy}
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-8 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-md transition cursor-pointer"
+                >
+                  <CheckCircle2 size={16} /> Confirm &amp; Match Trucks
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right Summary Card */}
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-4 text-xs font-bold">
+              <h3 className="font-black text-sm uppercase tracking-wider text-slate-400">Live Summary</h3>
+              
+              <div className="space-y-2.5">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase block">Corridor</span>
+                  <p className="font-black text-xs truncate">{origin.split(" ")[0]} ➔ {destination.split(" ")[0]}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase block">Distance</span>
+                  <p className="font-black text-xs">{distanceKm} km (~{transitHours} hrs transit)</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase block">Pickup Schedule</span>
+                  <p className="font-black text-xs text-amber-600 dark:text-amber-400">{formattedPickup}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase block">Estimated Freight</span>
+                  <p className="text-xl font-black text-slate-900 dark:text-white">₹{estFreightInr.toLocaleString("en-IN")}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-amber-50/60 dark:bg-slate-900 border border-amber-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-2 text-xs">
+              <span className="font-black text-slate-900 dark:text-white block">Why REDO Logistics?</span>
+              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                Direct verified fleet matching eliminates empty backhauls and guarantees verified drivers with zero broker commission.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </Layout>
