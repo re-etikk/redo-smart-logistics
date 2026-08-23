@@ -1,47 +1,91 @@
-# REDO — Smart Backhaul Network
+# REDO — Smart Backhaul & Freight Logistics Platform
 
-> **Bharosa Wahi, Deal Sahi.** Shipper (blue), Truck Owner (yellow) and Admin (ops) consoles on one Supabase-backed platform.
+> **Uber for Logistics**: Separate, dedicated portals for **Truck Owners** (Drivers/Fleet) and **Customers** (Shippers/SMEs), powered by a unified Supabase database and intelligent backend engine.
 
-**Make every return trip earn.**
+---
 
-A full-stack logistics marketplace matching trucks with unused *return-trip* capacity to SMEs
-shipping partial (1–3 T) loads on the same corridor. Built for Smart India Hackathon.
+## 🏛 Architecture Overview
 
-> We are not finding a truck for cargo. We are finding cargo for trucks that are already going there.
-
-## Stack
-| Layer | Tech |
-|---|---|
-| Frontend | React 18 + TypeScript + Tailwind + React Router + Leaflet/OSM |
-| Auth / DB / Storage / Realtime | Supabase (real auth sessions, Postgres + RLS, private buckets, realtime tracking) |
-| Backend | Node/Express — validation, authorization, hard match filters, booking state machine, impact engine, notifications, ML orchestration |
-| ML | Python FastAPI + gradient-boosted match model (`ml-service/model/match_model.joblib`) |
-
-## Repository
-```text
-redo/
-├── frontend/     # TS React app (all screens, protected role routes)
-├── backend/      # Express API + unit tests + seed script (demo auth users)
-├── ml-service/   # FastAPI, recommend.py, train_model.py, model/, tests/, data/ (seed/training CSVs)
-├── supabase/     # migrations/0001_schema.sql (spec §51) + 0002_extensions_rls.sql (trips, RLS, buckets, realtime)
-└── docs/         # SETUP.md · ARCHITECTURE.md · API_CONTRACT.md · MODEL_NOTE.md
+```
+redo-smart-logistics/
+├── frontend-owner/       # 🚛 TRUCK OWNER PORTAL (Port 5173 / redo-trucks.vercel.app)
+│   ├── src/
+│   │   ├── pages/        # Dashboard, MyTrucks, AvailableLoads, Bookings, Earnings, Trips, Payments, Documents, Reviews, Support, Settings
+│   │   ├── components/   # OwnerLayout, MapPanel, ui primitives
+│   │   └── hooks/        # useAuth (Truck Owner role)
+├── frontend-customer/    # 📦 CUSTOMER / SHIPPER PORTAL (Port 5174 / redo-customer.vercel.app)
+│   ├── src/
+│   │   ├── pages/        # Dashboard, BookShipment, PostCargo, Recommendations, Shipments, Invoices, Addresses, RateCard, Support, Profile
+│   │   ├── components/   # CustomerLayout, MapPanel, ui primitives
+│   │   └── hooks/        # useAuth (Customer / SME role)
+├── shared/               # 🔄 Shared contracts, types, Supabase client
+├── backend/              # ⚡ Express Node.js API (Render)
+├── ml-service/           # 🧠 Python FastAPI Match Engine
+└── supabase/             # 🗄 SQL Migrations, RLS, Storage Buckets
 ```
 
-## Quick start
-Follow **docs/SETUP.md** (Supabase project → migrations → backend `.env` + `npm run seed` → start backend, ML, frontend).
-Demo accounts `demo.owner@redo.app` / `demo.sme@redo.app` are **real seeded Supabase Auth users**; the password is whatever
-`DEMO_PASSWORD` you configure — nothing is hardcoded.
+---
 
-## Honesty by design
-- Match scores come only from the ML service scoring **live database candidates**. ML down → `MATCHING_UNAVAILABLE` + Retry; never fabricated percentages.
-- Tracking is simulated for demos and is stored (`is_simulated`) and labeled ("Demo tracking · Simulated location").
-- KYC uses manual/demo verification, clearly labeled; no fake DigiLocker; only masked document references are stored.
-- Impact figures are computed per completed booking and labeled as estimates.
-- Consolidation is deterministic bin-packing, not ML.
+## 🚀 How to Run Locally
 
-## Tests
 ```bash
-cd backend && npm test                                  # 8 tests: state machine, filters, impact/consolidation
-cd ml-service && python -m unittest discover -s tests   # 7 tests: reject reasons, ranking, score bounds
+# 1. Run Truck Owner Website (http://localhost:5173)
+npm run dev:owner
+
+# 2. Run Customer Website (http://localhost:5174)
+npm run dev:customer
+
+# 3. Run Backend API (http://localhost:8000)
+npm run dev:backend
 ```
-See docs/SETUP.md §6 for the end-to-end acceptance run (spec §70).
+
+---
+
+## 🌐 Deployment Guide (Vercel)
+
+Deploying both frontends independently on Vercel is simple because each project is completely self-contained.
+
+### 1. Deploy Truck Owner Portal (`redo-trucks`)
+1. Go to [Vercel Dashboard](https://vercel.com/new) and import your `redo-smart-logistics` repo.
+2. In **Project Settings**:
+   - **Project Name**: `redo-trucks` (or your choice)
+   - **Root Directory**: Click *Edit* and select `frontend-owner`
+   - **Framework Preset**: `Vite` (auto-detected)
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Add **Environment Variables**:
+   - `VITE_API_URL`: `https://your-backend.onrender.com` (or your Render URL)
+4. Click **Deploy**.
+
+---
+
+### 2. Deploy Customer Portal (`redo-customer`)
+1. In Vercel, click **Add New...** → **Project** and select the same `redo-smart-logistics` repo.
+2. In **Project Settings**:
+   - **Project Name**: `redo-customer` (or your choice)
+   - **Root Directory**: Click *Edit* and select `frontend-customer`
+   - **Framework Preset**: `Vite` (auto-detected)
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Add **Environment Variables**:
+   - `VITE_API_URL`: `https://your-backend.onrender.com`
+4. Click **Deploy**.
+
+---
+
+### 3. Backend (Render)
+1. On Render, set your environment variable:
+   - `CORS_ORIGIN`: `https://redo-trucks.vercel.app,https://redo-customer.vercel.app,http://localhost:5173,http://localhost:5174`
+
+---
+
+## 🔄 Two-Way Live Booking Flow
+
+```
+Customer Portal (Rider)                  Truck Owner Portal (Driver)
+──────────────────────                  ───────────────────────────
+1. Posts shipment requirement      ───►  2. Sees instant load on "Available Loads"
+                                   ◄───  3. Accepts load with selected truck
+4. Gets booking confirmation       ───►  5. Manages trip: Pickup → In Transit → Delivered
+6. Tracks live GPS & uploads POD   ◄───  7. Receives instant payout in Wallet
+```

@@ -1,0 +1,13 @@
+{
+  "name": "redo-smart-logistics",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev:owner": "npm --prefix frontend-owner run dev",
+    "dev:customer": "npm --prefix frontend-customer run dev",
+    "dev:backend": "npm --prefix backend start",
+    "build:owner": "npm --prefix frontend-owner run build",
+    "build:customer": "npm --prefix frontend-customer run build",
+    "build:all": "npm run build:owner && npm run build:customer"
+  }
+}

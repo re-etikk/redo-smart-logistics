@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Role accent themes (rgb triplets for Tailwind alpha support) */
+:root, .theme-shipper {          /* Shipper / SME: blue */
+  --accent: 20 107 255;
+  --accent-soft: 234 241 255;
+  --accent-fg: 255 255 255;
+}
+.theme-owner {                   /* Truck owner: brand yellow */
+  --accent: 247 181 0;
+  --accent-soft: 255 246 222;
+  --accent-fg: 17 20 23;
+}
+.theme-admin {                   /* Admin: near-black */
+  --accent: 17 20 23;
+  --accent-soft: 233 235 239;
+  --accent-fg: 255 255 255;
+}
+
+html { -webkit-font-smoothing: antialiased; }
+body { @apply bg-canvas text-ink; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
