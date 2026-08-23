@@ -1,176 +1,226 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
-import { api, ApiError } from "../lib/api";
 import {
-  Button, Card, CardSkeleton, EmptyState, ErrorState, MatchScore,
-  Rating, ReasonChips, VerifiedBadge,
-} from "../components/ui";
-import { getTrucks, type TruckItem, PRESET_TRUCK_PHOTOS } from "../lib/truckStore";
-import type { Recommendation } from "../lib/types";
-import { Truck, ShieldCheck, MapPin, ArrowRight, User } from "lucide-react";
+  Truck, ShieldCheck, MapPin, ArrowRight, User, Star, Sparkles, Box, CheckCircle2,
+  CalendarCheck, Scale, Phone, AlertCircle
+} from "lucide-react";
+import { getTrucks, type TruckItem } from "../lib/truckStore";
+import { getSharedCargoList, type CargoItem } from "../lib/cargoStore";
+import { computeMLMatches, type MLMatchResult } from "../lib/mlMatchEngine";
 
 export default function Recommendations() {
-  const { cargoId = "" } = useParams();
   const navigate = useNavigate();
-  const [cargo, setCargo] = useState<any | null>(null);
-  const [recs, setRecs] = useState<any[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const cargoIdParam = searchParams.get("cargoId");
 
-  const load = useCallback(async () => {
-    setError(null); setRecs(null);
-    try {
-      // Try API first
-      const [c, out] = await Promise.all([
-        api.get<any>(`/cargo/${cargoId}`).catch(() => ({
-          origin: "Delhi NCR",
-          destination: "Mumbai",
-          cargo_type: "General FMCG Goods",
-          cargo_weight_tons: 8.5,
-        })),
-        api.get<{ recommendations: Recommendation[] }>(`/recommendations/trucks/${cargoId}`).catch(() => null),
-      ]);
-      setCargo(c);
+  const [cargo, setCargo] = useState<CargoItem | null>(null);
+  const [matches, setMatches] = useState<MLMatchResult[]>([]);
+  const [bookedSuccess, setBookedSuccess] = useState<string | null>(null);
 
-      if (out && out.recommendations && out.recommendations.length > 0) {
-        setRecs(out.recommendations);
-      } else {
-        // Build recommendations from real fleet in truckStore
-        const fleet = getTrucks();
-        const generatedRecs = fleet.map((t, idx) => {
-          const estPrice = Math.round(15000 + (t.capacityTons * 1200) + (idx * 1500));
-          return {
-            truck_id: t.id,
-            trip_id: t.currentTrip?.id || `TRIP-${idx + 101}`,
-            truck_type: t.type,
-            registration_number: t.regNo,
-            photo_url: t.photoUrl,
-            driver_name: t.driverName,
-            driver_phone: t.driverPhone,
-            driver_rating: t.rating,
-            capacity_available_tons: t.capacityTons,
-            departure_at: new Date(Date.now() + (idx + 1) * 3600000 * 4).toISOString(),
-            eta_minutes: 1200 + idx * 60,
-            estimated_price_inr: estPrice,
-            match_score: Math.round(98 - idx * 4),
-            verified_documents: t.verified,
-            reasons: ["Exact Route Corridor", "Verified Commercial RC", "High On-Time Reliability"],
-          };
-        });
-        setRecs(generatedRecs);
-      }
-    } catch {
-      const fleet = getTrucks();
-      setRecs(fleet.map((t, idx) => ({
-        truck_id: t.id,
-        trip_id: `TRIP-${idx + 101}`,
-        truck_type: t.type,
-        registration_number: t.regNo,
-        photo_url: t.photoUrl,
-        driver_name: t.driverName,
-        driver_phone: t.driverPhone,
-        driver_rating: t.rating,
-        capacity_available_tons: t.capacityTons,
-        departure_at: new Date(Date.now() + (idx + 1) * 3600000 * 4).toISOString(),
-        eta_minutes: 1200 + idx * 60,
-        estimated_price_inr: 22000 + idx * 2500,
-        match_score: 96 - idx * 3,
-        verified_documents: true,
-        reasons: ["Verified Fleet", "Direct Route Corridor", "Best Spot Rate"],
-      })));
+  useEffect(() => {
+    const allCargo = getSharedCargoList();
+    let currentCargo: CargoItem | undefined;
+    if (cargoIdParam) {
+      currentCargo = allCargo.find(c => c.id === cargoIdParam);
     }
-  }, [cargoId]);
+    if (!currentCargo && allCargo.length > 0) {
+      currentCargo = allCargo[0];
+    }
+    if (!currentCargo) {
+      currentCargo = {
+        id: "CARGO-DEF-101",
+        origin: "Delhi NCR (Okhla Industrial Area)",
+        destination: "Mumbai (Bhiwandi Logistics Park)",
+        cargoType: "Automobile Components & Spare Parts",
+        weightTons: 4.5,
+        truckRequired: "17-19 Feet Closed Container",
+        distanceKm: 1420,
+        pickupDate: "Today, 04:00 PM",
+        offeredPriceInr: 24500,
+        shipperName: "Ritik Logistics",
+        shipperPhone: "+91 98765 43210",
+        urgency: "Immediate Dispatch",
+        status: "Open",
+        createdAt: "Just now",
+      };
+    }
+    setCargo(currentCargo);
 
-  useEffect(() => { load(); }, [load]);
+    const fleet = getTrucks();
+    const computed = computeMLMatches(currentCargo, fleet);
+    setMatches(computed);
+  }, [cargoIdParam]);
+
+  const handleInstantBook = (match: MLMatchResult) => {
+    setBookedSuccess(match.truck.modelName);
+    setTimeout(() => {
+      navigate("/shipments");
+    }, 2000);
+  };
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Best Matched Verified Trucks</h1>
-          {cargo && (
-            <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-1.5">
-              <span>{cargo.origin}</span>
-              <ArrowRight size={13} className="text-slate-400" />
-              <span>{cargo.destination}</span>
-              <span>• {cargo.cargo_type}</span>
-              <span>• {cargo.cargo_weight_tons} Tons</span>
+      <div className="max-w-5xl mx-auto space-y-6 py-4 text-slate-900 dark:text-white">
+        {/* Header Title */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-xs font-black mb-2">
+              <Sparkles size={14} className="text-emerald-600" />
+              <span>Multi-Factor GBDT Backhaul AI Match</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+              Matched Empty Return Trucks
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Ranked by route corridor alignment, available payload capacity, and verified driver score.
             </p>
-          )}
+          </div>
+
+          <button
+            onClick={() => navigate("/post-cargo")}
+            className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm transition"
+          >
+            + Post Another Load
+          </button>
         </div>
 
-        <div className="grid gap-4">
-          {error && <ErrorState message={error} cta="Retry" onRetry={load} />}
-          {!error && recs === null && (
-            <>
-              <p className="text-xs font-bold text-amber-600 animate-pulse">Running AI corridor matching with live registered fleet…</p>
-              <CardSkeleton /><CardSkeleton />
-            </>
-          )}
+        {/* Consignment Overview Banner */}
+        {cargo && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              {cargo.cargoPhotoUrl ? (
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0">
+                  <img src={cargo.cargoPhotoUrl} alt="Consignment" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 flex items-center justify-center font-black">
+                  <Box size={24} />
+                </div>
+              )}
 
-          {recs?.map((r) => (
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-mono text-amber-500 font-black uppercase">Consignment: {cargo.id}</span>
+                <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                  {cargo.origin} ➔ {cargo.destination}
+                </h4>
+                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
+                  <span>{cargo.cargoType}</span>
+                  <span>•</span>
+                  <span>{cargo.weightTons} Tons</span>
+                  <span>•</span>
+                  <span>{cargo.pickupDate}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Estimated Freight</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white">
+                ₹{cargo.offeredPriceInr.toLocaleString("en-IN")}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Booking Success Toast */}
+        {bookedSuccess && (
+          <div className="p-4 bg-emerald-500 text-white font-black text-xs rounded-2xl shadow-lg flex items-center justify-between animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={20} />
+              <span>Shipment Booked with {bookedSuccess}! Redirecting to My Shipments...</span>
+            </div>
+          </div>
+        )}
+
+        {/* AI Recommendations List */}
+        <div className="space-y-4">
+          {matches.map((m, idx) => (
             <div
-              key={r.truck_id}
-              className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm hover:shadow-md transition flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
+              key={m.truck.id}
+              className={`bg-white dark:bg-slate-900 border rounded-3xl p-6 shadow-sm hover:shadow-md transition flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 ${
+                idx === 0
+                  ? "border-amber-400/80 ring-2 ring-amber-400/20"
+                  : "border-slate-200/80 dark:border-slate-800"
+              }`}
             >
-              {/* Truck Real Photo & Info */}
-              <div className="flex items-center gap-4">
-                <div className="relative w-24 h-20 rounded-2xl bg-slate-900 overflow-hidden border border-slate-200 shrink-0 shadow-sm">
+              {/* Truck Photo & Info */}
+              <div className="flex flex-col sm:flex-row items-start gap-4 flex-1">
+                <div className="relative w-28 h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
                   <img
-                    src={r.photo_url || PRESET_TRUCK_PHOTOS[0].url}
-                    alt={r.truck_type}
+                    src={m.truck.photoUrl}
+                    alt={m.truck.modelName}
                     className="w-full h-full object-cover"
                   />
-                  <span className="absolute bottom-1 left-1 right-1 bg-black/75 text-[9px] font-mono text-amber-400 font-bold px-1 rounded text-center truncate">
-                    {r.registration_number}
+                  <span className="absolute top-2 left-2 bg-slate-950/80 text-amber-400 text-[9px] font-black px-2 py-0.5 rounded uppercase">
+                    {m.truck.regNumber}
                   </span>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-black text-slate-900 text-sm">{r.truck_type} Truck</h3>
-                    {r.verified_documents && (
-                      <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <ShieldCheck size={12} /> Verified RC
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-base text-slate-900 dark:text-white">
+                      {m.truck.modelName}
+                    </h3>
+                    <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-300/40">
+                      {m.matchScore}% ML Match
+                    </span>
+                    {idx === 0 && (
+                      <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase">
+                        Best Recommended
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-500 font-medium">
-                    Available Capacity: <strong className="text-slate-900">{r.capacity_available_tons} Tons</strong> • Driver: {r.driver_name || "Assigned"}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
+                    <span className="flex items-center gap-1">
+                      <Truck size={14} className="text-amber-500" /> {m.truck.truckType} ({m.truck.bodyLengthFeet}ft)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Scale size={14} className="text-amber-500" /> {m.truck.capacityTons}T Max Capacity
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Star size={14} className="text-amber-500 fill-amber-400" /> {m.truck.driverRating} ({m.truck.driverName})
+                    </span>
+                  </div>
 
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <div className="flex items-center text-amber-500 font-black text-xs">
-                      ★ <span>{r.driver_rating || 4.9}</span>
-                    </div>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      Departs: {new Date(r.departure_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  {/* Explainable AI Chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {m.explainableReasons.map((reason, rIdx) => (
+                      <span
+                        key={rIdx}
+                        className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700"
+                      >
+                        ✓ {reason}
+                      </span>
+                    ))}
+                    <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-lg">
+                      🌱 -{m.carbonReductionKg}kg CO₂ Saved
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Match Score & Pricing */}
-              <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
-                <div className="text-center">
-                  <span className="text-[9px] font-black uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 block mb-1">
-                    AI Match
+              {/* Price & Instant Book Button */}
+              <div className="flex items-center justify-between lg:flex-col lg:items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-slate-800">
+                <div className="lg:text-right">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Optimized Backhaul Rate
                   </span>
-                  <span className="text-lg font-black text-slate-900">{r.match_score}%</span>
-                </div>
-
-                <div className="text-left md:text-right">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Estimated Freight</span>
-                  <span className="text-lg font-black text-slate-900">₹{r.estimated_price_inr?.toLocaleString("en-IN")}</span>
+                  <span className="text-2xl font-black text-slate-900 dark:text-white">
+                    ₹{m.recommendedPriceInr.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
+                    Zero Return Empty Overhead
+                  </span>
                 </div>
 
                 <button
-                  onClick={() => navigate(`/match/${cargoId || "new"}/${r.truck_id}`, { state: { rec: r, cargo } })}
-                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-sm transition whitespace-nowrap cursor-pointer"
+                  onClick={() => handleInstantBook(m)}
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-2xl shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 >
-                  View Details &amp; Book
+                  <span>Book This Truck Instantly</span>
+                  <ArrowRight size={15} />
                 </button>
               </div>
             </div>

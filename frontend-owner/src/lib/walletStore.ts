@@ -36,30 +36,7 @@ export interface WalletState {
   transactions: WalletTransaction[];
 }
 
-const INITIAL_BANK_ACCOUNTS: BankAccount[] = [
-  {
-    id: "BANK-01",
-    bankName: "HDFC Bank Ltd",
-    accountNumber: "50200084920192",
-    ifsc: "HDFC0000128",
-    accountHolder: "Ritik Chaurasia Logistics",
-    accountType: "Current",
-    upiId: "ritikchaurasia@okhdfcbank",
-    isPrimary: true,
-    verified: true,
-  },
-  {
-    id: "BANK-02",
-    bankName: "State Bank of India",
-    accountNumber: "38920184910",
-    ifsc: "SBIN0001124",
-    accountHolder: "Ritik Chaurasia",
-    accountType: "Savings",
-    upiId: "9876543210@sbi",
-    isPrimary: false,
-    verified: true,
-  }
-];
+const INITIAL_BANK_ACCOUNTS: BankAccount[] = [];
 
 const INITIAL_TRANSACTIONS: WalletTransaction[] = [
   {
