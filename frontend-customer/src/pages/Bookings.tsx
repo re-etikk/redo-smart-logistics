@@ -242,6 +242,26 @@ export default function CustomerBookings() {
               </div>
             </div>
           ))}
+
+          {filtered.length === 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 flex items-center justify-center mx-auto">
+                <Package size={28} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">No Shipments Found</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  You have not booked any shipments yet. Book your first commercial truck shipment to track live progress and get electronic PODs.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate("/book")}
+                className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl shadow-sm transition text-xs inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                + Book New Shipment
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

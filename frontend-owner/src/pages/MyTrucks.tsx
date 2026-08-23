@@ -26,6 +26,11 @@ export default function MyTrucks() {
     body: "Enclosed Container",
     capacity: "7.0 Ton",
     capacityTons: 7.0,
+    availableCapacityTons: 5.0,
+    routeOrigin: "Delhi NCR, Delhi",
+    routeDest: "Mumbai, Maharashtra",
+    departureDate: "24 Aug 2026, 09:00 AM",
+    expectedRate: "₹24,500",
     status: "Active" as const,
     availability: "Available" as const,
     location: "Delhi NCR, Delhi",
@@ -68,6 +73,15 @@ export default function MyTrucks() {
       ...newTruck,
       capacity: `${newTruck.capacityTons} Ton`,
       capacityTons: Number(newTruck.capacityTons) || 7.0,
+      currentTrip: {
+        id: `TRIP-${Date.now().toString().slice(-4)}`,
+        origin: newTruck.routeOrigin || newTruck.location || "Delhi NCR",
+        dest: newTruck.routeDest || "Mumbai, Maharashtra",
+        departureDate: newTruck.departureDate || "Tomorrow, 09:00 AM",
+        expectedEarning: newTruck.expectedRate || "₹24,500",
+        distanceKm: 1420,
+        status: "Upcoming",
+      },
     });
 
     setIsAddModalOpen(false);
@@ -80,6 +94,11 @@ export default function MyTrucks() {
       body: "Enclosed Container",
       capacity: "7.0 Ton",
       capacityTons: 7.0,
+      availableCapacityTons: 5.0,
+      routeOrigin: "Delhi NCR, Delhi",
+      routeDest: "Mumbai, Maharashtra",
+      departureDate: "24 Aug 2026, 09:00 AM",
+      expectedRate: "₹24,500",
       status: "Active",
       availability: "Available",
       location: "Delhi NCR, Delhi",
@@ -631,6 +650,72 @@ export default function MyTrucks() {
                     onChange={(e) => setNewTruck({ ...newTruck, capacityTons: parseFloat(e.target.value) || 0 })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
                   />
+                </div>
+              </div>
+
+              {/* Route Availability & Empty Capacity Corridor */}
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin size={14} className="text-amber-600" /> Route Corridor &amp; Empty Space Availability
+                  </h4>
+                  <span className="text-[10px] bg-amber-200/80 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                    Instant AI Backhaul Matching
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-700 block mb-1">Departure Origin (Route From) *</label>
+                    <input
+                      required
+                      value={newTruck.routeOrigin}
+                      onChange={(e) => setNewTruck({ ...newTruck, routeOrigin: e.target.value })}
+                      placeholder="e.g. Delhi NCR / Gurgaon"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 block mb-1">Destination Hub (Route To) *</label>
+                    <input
+                      required
+                      value={newTruck.routeDest}
+                      onChange={(e) => setNewTruck({ ...newTruck, routeDest: e.target.value })}
+                      placeholder="e.g. Mumbai (Bhiwandi Park)"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-slate-700 block mb-1">Empty Space Available (Tons)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={newTruck.availableCapacityTons}
+                      onChange={(e) => setNewTruck({ ...newTruck, availableCapacityTons: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 block mb-1">Available Departure Date</label>
+                    <input
+                      value={newTruck.departureDate}
+                      onChange={(e) => setNewTruck({ ...newTruck, departureDate: e.target.value })}
+                      placeholder="e.g. 24 Aug 2026, 09:00 AM"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 block mb-1">Target Freight Rate (₹)</label>
+                    <input
+                      value={newTruck.expectedRate}
+                      onChange={(e) => setNewTruck({ ...newTruck, expectedRate: e.target.value })}
+                      placeholder="e.g. ₹24,500"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                    />
+                  </div>
                 </div>
               </div>
 

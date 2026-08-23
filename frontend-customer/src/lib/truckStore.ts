@@ -40,43 +40,10 @@ export const PRESET_TRUCK_PHOTOS = [
   { label: "32ft Multi-Axle Container", url: "https://images.unsplash.com/photo-1506015391300-4802dc74de2e?auto=format&fit=crop&w=600&q=80" },
 ];
 
-// User's genuine registered fleet - only genuine REDO 2024 truck initially, user can add/remove freely
-const INITIAL_TRUCKS: TruckItem[] = [
-  {
-    id: "TRUCK-101",
-    name: "REDO Express Container",
-    regNo: "REDO 2024",
-    type: "19 Feet",
-    body: "Enclosed Container",
-    capacity: "8.5 Ton",
-    capacityTons: 8.5,
-    status: "Active",
-    availability: "Available",
-    location: "Delhi NCR, Delhi",
-    photoUrl: "/assets/redo_truck.jpg",
-    driverName: "Mukesh Yadav",
-    driverPhone: "+91 98112 34567",
-    driverLicense: "DL-042018009876",
-    insuranceValidTill: "20 Dec 2026",
-    fitnessValidTill: "15 Jan 2027",
-    pucValidTill: "10 Oct 2026",
-    totalTrips: 34,
-    totalEarnings: "₹2,45,600",
-    rating: 4.9,
-    verified: true,
-    currentTrip: {
-      id: "TRIP-881",
-      origin: "Delhi, Delhi",
-      dest: "Mumbai, Maharashtra",
-      departureDate: "24 Aug 2026, 09:00 AM",
-      expectedEarning: "₹24,500",
-      distanceKm: 1450,
-      status: "On the Way"
-    }
-  }
-];
+// NEW ACCOUNTS START WITH ZERO TRUCKS — only see trucks registered by truck owners via cross-domain
+const INITIAL_TRUCKS: TruckItem[] = [];
 
-const STORAGE_KEY = "redo_user_fleet_v4";
+const STORAGE_KEY = "redo_user_fleet_v5";
 
 export function getTrucks(): TruckItem[] {
   if (typeof window === "undefined") return INITIAL_TRUCKS;

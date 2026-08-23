@@ -31,56 +31,11 @@ export interface CargoItem {
   assignedDriverPhone?: string;
 }
 
-const STORAGE_KEY = "redo_shared_cargo_v2";
-const CLOUD_SYNC_ENDPOINT = "https://kvdb.io/4y9q8Pj7vYqF2WfB4hWq5q/redo_live_cargo_v3";
+const STORAGE_KEY = "redo_shared_cargo_v4";
+const CLOUD_SYNC_ENDPOINT = "https://kvdb.io/4y9q8Pj7vYqF2WfB4hWq5q/redo_live_cargo_v4";
 
-export const DEFAULT_CONSIGNMENTS: CargoItem[] = [
-  {
-    id: "CARGO-801",
-    origin: "Delhi NCR (Okhla Industrial Area)",
-    pickupAddress: "Plot 42, Sector 58, Okhla Phase 3 Industrial Area, Near Metro Station, Delhi - 110020",
-    pickupContactPerson: "Rohan Verma",
-    pickupContactPhone: "+91 98765 43210",
-    destination: "Mumbai (Bhiwandi Logistics Park)",
-    deliveryAddress: "Gala No. 14, Indian Corporation Compound, Mankoli Naka, Bhiwandi, Maharashtra - 421302",
-    deliveryContactPerson: "Anil Deshmukh",
-    deliveryContactPhone: "+91 98220 54321",
-    cargoType: "Automotive Components & Spare Parts",
-    weightTons: 6.5,
-    truckRequired: "17-19 Feet Closed Container",
-    distanceKm: 1420,
-    pickupDate: "Today, 04:00 PM",
-    offeredPriceInr: 24500,
-    shipperName: "Hero Moto Logistics",
-    shipperPhone: "+91 98765 43210",
-    urgency: "Immediate Dispatch",
-    cargoPhotoUrl: "/assets/redo_truck.jpg",
-    status: "Open",
-    createdAt: "Today, 10:30 AM",
-  },
-  {
-    id: "CARGO-802",
-    origin: "Delhi (Kundli Industrial Area)",
-    pickupAddress: "Shed 10, HSIIDC Industrial Complex, GT Karnal Road, Kundli, Haryana - 131028",
-    pickupContactPerson: "Sunil Gupta",
-    pickupContactPhone: "+91 98112 55667",
-    destination: "Indore (Pithampur Industrial Hub)",
-    deliveryAddress: "Sector 3, Pithampur Industrial Estate, Dhar Road, Indore, MP - 454775",
-    deliveryContactPerson: "Kailash Joshi",
-    deliveryContactPhone: "+91 94250 88990",
-    cargoType: "FMCG Packaged Food & Beverages",
-    weightTons: 4.8,
-    truckRequired: "14-17 Feet Open/Closed",
-    distanceKm: 830,
-    pickupDate: "Tomorrow, 09:00 AM",
-    offeredPriceInr: 16800,
-    shipperName: "Dabur Distribution Pvt Ltd",
-    shipperPhone: "+91 98112 55667",
-    urgency: "Standard Delivery",
-    status: "Open",
-    createdAt: "Today, 11:15 AM",
-  }
-];
+// ZERO PRE-POPULATED CARGO — user must book/post their own cargo
+export const DEFAULT_CONSIGNMENTS: CargoItem[] = [];
 
 export function getSharedCargoList(): CargoItem[] {
   if (typeof window === "undefined") return DEFAULT_CONSIGNMENTS;
@@ -88,7 +43,7 @@ export function getSharedCargoList(): CargoItem[] {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return DEFAULT_CONSIGNMENTS;
     const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
+    if (!Array.isArray(parsed)) {
       return DEFAULT_CONSIGNMENTS;
     }
     return parsed;

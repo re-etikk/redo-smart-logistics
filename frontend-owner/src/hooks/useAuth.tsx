@@ -14,18 +14,14 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
-const devProfile: Profile = {
-  id: "localhost-dev-owner",
-  role: "truck_owner",
-  full_name: "Rohit Sharma (Dev)",
-  company_name: "Rohit Logistics Fleet",
-  phone: "+91 9876543210",
-  onboarding_complete: true,
-};
+const LOCAL_AUTH_KEY = "redo_auth_owner_v1";
 
 const AuthCtx = createContext<AuthState>({
-  loading: true, session: null, profile: null,
-  refreshProfile: async () => {}, signOut: async () => {},
+  loading: true,
+  session: null,
+  profile: null,
+  refreshProfile: async () => {},
+  signOut: async () => {},
 });
 
 export const useAuth = () => useContext(AuthCtx);
@@ -35,13 +31,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const getLocalUser = useCallback((): Profile | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem(LOCAL_AUTH_KEY);
+      if (stored) return JSON.parse(stored);
+      const demoRole = localStorage.getItem("redo_demo_role");
+      if (demoRole === "truck_owner") {
+        return {
+          id: "demo-owner",
+          role: "truck_owner",
+          full_name: "Truck Owner",
+          company_name: "REDO Fleet Logistics",
+          phone: "+91 9811234567",
+          onboarding_complete: true,
+        };
+      }
+    } catch {}
+    return null;
+  }, []);
 
   const loadProfile = useCallback(async (s: Session | null) => {
     if (!s) {
-      if (isLocalhost) { setProfile(devProfile); return devProfile; }
-      setProfile(null);
-      return null;
+      const local = getLocalUser();
+      setProfile(local);
+      return local;
     }
     try {
       let { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).single();
@@ -52,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: 'truck_owner',
           full_name: meta.full_name || meta.name || s.user.email?.split('@')[0] || 'REDO Owner',
           company_name: meta.company_name || 'REDO Fleet',
-          phone: s.user.phone || '+91 9876543210',
+          phone: s.user.phone || '+91 9811234567',
           onboarding_complete: true,
         };
         await supabase.from('profiles').upsert([newProfile]);
@@ -67,25 +81,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: 'truck_owner',
         full_name: meta.full_name || s.user.email?.split('@')[0] || 'REDO Owner',
         company_name: 'REDO Fleet',
-        phone: '+91 9876543210',
+        phone: '+91 9811234567',
         onboarding_complete: true,
       };
       setProfile(fallback);
       return fallback;
     }
-  }, [isLocalhost]);
+  }, [getLocalUser]);
 
   useEffect(() => {
     const handleSession = async (s: Session | null) => {
       setSession(s);
-      if (s) {
-        await loadProfile(s);
-        if (window.location.hash.includes("access_token")) {
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-      } else {
-        if (isLocalhost) setProfile(devProfile);
-        else setProfile(null);
+      await loadProfile(s);
+      if (s && window.location.hash.includes("access_token")) {
+        window.history.replaceState(null, "", window.location.pathname);
       }
       setLoading(false);
     };
@@ -97,8 +106,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt: AuthChangeEvent, s: Session | null) => {
       handleSession(s);
     });
-    return () => sub.subscription.unsubscribe();
-  }, [loadProfile, isLocalhost]);
+
+    const handleLocalAuthChanged = () => {
+      const local = getLocalUser();
+      if (local) {
+        setProfile(local);
+      }
+    };
+    window.addEventListener("redo_local_auth_changed", handleLocalAuthChanged);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener("redo_local_auth_changed", handleLocalAuthChanged);
+    };
+  }, [loadProfile, getLocalUser]);
 
   const refreshProfile = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -106,7 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(LOCAL_AUTH_KEY);
+      localStorage.removeItem("redo_demo_role");
+    }
     setSession(null);
     setProfile(null);
   }, []);
@@ -129,12 +156,13 @@ function FullPageSpinner() {
 }
 
 export function Protected({ children }: { children: ReactNode }) {
-  const { loading, session } = useAuth();
+  const { loading, session, profile } = useAuth();
   const location = useLocation();
-  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
   if (loading) return <FullPageSpinner />;
-  if (!session && isLocalhost) return <>{children}</>;
-  if (!session) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  // Authenticated if valid Supabase session OR local authenticated profile exists
+  if (!session && !profile) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
   return <>{children}</>;
 }

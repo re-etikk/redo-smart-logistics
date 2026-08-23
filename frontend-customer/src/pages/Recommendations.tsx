@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import {
   Truck, ShieldCheck, MapPin, ArrowRight, User, Star, Sparkles, Box, CheckCircle2,
-  CalendarCheck, Scale, Phone, AlertCircle
+  CalendarCheck, Scale, Phone, AlertCircle, Plus
 } from "lucide-react";
 import { getTrucks, type TruckItem } from "../lib/truckStore";
 import { getSharedCargoList, type CargoItem } from "../lib/cargoStore";
@@ -27,29 +27,15 @@ export default function Recommendations() {
     if (!currentCargo && allCargo.length > 0) {
       currentCargo = allCargo[0];
     }
-    if (!currentCargo) {
-      currentCargo = {
-        id: "CARGO-DEF-101",
-        origin: "Delhi NCR (Okhla Industrial Area)",
-        destination: "Mumbai (Bhiwandi Logistics Park)",
-        cargoType: "Automobile Components & Spare Parts",
-        weightTons: 4.5,
-        truckRequired: "17-19 Feet Closed Container",
-        distanceKm: 1420,
-        pickupDate: "Today, 04:00 PM",
-        offeredPriceInr: 24500,
-        shipperName: "Ritik Logistics",
-        shipperPhone: "+91 98765 43210",
-        urgency: "Immediate Dispatch",
-        status: "Open",
-        createdAt: "Just now",
-      };
-    }
-    setCargo(currentCargo);
+    setCargo(currentCargo || null);
 
-    const fleet = getTrucks();
-    const computed = computeMLMatches(currentCargo, fleet);
-    setMatches(computed);
+    if (currentCargo) {
+      const fleet = getTrucks();
+      const computed = computeMLMatches(currentCargo, fleet);
+      setMatches(computed);
+    } else {
+      setMatches([]);
+    }
   }, [cargoIdParam]);
 
   const handleInstantBook = (match: MLMatchResult) => {
@@ -78,10 +64,10 @@ export default function Recommendations() {
           </div>
 
           <button
-            onClick={() => navigate("/post-cargo")}
-            className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm transition"
+            onClick={() => navigate("/book")}
+            className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
           >
-            + Post Another Load
+            <Plus size={14} /> Book New Shipment
           </button>
         </div>
 
@@ -133,99 +119,123 @@ export default function Recommendations() {
           </div>
         )}
 
-        {/* AI Recommendations List */}
-        <div className="space-y-4">
-          {matches.map((m, idx) => (
-            <div
-              key={m.truck.id}
-              className={`bg-white dark:bg-slate-900 border rounded-3xl p-6 shadow-sm hover:shadow-md transition flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 ${
-                idx === 0
-                  ? "border-amber-400/80 ring-2 ring-amber-400/20"
-                  : "border-slate-200/80 dark:border-slate-800"
-              }`}
-            >
-              {/* Truck Photo & Info */}
-              <div className="flex flex-col sm:flex-row items-start gap-4 flex-1">
-                <div className="relative w-28 h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
-                  <img
-                    src={m.truck.photoUrl}
-                    alt={m.truck.modelName}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-2 left-2 bg-slate-950/80 text-amber-400 text-[9px] font-black px-2 py-0.5 rounded uppercase">
-                    {m.truck.regNumber}
-                  </span>
+        {/* AI Recommendations List or Empty State */}
+        {matches.length > 0 ? (
+          <div className="space-y-4">
+            {matches.map((m, idx) => (
+              <div
+                key={m.truck.id}
+                className={`bg-white dark:bg-slate-900 border rounded-3xl p-6 shadow-sm hover:shadow-md transition flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 ${
+                  idx === 0
+                    ? "border-amber-400/80 ring-2 ring-amber-400/20"
+                    : "border-slate-200/80 dark:border-slate-800"
+                }`}
+              >
+                {/* Truck Photo & Info */}
+                <div className="flex flex-col sm:flex-row items-start gap-4 flex-1">
+                  <div className="relative w-28 h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
+                    <img
+                      src={m.truck.photoUrl}
+                      alt={m.truck.modelName}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute top-2 left-2 bg-slate-950/80 text-amber-400 text-[9px] font-black px-2 py-0.5 rounded uppercase">
+                      {m.truck.regNumber}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-black text-base text-slate-900 dark:text-white">
+                        {m.truck.modelName}
+                      </h3>
+                      <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-300/40">
+                        {m.matchScore}% ML Match
+                      </span>
+                      {idx === 0 && (
+                        <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase">
+                          Best Recommended
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
+                      <span className="flex items-center gap-1">
+                        <Truck size={14} className="text-amber-500" /> {m.truck.truckType} ({m.truck.bodyLengthFeet}ft)
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Scale size={14} className="text-amber-500" /> {m.truck.capacityTons}T Max Capacity
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Star size={14} className="text-amber-500 fill-amber-400" /> {m.truck.driverRating} ({m.truck.driverName})
+                      </span>
+                    </div>
+
+                    {/* Explainable AI Chips */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {m.explainableReasons.map((reason, rIdx) => (
+                        <span
+                          key={rIdx}
+                          className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700"
+                        >
+                          ✓ {reason}
+                        </span>
+                      ))}
+                      <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-lg">
+                        🌱 -{m.carbonReductionKg}kg CO₂ Saved
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-black text-base text-slate-900 dark:text-white">
-                      {m.truck.modelName}
-                    </h3>
-                    <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-300/40">
-                      {m.matchScore}% ML Match
+                {/* Price & Instant Book Button */}
+                <div className="flex items-center justify-between lg:flex-col lg:items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-slate-800">
+                  <div className="lg:text-right">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Optimized Backhaul Rate
                     </span>
-                    {idx === 0 && (
-                      <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase">
-                        Best Recommended
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
-                    <span className="flex items-center gap-1">
-                      <Truck size={14} className="text-amber-500" /> {m.truck.truckType} ({m.truck.bodyLengthFeet}ft)
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">
+                      ₹{m.recommendedPriceInr.toLocaleString("en-IN")}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Scale size={14} className="text-amber-500" /> {m.truck.capacityTons}T Max Capacity
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Star size={14} className="text-amber-500 fill-amber-400" /> {m.truck.driverRating} ({m.truck.driverName})
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
+                      Zero Return Empty Overhead
                     </span>
                   </div>
 
-                  {/* Explainable AI Chips */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {m.explainableReasons.map((reason, rIdx) => (
-                      <span
-                        key={rIdx}
-                        className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700"
-                      >
-                        ✓ {reason}
-                      </span>
-                    ))}
-                    <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-lg">
-                      🌱 -{m.carbonReductionKg}kg CO₂ Saved
-                    </span>
-                  </div>
+                  <button
+                    onClick={() => handleInstantBook(m)}
+                    className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-2xl shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <span>Book This Truck Instantly</span>
+                    <ArrowRight size={15} />
+                  </button>
                 </div>
               </div>
-
-              {/* Price & Instant Book Button */}
-              <div className="flex items-center justify-between lg:flex-col lg:items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-slate-800">
-                <div className="lg:text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Optimized Backhaul Rate
-                  </span>
-                  <span className="text-2xl font-black text-slate-900 dark:text-white">
-                    ₹{m.recommendedPriceInr.toLocaleString("en-IN")}
-                  </span>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
-                    Zero Return Empty Overhead
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => handleInstantBook(m)}
-                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-2xl shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                >
-                  <span>Book This Truck Instantly</span>
-                  <ArrowRight size={15} />
-                </button>
-              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 flex items-center justify-center mx-auto">
+              <Truck size={28} />
             </div>
-          ))}
-        </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                {cargo ? "No Matching Trucks on this Corridor Yet" : "No Active Shipment Request"}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                {cargo
+                  ? `There are currently no registered trucks available for the ${cargo.origin} ➔ ${cargo.destination} corridor. As soon as a truck owner registers or posts on this route, it will automatically match here.`
+                  : "Book a new commercial shipment to find verified returning trucks with zero deadhead miles."}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/book")}
+              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl shadow-sm transition text-xs inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              + Book New Shipment
+            </button>
+          </div>
+        )}
       </div>
     </Layout>
   );

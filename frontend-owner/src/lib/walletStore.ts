@@ -36,83 +36,18 @@ export interface WalletState {
   transactions: WalletTransaction[];
 }
 
+// NEW ACCOUNTS START WITH ZERO BALANCE, ZERO TRANSACTIONS, ZERO BANK ACCOUNTS
 const INITIAL_BANK_ACCOUNTS: BankAccount[] = [];
+const INITIAL_TRANSACTIONS: WalletTransaction[] = [];
 
-const INITIAL_TRANSACTIONS: WalletTransaction[] = [
-  {
-    id: "TXN-101",
-    txId: "REDO-PAY-98124",
-    utrNumber: "UTR2026082200981",
-    type: "Trip Earning",
-    amount: 24500,
-    direction: "credit",
-    description: "Freight Payout: Delhi → Mumbai Corridor",
-    truckName: "Eicher Pro 2049",
-    regNo: "HR 55 AB 1234",
-    tripId: "TRIP-881",
-    date: "22 Aug 2026, 05:30 PM",
-    timestamp: Date.now() - 86400000,
-    status: "Completed",
-    mode: "Freight Escrow",
-    beneficiary: "HDFC Bank (••92)"
-  },
-  {
-    id: "TXN-102",
-    txId: "REDO-PAY-98123",
-    utrNumber: "UTR2026082100412",
-    type: "Payout",
-    amount: 20000,
-    direction: "debit",
-    description: "Instant Bank Withdrawal to HDFC Bank",
-    date: "21 Aug 2026, 11:15 AM",
-    timestamp: Date.now() - 172800000,
-    status: "Completed",
-    mode: "Bank Transfer (NEFT/IMPS)",
-    beneficiary: "HDFC Bank (••92)"
-  },
-  {
-    id: "TXN-103",
-    txId: "REDO-PAY-98122",
-    utrNumber: "UTR2026081900192",
-    type: "Trip Earning",
-    amount: 18200,
-    direction: "credit",
-    description: "Freight Payout: Mumbai → Ahmedabad Corridor",
-    truckName: "BharatBenz 1917R",
-    regNo: "HR 55 CD 5678",
-    tripId: "TRIP-882",
-    date: "19 Aug 2026, 09:20 AM",
-    timestamp: Date.now() - 345600000,
-    status: "Completed",
-    mode: "Freight Escrow",
-    beneficiary: "HDFC Bank (••92)"
-  },
-  {
-    id: "TXN-104",
-    txId: "REDO-PAY-98121",
-    utrNumber: "UTR2026081800984",
-    type: "FASTag Deduction",
-    amount: 1860,
-    direction: "debit",
-    description: "Automated NHAI Toll Clearance (Delhi - Jaipur Highway)",
-    truckName: "Eicher Pro 2049",
-    regNo: "HR 55 AB 1234",
-    date: "18 Aug 2026, 02:40 PM",
-    timestamp: Date.now() - 432000000,
-    status: "Completed",
-    mode: "Auto FASTag",
-    beneficiary: "IHMCL NHAI Toll"
-  }
-];
-
-const STORAGE_KEY = "redo_owner_wallet_v2";
+const STORAGE_KEY = "redo_owner_wallet_v3";
 
 export function getWallet(): WalletState {
   if (typeof window === "undefined") {
     return {
-      balance: 24560,
+      balance: 0,
       pendingPayouts: 0,
-      totalWithdrawn: 145000,
+      totalWithdrawn: 0,
       bankAccounts: INITIAL_BANK_ACCOUNTS,
       transactions: INITIAL_TRANSACTIONS,
     };
@@ -121,9 +56,9 @@ export function getWallet(): WalletState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) {
       const initial: WalletState = {
-        balance: 24560,
+        balance: 0,
         pendingPayouts: 0,
-        totalWithdrawn: 145000,
+        totalWithdrawn: 0,
         bankAccounts: INITIAL_BANK_ACCOUNTS,
         transactions: INITIAL_TRANSACTIONS,
       };
@@ -133,9 +68,9 @@ export function getWallet(): WalletState {
     return JSON.parse(saved);
   } catch {
     return {
-      balance: 24560,
+      balance: 0,
       pendingPayouts: 0,
-      totalWithdrawn: 145000,
+      totalWithdrawn: 0,
       bankAccounts: INITIAL_BANK_ACCOUNTS,
       transactions: INITIAL_TRANSACTIONS,
     };
@@ -156,6 +91,8 @@ export function requestPayout(amount: number, bankAccountId: string): { success:
   if (amount > wallet.balance) return { success: false, message: "Insufficient wallet balance" };
 
   const bank = wallet.bankAccounts.find(b => b.id === bankAccountId) || wallet.bankAccounts[0];
+  if (!bank) return { success: false, message: "Please add a bank account first" };
+
   const utr = `UTR${Date.now().toString().slice(-10)}`;
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });

@@ -28,13 +28,13 @@ export default function OwnerPayments() {
   const [withdrawSuccess, setWithdrawSuccess] = useState<any | null>(null);
   const [withdrawError, setWithdrawError] = useState("");
 
-  // Add Bank Form State
+  // Add Bank Form State — empty by default, user fills their own details
   const [bankForm, setBankForm] = useState({
-    bankName: "HDFC Bank",
+    bankName: "",
     accountNumber: "",
     confirmAccountNumber: "",
     ifsc: "",
-    accountHolder: "Ritik Chaurasia",
+    accountHolder: "",
     accountType: "Current" as const,
     upiId: "",
   });
@@ -109,11 +109,11 @@ export default function OwnerPayments() {
     setSelectedBankId(newAcc.id);
     setIsAddBankOpen(false);
     setBankForm({
-      bankName: "HDFC Bank",
+      bankName: "",
       accountNumber: "",
       confirmAccountNumber: "",
       ifsc: "",
-      accountHolder: "Ritik Chaurasia",
+      accountHolder: "",
       accountType: "Current",
       upiId: "",
     });

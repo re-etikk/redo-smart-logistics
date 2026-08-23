@@ -27,50 +27,7 @@ export default function Invoices() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null);
   const [paySuccess, setPaySuccess] = useState<string | null>(null);
 
-  const [invoices, setInvoices] = useState<InvoiceItem[]>([
-    {
-      id: "INV-001",
-      invoiceNo: "REDO/2026/08/042",
-      consignmentId: "CARGO-101",
-      route: "Delhi NCR (Okhla) ➔ Mumbai (Bhiwandi)",
-      date: "20 Aug 2026",
-      baseFreightInr: 22000,
-      gstInr: 1100,
-      totalInr: 23100,
-      status: "Paid",
-      truckAssigned: "Eicher Pro 17 Feet (HR55 AB 1234)",
-      driverName: "Mukesh Yadav",
-      goodsType: "Automotive Parts",
-    },
-    {
-      id: "INV-002",
-      invoiceNo: "REDO/2026/08/043",
-      consignmentId: "CARGO-102",
-      route: "Delhi (Kundli) ➔ Indore (Pithampur)",
-      date: "21 Aug 2026",
-      baseFreightInr: 16000,
-      gstInr: 800,
-      totalInr: 16800,
-      status: "Paid",
-      truckAssigned: "BharatBenz 19 Feet (HR55 CD 5678)",
-      driverName: "Jaswinder Singh",
-      goodsType: "FMCG Packaged Goods",
-    },
-    {
-      id: "INV-003",
-      invoiceNo: "REDO/2026/08/044",
-      consignmentId: "CARGO-103",
-      route: "Bengaluru (Peenya) ➔ Chennai (Sriperumbudur)",
-      date: "22 Aug 2026",
-      baseFreightInr: 12500,
-      gstInr: 625,
-      totalInr: 13125,
-      status: "Pending Clearance",
-      truckAssigned: "Tata 14 Feet (HR55 EF 9012)",
-      driverName: "Sanjay Verma",
-      goodsType: "Textile Bales",
-    },
-  ]);
+  const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
 
   const totalBilled = invoices.reduce((acc, i) => acc + i.totalInr, 0);
   const totalPaid = invoices.filter(i => i.status === "Paid").reduce((acc, i) => acc + i.totalInr, 0);
@@ -113,7 +70,7 @@ export default function Invoices() {
             <span className="text-2xl font-black text-slate-900 dark:text-white block">
               ₹{totalBilled.toLocaleString("en-IN")}
             </span>
-            <span className="text-[10px] font-bold text-slate-500 block">3 GST Invoices</span>
+            <span className="text-[10px] font-bold text-slate-500 block">{invoices.length} GST Invoices</span>
           </div>
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">

@@ -15,63 +15,8 @@ export default function OwnerDashboard() {
   const trucks = getTrucks();
   const wallet = getWallet();
 
-  const recentBookings = [
-    {
-      id: "B1",
-      origin: "Delhi",
-      dest: "Mumbai",
-      date: "20 May, 2024 • 10:00 AM",
-      amount: "₹25,000",
-      status: "Confirmed",
-      tone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-      photoUrl: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80",
-      truck: "Eicher 17 Feet",
-    },
-    {
-      id: "B2",
-      origin: "Bengaluru",
-      dest: "Hyderabad",
-      date: "18 May, 2024 • 09:00 AM",
-      amount: "₹18,500",
-      status: "On the Way",
-      tone: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400",
-      photoUrl: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=600&q=80",
-      truck: "BharatBenz 19 Feet",
-    },
-    {
-      id: "B3",
-      origin: "Ahmedabad",
-      dest: "Indore",
-      date: "16 May, 2024 • 11:30 AM",
-      amount: "₹16,000",
-      status: "Completed",
-      tone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-      photoUrl: "https://images.unsplash.com/photo-1586191582150-a8d29837936a?auto=format&fit=crop&w=600&q=80",
-      truck: "Tata 14 Feet",
-    },
-    {
-      id: "B4",
-      origin: "Chennai",
-      dest: "Coimbatore",
-      date: "15 May, 2024 • 02:00 PM",
-      amount: "₹12,500",
-      status: "Completed",
-      tone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-      photoUrl: "https://images.unsplash.com/photo-1592838064575-70ed626d3a0e?auto=format&fit=crop&w=600&q=80",
-      truck: "Mahindra Bolero",
-    },
-    {
-      id: "B5",
-      origin: "Pune",
-      dest: "Nagpur",
-      date: "14 May, 2024 • 08:45 AM",
-      amount: "₹15,750",
-      status: "Cancelled",
-      tone: "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-400",
-      photoUrl: "https://images.unsplash.com/photo-1501700493788-fa1a4fc9fe62?auto=format&fit=crop&w=600&q=80",
-      truck: "BharatBenz 32 Feet",
-    },
-  ];
+  // No fake data — real bookings come from freight matching
+  const recentBookings: { id: string; origin: string; dest: string; date: string; amount: string; status: string; tone: string; photoUrl: string; truck: string }[] = [];
 
   return (
     <OwnerLayout activeTab="dashboard" promoCardType="refer">

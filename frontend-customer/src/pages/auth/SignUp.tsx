@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import Logo from "../../components/Logo";
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Tag, Radio, ArrowRight, User, Phone } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, Tag, Radio, ArrowRight, User, AlertCircle } from "lucide-react";
 
 export default function CustomerSignUp() {
   const [fullName, setFullName] = useState("");
@@ -16,7 +16,7 @@ export default function CustomerSignUp() {
   const navigate = useNavigate();
   const { session, profile, refreshProfile } = useAuth();
 
-  if (session && profile) {
+  if (session || profile) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -25,9 +25,11 @@ export default function CustomerSignUp() {
     setBusy(true);
     setError("");
 
+    const targetEmail = email.includes("@") ? email : `${phone || Date.now()}@redo.app`;
+
     try {
-      const { error: err } = await supabase.auth.signUp({
-        email: email || `${phone}@redo.app`,
+      const { data, error: err } = await supabase.auth.signUp({
+        email: targetEmail,
         password: password || "CustomerPass123!",
         options: {
           data: {
@@ -38,14 +40,28 @@ export default function CustomerSignUp() {
         },
       });
       if (err) throw err;
-      await refreshProfile();
-      navigate("/dashboard");
+      if (data?.session) {
+        await refreshProfile();
+        navigate("/dashboard");
+        return;
+      }
     } catch {
-      localStorage.setItem("redo_demo_role", "sme");
-      navigate("/dashboard");
-    } finally {
-      setBusy(false);
+      // Local fallback for smooth onboarding
     }
+
+    const localProfile = {
+      id: `cust-${Date.now().toString().slice(-6)}`,
+      role: "sme",
+      full_name: fullName || "REDO Customer",
+      company_name: fullName ? `${fullName} Logistics` : "REDO Customer",
+      phone: phone || "+91 9876543210",
+      onboarding_complete: true,
+    };
+    localStorage.setItem("redo_auth_customer_v1", JSON.stringify(localProfile));
+    localStorage.setItem("redo_demo_role", "sme");
+    window.dispatchEvent(new Event("redo_local_auth_changed"));
+    setBusy(false);
+    navigate("/dashboard");
   };
 
   const handleGoogleSignup = async () => {
@@ -57,7 +73,17 @@ export default function CustomerSignUp() {
       });
       if (err) throw err;
     } catch {
+      const localProfile = {
+        id: `google-cust-${Date.now().toString().slice(-6)}`,
+        role: "sme",
+        full_name: "Google Customer",
+        company_name: "REDO Customer",
+        phone: "+91 9876543210",
+        onboarding_complete: true,
+      };
+      localStorage.setItem("redo_auth_customer_v1", JSON.stringify(localProfile));
       localStorage.setItem("redo_demo_role", "sme");
+      window.dispatchEvent(new Event("redo_local_auth_changed"));
       navigate("/dashboard");
     } finally {
       setBusy(false);
@@ -113,6 +139,13 @@ export default function CustomerSignUp() {
               <h2 className="text-xl sm:text-2xl font-black text-slate-950">Create your account</h2>
               <p className="text-xs text-slate-500 font-medium">Enter your email or mobile to get started</p>
             </div>
+
+            {error && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+                <AlertCircle size={15} />
+                <span>{error}</span>
+              </div>
+            )}
 
             {/* Email Registration Form */}
             <form onSubmit={submit} className="space-y-3.5 text-xs font-bold">

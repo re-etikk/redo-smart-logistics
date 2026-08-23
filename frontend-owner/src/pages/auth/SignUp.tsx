@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import Logo from "../../components/Logo";
-import { Eye, EyeOff, Lock, Mail, Truck, IndianRupee, Users, ArrowRight, User, Phone } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Truck, IndianRupee, Users, ArrowRight, User, AlertCircle } from "lucide-react";
 
 export default function OwnerSignUp() {
   const [fullName, setFullName] = useState("");
@@ -16,7 +16,7 @@ export default function OwnerSignUp() {
   const navigate = useNavigate();
   const { session, profile, refreshProfile } = useAuth();
 
-  if (session && profile) {
+  if (session || profile) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -25,9 +25,11 @@ export default function OwnerSignUp() {
     setBusy(true);
     setError("");
 
+    const targetEmail = email.includes("@") ? email : `${phone || Date.now()}@redo.app`;
+
     try {
-      const { error: err } = await supabase.auth.signUp({
-        email: email || `${phone}@redo.app`,
+      const { data, error: err } = await supabase.auth.signUp({
+        email: targetEmail,
         password: password || "OwnerPass123!",
         options: {
           data: {
@@ -38,14 +40,28 @@ export default function OwnerSignUp() {
         },
       });
       if (err) throw err;
-      await refreshProfile();
-      navigate("/onboarding/owner");
+      if (data?.session) {
+        await refreshProfile();
+        navigate("/onboarding/owner");
+        return;
+      }
     } catch {
-      localStorage.setItem("redo_demo_role", "truck_owner");
-      navigate("/onboarding/owner");
-    } finally {
-      setBusy(false);
+      // Local fallback for smooth onboarding
     }
+
+    const localProfile = {
+      id: `owner-${Date.now().toString().slice(-6)}`,
+      role: "truck_owner",
+      full_name: fullName || "Truck Owner",
+      company_name: fullName ? `${fullName} Fleet Logistics` : "REDO Fleet Logistics",
+      phone: phone || "+91 9811234567",
+      onboarding_complete: true,
+    };
+    localStorage.setItem("redo_auth_owner_v1", JSON.stringify(localProfile));
+    localStorage.setItem("redo_demo_role", "truck_owner");
+    window.dispatchEvent(new Event("redo_local_auth_changed"));
+    setBusy(false);
+    navigate("/onboarding/owner");
   };
 
   const handleGoogleSignup = async () => {
@@ -57,7 +73,17 @@ export default function OwnerSignUp() {
       });
       if (err) throw err;
     } catch {
+      const localProfile = {
+        id: `google-owner-${Date.now().toString().slice(-6)}`,
+        role: "truck_owner",
+        full_name: "Google Truck Owner",
+        company_name: "REDO Fleet Logistics",
+        phone: "+91 9811234567",
+        onboarding_complete: true,
+      };
+      localStorage.setItem("redo_auth_owner_v1", JSON.stringify(localProfile));
       localStorage.setItem("redo_demo_role", "truck_owner");
+      window.dispatchEvent(new Event("redo_local_auth_changed"));
       navigate("/onboarding/owner");
     } finally {
       setBusy(false);
@@ -156,6 +182,13 @@ export default function OwnerSignUp() {
               <h2 className="text-xl sm:text-2xl font-black text-slate-950">Create your account</h2>
               <p className="text-xs text-slate-500 font-medium">Enter your details to get started</p>
             </div>
+
+            {error && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+                <AlertCircle size={15} />
+                <span>{error}</span>
+              </div>
+            )}
 
             {/* Email / Mobile Registration Form */}
             <form onSubmit={submit} className="space-y-3.5 text-xs font-bold">
