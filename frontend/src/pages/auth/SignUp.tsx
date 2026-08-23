@@ -1,288 +1,134 @@
-import { useState, type FormEvent } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { supabase, triggerDemoLogin } from "../../lib/supabase";
-import { useAuth } from "../../hooks/useAuth";
-import Logo from "../../components/Logo";
-import { Eye, EyeOff, ShieldCheck, Tag, Headset } from "lucide-react";
+import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { api } from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
+import { GoogleIcon, savePendingProfile, signInWithGoogle } from '../../lib/authHelpers';
+import { Logo } from '../../components/Layout';
+import { Button, Card, Field, inputCls, useToast } from '../../components/ui';
+import type { Role } from '../../lib/types';
 
 export default function SignUp() {
-  const [role, setRole] = useState<"sme" | "truck_owner">("sme");
-  const [form, setForm] = useState({
-    full_name: "",
-    phone: "",
-    email: "",
-    password: "",
-    confirm_password: "",
-    agree: true,
-  });
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [params] = useSearchParams();
+  const [role, setRole] = useState<Role | null>((params.get('role') as Role) || null);
+  const [form, setForm] = useState({ full_name: '', email: '', password: '', phone: '' });
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const navigate = useNavigate();
-  const { session, profile, refreshProfile } = useAuth();
-
-  if (session && profile) {
-    const dest = profile.role === "truck_owner" ? "/dashboard/owner" : "/dashboard/sme";
-    return <Navigate to={dest} replace />;
-  }
+  const { refreshProfile } = useAuth();
+  const toast = useToast();
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (form.password !== form.confirm_password) {
-      setError("Passwords do not match!");
+    if (!role) return;
+    setBusy(true); setError('');
+    const { data, error: err } = await supabase.auth.signUp({
+      email: form.email, password: form.password,
+      options: { data: { full_name: form.full_name } },
+    });
+    if (err) { setError(err.message); setBusy(false); return; }
+
+    if (!data.session) {
+      // Email confirmation is ON in Supabase: no session until the link is clicked.
+      // Stash the intended role — /auth/complete finishes the profile after first sign-in.
+      savePendingProfile({ role, full_name: form.full_name, phone: form.phone });
+      setAwaitingConfirm(true); setBusy(false);
       return;
     }
-    setBusy(true);
-    setError("");
-
-    const signupTempData = {
-      full_name: form.full_name,
-      phone: form.phone,
-      email: form.email,
-      role,
-      company_name: `${form.full_name} ${role === "sme" ? "Logistics" : "Fleet"}`,
-    };
 
     try {
-      localStorage.setItem("redo_signup_temp_data", JSON.stringify(signupTempData));
-    } catch {}
-
-    try {
-      const { error: err } = await supabase.auth.signUp({
-        email: form.email || `${form.phone}@redo.app`,
-        password: form.password,
-        options: { data: signupTempData },
-      });
-      if (err) throw err;
-
-      await refreshProfile();
-      navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
-    } catch {
-      await triggerDemoLogin(role);
-      await refreshProfile();
-      navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
-    } finally {
-      setBusy(false);
-    }
+      await api.post('/auth/profile', { full_name: form.full_name, phone: form.phone, role });
+    } catch (e2: any) { setError(e2.message); setBusy(false); return; }
+    await refreshProfile();
+    navigate(role === 'sme' ? '/onboarding/sme' : '/onboarding/owner');
   };
 
-  const handleSocialLogin = async (provider: "google" | "facebook" | "apple") => {
-    setBusy(true);
-    try {
-      const { error: err } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: `${window.location.origin}/dashboard/sme` },
-      });
-      if (err) throw err;
-    } catch {
-      await triggerDemoLogin(role);
-      await refreshProfile();
-      navigate(role === "sme" ? "/onboarding/sme" : "/onboarding/owner");
-    } finally {
-      setBusy(false);
-    }
+  const google = async () => {
+    try { await signInWithGoogle(role ? { role } : undefined); }
+    catch (e: any) { setError(e.message); }
   };
+
+  const resend = async () => {
+    const { error: err } = await supabase.auth.resend({ type: 'signup', email: form.email });
+    if (err) setError(err.message); else toast('Confirmation email sent again.');
+  };
+
+  if (awaitingConfirm) {
+    return (
+      <Shell>
+        <Card className="w-full max-w-sm p-6 text-center">
+          <h1 className="text-xl font-extrabold text-ink">Confirm your email</h1>
+          <p className="mt-2 text-sm text-ink-soft">
+            We sent a confirmation link to <span className="font-semibold">{form.email}</span>.
+            Click it, then sign in — we will finish setting up your {role === 'sme' ? 'shipper' : 'truck owner'} account automatically.
+          </p>
+          {error && <p className="mt-2 text-sm font-medium text-danger">{error}</p>}
+          <Button className="mt-4 w-full" onClick={() => navigate('/login')}>Go to sign in</Button>
+          <button onClick={resend} className="mt-3 text-sm font-semibold text-accent">Resend email</button>
+          <p className="mt-4 text-xs text-ink-faint">
+            No email? Ask your admin to disable “Confirm email” in Supabase Auth for demo runs, or configure SMTP.
+          </p>
+        </Card>
+      </Shell>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-slate-900 flex flex-col justify-between font-sans selection:bg-amber-400">
-      {/* Top Header */}
-      <header className="px-6 py-4 flex items-center justify-between max-w-6xl mx-auto w-full">
-        <Link to="/">
-          <Logo />
-        </Link>
-        <div className="text-xs font-semibold text-slate-600">
-          Already have an account?{" "}
-          <Link to="/login" className="text-amber-600 font-bold hover:underline ml-1">
-            Login
-          </Link>
+    <Shell>
+      {!role ? (
+        <div className="w-full max-w-2xl">
+          <h1 className="text-2xl font-extrabold text-ink text-center">How will you use Redo?</h1>
+          <div className="mt-8 grid sm:grid-cols-2 gap-4">
+            <Card hover className="p-6">
+              <h2 className="font-bold text-ink">I have a truck</h2>
+              <p className="mt-1 text-sm text-ink-soft">Earn from unused return capacity.</p>
+              <Button className="mt-5 w-full" onClick={() => setRole('truck_owner')}>Continue as truck owner</Button>
+            </Card>
+            <Card hover className="p-6">
+              <h2 className="font-bold text-ink">I have cargo</h2>
+              <p className="mt-1 text-sm text-ink-soft">Ship partial loads affordably.</p>
+              <Button className="mt-5 w-full" onClick={() => setRole('sme')}>Continue as shipper</Button>
+            </Card>
+          </div>
         </div>
-      </header>
-
-      {/* Main Register Form Card */}
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xl space-y-6">
-          <div className="text-center space-y-1">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">
-              Create <span className="text-amber-500">Account</span>
-            </h1>
-            <p className="text-xs text-slate-500">Sign up and start booking or managing trucks easily</p>
-          </div>
-
-          {/* Segmented Switch Role Picker */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 gap-1 text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => setRole("sme")}
-              className={`py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                role === "sme"
-                  ? "bg-[#FFC800] text-slate-900 shadow-sm border border-amber-400"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <span>Shipper / Customer</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole("truck_owner")}
-              className={`py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                role === "truck_owner"
-                  ? "bg-[#FFC800] text-slate-900 shadow-sm border border-amber-400"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <span>Truck Owner</span>
-            </button>
-          </div>
-
-          <form onSubmit={submit} className="space-y-3.5">
-            <div>
-              <input
-                required
-                value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                placeholder="Full Name"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-            </div>
-
-            <div>
-              <input
-                type="tel"
-                required
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="Mobile Number"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-            </div>
-
-            <div>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="Email Address (Optional)"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-            </div>
-
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                minLength={6}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="Create Password"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className="relative">
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                required
-                minLength={6}
-                value={form.confirm_password}
-                onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
-                placeholder="Confirm Password"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="agree"
-                checked={form.agree}
-                onChange={(e) => setForm({ ...form, agree: e.target.checked })}
-                className="rounded text-amber-500 focus:ring-amber-400"
-              />
-              <label htmlFor="agree" className="text-[11px] text-slate-500 cursor-pointer">
-                I agree to the <span className="text-amber-600 font-semibold">Terms & Conditions</span> and <span className="text-amber-600 font-semibold">Privacy Policy</span>
-              </label>
-            </div>
-
-            {error && <div className="text-xs text-rose-600 font-medium">{error}</div>}
-
-            <button
-              type="submit"
-              disabled={busy || !form.agree}
-              className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl shadow-md transition text-sm tracking-wide"
-            >
-              {busy ? "Registering..." : "Register"}
-            </button>
+      ) : (
+        <Card className="w-full max-w-sm p-6">
+          <h1 className="text-xl font-extrabold text-ink">Create account</h1>
+          <p className="text-sm text-ink-faint mt-0.5">{role === 'sme' ? 'SME / Shipper' : 'Truck owner'} ·{' '}
+            <button className="text-accent font-semibold" onClick={() => setRole(null)}>change</button></p>
+          <form className="mt-5 space-y-4" onSubmit={submit}>
+            <Field label="Full name"><input required className={inputCls} value={form.full_name} onChange={set('full_name')} /></Field>
+            <Field label="Email"><input type="email" required className={inputCls} value={form.email} onChange={set('email')} /></Field>
+            <Field label="Phone"><input type="tel" required className={inputCls} value={form.phone} onChange={set('phone')} /></Field>
+            <Field label="Password" error={error}>
+              <input type="password" required minLength={8} className={inputCls} value={form.password} onChange={set('password')} />
+            </Field>
+            <Button className="w-full" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</Button>
           </form>
+          <div className="my-4 flex items-center gap-3 text-xs text-ink-faint">
+            <span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" />
+          </div>
+          <button type="button" onClick={google}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas transition">
+            <GoogleIcon /> Sign up with Google
+          </button>
+          <p className="mt-4 text-sm text-ink-faint">Already have an account?{' '}
+            <Link to="/login" className="font-semibold text-accent">Sign in</Link></p>
+        </Card>
+      )}
+    </Shell>
+  );
+}
 
-          {/* Social Auth */}
-          <div className="space-y-3 pt-2">
-            <div className="relative text-center text-[11px] text-slate-400">
-              <span className="bg-white px-2 relative z-10">or continue with</span>
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("google")}
-                className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5"
-              >
-                Google
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("facebook")}
-                className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5"
-              >
-                Facebook
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("apple")}
-                className="py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5"
-              >
-                Apple
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Trust Footer */}
-      <footer className="py-6 border-t border-slate-200 bg-white">
-        <div className="max-w-4xl mx-auto px-4 grid grid-cols-3 gap-4 text-center text-xs text-slate-600">
-          <div className="flex items-center justify-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-amber-500" />
-            <span><strong>Verified Trucks</strong> (100% Verified)</span>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            <Tag className="w-4 h-4 text-amber-500" />
-            <span><strong>Best Prices</strong> (Save More)</span>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            <Headset className="w-4 h-4 text-amber-500" />
-            <span><strong>24/7 Support</strong> (We're here for you)</span>
-          </div>
-        </div>
-      </footer>
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-canvas flex flex-col">
+      <header className="bg-white border-b border-line">
+        <div className="mx-auto max-w-6xl px-4 h-14 flex items-center"><Link to="/"><Logo /></Link></div>
+      </header>
+      <main className="flex-1 grid place-items-center px-4 py-10">{children}</main>
     </div>
   );
 }

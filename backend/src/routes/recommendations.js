@@ -28,7 +28,9 @@ function enrich(rec, eligibleById, truckById) {
     estimated_price_inr: estimatePriceInr(c.distance_km, c.cargo_weight_tons, c.price_per_km_ton),
     eta_minutes: etaMinutes(c.distance_km),
     capacity_available_tons: c.available_capacity_tons,
-    reliability_score: +(c.on_time_rate * (1 - c.cancel_rate)).toFixed(2),
+    reliability_score: c.on_time_rate == null ? null
+      : +((c.on_time_rate) * (1 - (c.cancel_rate ?? 0))).toFixed(2),
+    is_new: c.driver_rating == null,
     driver_rating: c.driver_rating,
     on_time_rate: c.on_time_rate,
     departure_at: c._departure_at,

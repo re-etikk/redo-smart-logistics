@@ -125,10 +125,11 @@ extrasRouter.get('/invoices', async (req, res, next) => {
 extrasRouter.get('/earnings', async (req, res, next) => {
   try {
     if (req.profile.role !== 'truck_owner') throw apiError(403, 'FORBIDDEN', 'Earnings are for truck owners.');
-    const { data, error } = await supabaseAdmin.from('bookings')
-      .select('id, cargo_id, status, agreed_price_inr, updated_at, created_at, cargo:cargo_requests(origin, destination)')
-      .eq('truck_owner_id', req.user.id).order('created_at', { ascending: false });
+    const { data: rows, error } = await supabaseAdmin.from('bookings')
+      .select('id, cargo_id, status, agreed_price_inr, updated_at, created_at, cargo:cargo_requests(origin, destination), truck:trucks(owner_id)')
+      .order('created_at', { ascending: false });
     if (error) throw apiError(500, 'DB_ERROR', error.message);
+    const data = (rows ?? []).filter((b) => b.truck?.owner_id === req.user.id);
 
     const ACTIVE = ['confirmed', 'pickup_ready', 'picked_up', 'in_transit', 'delivered'];
     const done = data.filter((b) => b.status === 'completed');
@@ -167,5 +168,3 @@ extrasRouter.get('/reviews', async (req, res, next) => {
     })));
   } catch (e) { next(e); }
 });
-
-export default extrasRouter;

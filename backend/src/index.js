@@ -11,16 +11,7 @@ import recommendations from "./routes/recommendations.js";
 import trucks from "./routes/trucks.js";
 
 const app = express();
-
-// Allow both Truck Owner and Customer frontends
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:5174").split(",").map(s => s.trim());
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.some(o => origin.startsWith(o))) cb(null, true);
-    else cb(null, true); // Allow all in dev; restrict in production via CORS_ORIGIN env var
-  },
-  credentials: true,
-}));
+app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
 app.use(express.json({ limit: "1mb" }));
 
 app.use("/trucks", trucks);

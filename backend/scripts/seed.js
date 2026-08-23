@@ -66,7 +66,9 @@ async function main() {
 
   // Optional bulk seed from CSVs (training snapshots -> initial marketplace records only; never runtime data)
   const csvPath = path.resolve('../ml-service/data/trucks.csv');
-  if (fs.existsSync(csvPath)) {
+  if (process.env.SEED_SYNTHETIC !== '1') {
+    console.log('Skipping synthetic CSV trucks (set SEED_SYNTHETIC=1 to seed a demo marketplace).');
+  } else if (fs.existsSync(csvPath)) {
     console.log('Bulk-seeding a sample of synthetic trucks from CSV (first 25 rows)…');
     const rows = fs.readFileSync(csvPath, 'utf8').trim().split('\n').slice(1, 26);
     const trucks = rows.map((line) => {

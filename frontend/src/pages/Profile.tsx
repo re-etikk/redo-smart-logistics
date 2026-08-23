@@ -1,287 +1,68 @@
 import { useState } from "react";
-import {
-  User, ShieldCheck, Lock, Globe, Smartphone, Landmark, FileText, CheckCircle2, ChevronRight, HelpCircle
-} from "lucide-react";
-import OwnerLayout from "../components/OwnerLayout";
 import Layout from "../components/Layout";
+import { api } from "../services/api";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
+import { Badge, Button, Card, Field, SectionHead, Tabs, inputCls, useToast } from "../components/ui";
 
 export default function ProfileSettings() {
-  const { profile } = useAuth();
-  const isOwner = profile?.role === "truck_owner";
+  const { profile, refreshProfile } = useAuth();
+  const [tab, setTab] = useState("profile");
+  const [form, setForm] = useState({ full_name: profile?.full_name || "", phone: profile?.phone || "", company_name: profile?.company_name || "" });
+  const [pwd, setPwd] = useState({ next: "", confirm: "" });
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState("profile");
+  const save = async () => {
+    setBusy(true);
+    try { await api.patch("/auth/profile", form); await refreshProfile(); toast("Profile saved"); }
+    catch (e: any) { toast(e.message, "danger"); } finally { setBusy(false); }
+  };
+  const changePassword = async () => {
+    if (pwd.next.length < 8) { toast("Password must be at least 8 characters.", "warn"); return; }
+    if (pwd.next !== pwd.confirm) { toast("Passwords do not match.", "warn"); return; }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwd.next });
+      if (error) throw new Error(error.message);
+      setPwd({ next: "", confirm: "" }); toast("Password updated");
+    } catch (e: any) { toast(e.message, "danger"); } finally { setBusy(false); }
+  };
 
-  if (isOwner) {
-    return (
-      <OwnerLayout activeTab="settings" promoCardType="refer">
-        <div className="space-y-6">
-          {/* Header Title matching Mockup 10 */}
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Settings</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage your account, preferences and business settings.</p>
-          </div>
-
-          {/* Sub Navigation Tabs */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm flex items-center gap-2 overflow-x-auto text-xs font-extrabold">
-            <button onClick={() => setActiveTab("profile")} className={`px-4 py-2 rounded-xl transition ${activeTab === "profile" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Profile &amp; Account</button>
-            <button onClick={() => setActiveTab("business")} className={`px-4 py-2 rounded-xl transition ${activeTab === "business" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Business</button>
-            <button onClick={() => setActiveTab("notifications")} className={`px-4 py-2 rounded-xl transition ${activeTab === "notifications" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Notifications</button>
-            <button onClick={() => setActiveTab("security")} className={`px-4 py-2 rounded-xl transition ${activeTab === "security" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Security</button>
-            <button onClick={() => setActiveTab("preferences")} className={`px-4 py-2 rounded-xl transition ${activeTab === "preferences" ? "bg-[#FFC800] text-slate-950 font-black" : "text-slate-600 hover:bg-slate-50"}`}>Preferences</button>
-          </div>
-
-          {/* Main Grid: Form Sections + Right Quick Actions Sidebar matching Mockup 10 */}
-          <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-            {/* Forms Column */}
-            <div className="space-y-6">
-              {/* Profile Information Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="font-black text-slate-900 text-xs flex items-center gap-2">
-                    <User size={16} className="text-amber-500" /> Profile Information
-                  </h3>
-                  <button className="bg-slate-50 border border-slate-200 text-slate-700 font-bold px-3 py-1 rounded-xl text-xs hover:bg-slate-100">
-                    Edit
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Full Name</label>
-                      <input readOnly value={profile?.full_name || "Rohit Sharma"} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900" />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Email Address</label>
-                      <input readOnly value="rohit.sharma@email.com" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900" />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Phone Number</label>
-                      <input readOnly value={profile?.phone || "+91 98765 43210"} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900" />
-                    </div>
-                  </div>
-
-                  {/* Profile Photo Upload */}
-                  <div className="flex flex-col items-center justify-center p-4 border border-slate-100 rounded-2xl space-y-3">
-                    <div className="w-20 h-20 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-2xl border-2 border-amber-400 shadow-md">
-                      {profile?.full_name?.charAt(0) || "R"}
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-medium">JPG, PNG or GIF. Max size 2MB</span>
-                    <button className="bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-1.5 rounded-xl text-xs hover:bg-slate-100">
-                      Change Photo
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Change Password Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-                <h3 className="font-black text-slate-900 text-xs flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <Lock size={16} className="text-purple-500" /> Change Password
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Current Password</label>
-                    <input type="password" placeholder="Enter current password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900" />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">New Password</label>
-                    <input type="password" placeholder="Enter new password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900" />
-                  </div>
-                </div>
-
-                <button className="bg-purple-600 hover:bg-purple-700 text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition">
-                  Update Password
-                </button>
-              </div>
-
-              {/* Account Information Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-                <h3 className="font-black text-slate-900 text-xs border-b border-slate-100 pb-3">Account Information</h3>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Join Date</span>
-                    <span className="font-bold text-slate-900 block pt-0.5">12 May 2024</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Account Status</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 inline-block mt-0.5">Active</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Account Type</span>
-                    <span className="font-bold text-slate-900 block pt-0.5">Truck Owner</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Verification</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 inline-block mt-0.5">✔ Verified</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Quick Actions & App Info Sidebar matching Mockup 10 */}
-            <div className="space-y-6">
-              {/* Quick Actions */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
-                <h4 className="font-black text-xs text-slate-900">Quick Actions</h4>
-
-                <div className="space-y-2 text-xs font-bold">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 transition cursor-pointer">
-                    <span className="text-slate-800">Update Profile</span>
-                    <ChevronRight size={14} className="text-slate-400" />
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 transition cursor-pointer">
-                    <span className="text-slate-800">Business Details</span>
-                    <ChevronRight size={14} className="text-slate-400" />
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 transition cursor-pointer">
-                    <span className="text-slate-800">Bank Details</span>
-                    <ChevronRight size={14} className="text-slate-400" />
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 transition cursor-pointer">
-                    <span className="text-slate-800">Documents</span>
-                    <ChevronRight size={14} className="text-slate-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Preferences */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
-                <h4 className="font-black text-xs text-slate-900">Preferences</h4>
-
-                <div className="space-y-2 text-xs font-bold">
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
-                    <span className="text-slate-500">Language</span>
-                    <span className="text-slate-900">English</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
-                    <span className="text-slate-500">Currency</span>
-                    <span className="text-slate-900">INR (₹)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
-                    <span className="text-slate-500">Time Zone</span>
-                    <span className="text-slate-900 text-[10px]">GMT+05:30 India</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* App Information */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-2 text-xs">
-                <h4 className="font-black text-xs text-slate-900 pb-1">App Information</h4>
-                <div className="flex items-center justify-between text-slate-500 font-medium">
-                  <span>Version</span>
-                  <span className="font-bold text-slate-900">1.2.0</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-500 font-medium">
-                  <span>Last Updated</span>
-                  <span className="font-bold text-slate-900">20 May 2024</span>
-                </div>
-                <span className="inline-block text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full mt-1">
-                  You are using the latest version
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </OwnerLayout>
-    );
-  }
-
-  // Shipper / Customer Settings View
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Customer Profile &amp; Settings</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage your business details, GSTIN registration, and account preferences.</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-[1fr_300px]">
-          <div className="space-y-6">
-            {/* Personal & Business Details */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="font-black text-slate-900 text-xs flex items-center gap-2 border-b border-slate-100 pb-3">
-                <User size={16} className="text-amber-500" /> Business &amp; Profile Details
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-bold">
-                <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Company / Business Name</label>
-                  <input defaultValue={profile?.company_name || "Ritik Logistics & Trade Ltd"} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                </div>
-
-                <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">GSTIN Registration Number</label>
-                  <input defaultValue="07AAAAA0000A1Z5" placeholder="e.g. 07AAAAA0000A1Z5" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 uppercase font-mono" />
-                </div>
-
-                <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Contact Person Name</label>
-                  <input defaultValue={profile?.full_name || "Ritik Sharma"} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                </div>
-
-                <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Mobile Phone Number</label>
-                  <input defaultValue={profile?.phone || "+91 98765 43210"} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                </div>
-              </div>
-
-              <button className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-sm transition">
-                Save Business Profile
-              </button>
+      <SectionHead title="Profile Settings" sub="Manage your account information and preferences." />
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_300px]">
+        <Card className="p-5">
+          <Tabs active={tab} onChange={setTab} tabs={[
+            { key: "profile", label: "Profile Information" }, { key: "security", label: "Security" },
+          ]} />
+          {tab === "profile" && (
+            <div className="mt-4 grid sm:grid-cols-2 gap-4 max-w-2xl">
+              <Field label="Full Name"><input className={inputCls} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></Field>
+              <Field label="Mobile Number"><input className={inputCls} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+              <Field label="Company Name"><input className={inputCls} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></Field>
+              <div className="sm:col-span-2"><Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Changes"}</Button></div>
             </div>
-
-            {/* Account Security */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="font-black text-slate-900 text-xs flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Lock size={16} className="text-purple-500" /> Security &amp; Password
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-bold">
-                <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">New Password</label>
-                  <input type="password" placeholder="Enter new password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
-                </div>
-
-                <div>
-                  <label className="text-slate-500 text-[10px] uppercase block mb-1">Confirm Password</label>
-                  <input type="password" placeholder="Confirm new password" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900" />
-                </div>
-              </div>
-
-              <button className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-sm transition">
-                Update Password
-              </button>
+          )}
+          {tab === "security" && (
+            <div className="mt-4 grid gap-4 max-w-sm">
+              <Field label="New Password"><input type="password" className={inputCls} value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} /></Field>
+              <Field label="Confirm New Password"><input type="password" className={inputCls} value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} /></Field>
+              <Button onClick={changePassword} disabled={busy}>Update Password</Button>
+              <p className="text-xs text-ink-faint">Password changes go through Supabase Auth — this is a real update, not a mock.</p>
             </div>
-          </div>
-
-          {/* Right Sidebar Avatar & Verification Badge */}
-          <div className="space-y-6">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4 text-center">
-              <div className="relative mx-auto w-20 h-20 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-2xl border-2 border-amber-400 shadow-md">
-                {profile?.full_name?.charAt(0) || "R"}
-              </div>
-              <div>
-                <h4 className="font-black text-slate-900 text-sm">{profile?.full_name || "Ritik Sharma"}</h4>
-                <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full inline-block mt-1">
-                  ✔ Verified Shipper
-                </span>
-              </div>
-              <button className="w-full bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xs py-2 rounded-xl border border-slate-200">
-                Change Profile Photo
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </Card>
+        <Card className="p-5 h-fit">
+          <h2 className="font-bold text-ink">Account Overview</h2>
+          <dl className="mt-3 space-y-3 text-sm">
+            <div className="flex justify-between"><dt className="text-ink-faint">Account Type</dt>
+              <dd className="font-semibold">{profile?.role === "sme" ? "Shipper" : profile?.role === "admin" ? "Admin" : "Truck Owner"}</dd></div>
+            <div className="flex justify-between"><dt className="text-ink-faint">KYC Status</dt><dd><Badge tone="ok">Verified</Badge></dd></div>
+            <div className="flex justify-between"><dt className="text-ink-faint">Email</dt><dd className="font-semibold text-xs">{profile?.id ? "linked to auth" : "—"}</dd></div>
+          </dl>
+        </Card>
       </div>
     </Layout>
   );

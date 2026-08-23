@@ -64,3 +64,37 @@ cd ml-service && python -m unittest discover -s tests
 - **Matching service is temporarily unavailable** → the ML service isn't running on `ML_SERVICE_URL`. This is intentional honesty: the app never invents scores.
 - **PROFILE_MISSING** after signup → the `POST /auth/profile` call failed; re-submit from the signup screen.
 - Diagnostics (dev builds only): `http://localhost:5173/dev/diagnostics`.
+
+
+## v3.1 — Real-data & auth wiring notes
+
+### Migrations to (re)run
+Run `supabase/migrations/0004_real_reputation.sql` after 0003. For an **existing** database that
+already has synthetic data, also run `supabase/cleanup_synthetic.sql` once — it deletes all
+`SEED-…` trucks (and anything referencing them) and nulls fabricated reputation so new trucks
+show **New** instead of an invented 4.0 rating.
+
+### Seeding — real by default
+`npm run seed` now creates ONLY the demo login accounts (owner / sme / admin) with the demo
+truck + return trip. The 25 synthetic marketplace trucks are seeded **only** when you opt in:
+
+    SEED_SYNTHETIC=1 npm run seed
+
+### Email + password login
+If "Confirm email" is ON in Supabase (Auth → Providers → Email) and SMTP is not configured,
+signups never receive the link and can never log in — Google works, passwords don't.
+Two correct setups:
+1. Demo/judging: turn **Confirm email OFF**. Signup logs straight in.
+2. Production-style: keep it ON and configure SMTP (Auth → SMTP settings). The app now shows a
+   "Confirm your email" screen after signup, a **Resend confirmation** link on failed logins,
+   and finishes profile setup automatically on `/auth/complete` after the first confirmed sign-in.
+
+### Google sign-in
+1. Supabase → Authentication → Providers → **Google** → enable, paste the OAuth Client ID/Secret
+   from Google Cloud Console (OAuth consent screen + Web credentials).
+2. In Google Cloud, add the redirect URI shown by Supabase (`https://<ref>.supabase.co/auth/v1/callback`).
+3. Supabase → Authentication → **URL Configuration** → set Site URL to your deployed origin
+   (e.g. `https://redo-smart-logistics.vercel.app`) and add `http://localhost:5173` plus the
+   Vercel URL under Additional Redirect URLs.
+Google users land on `/auth/complete`, pick Shipper/Truck Owner once, and continue to onboarding —
+no fake pre-filled data anywhere.

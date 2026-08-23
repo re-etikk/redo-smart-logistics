@@ -1,4 +1,4 @@
-export type Role = "truck_owner" | "sme" | "admin";
+export type Role = "truck_owner" | "sme";
 
 export interface Profile {
   id: string; full_name: string; phone?: string; role: Role;
@@ -8,8 +8,8 @@ export interface Profile {
 export interface Recommendation {
   truck_id: string; match_score: number; reasons: string[];
   estimated_price_inr: number; eta_minutes: number;
-  capacity_available_tons: number; reliability_score: number;
-  driver_rating: number; on_time_rate: number; departure_at: string;
+  capacity_available_tons: number; reliability_score: number | null;
+  driver_rating: number | null; on_time_rate: number | null; departure_at: string;
   trip_id: string; truck_type?: string; registration_number?: string;
   verified_documents?: boolean;
 }

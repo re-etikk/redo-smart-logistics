@@ -142,7 +142,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function Rating({ value }: { value: number }) {
+export function Rating({ value }: { value: number | null | undefined }) {
+  // No fabricated reputation: unrated trucks show "New", never a made-up number.
+  if (value === null || value === undefined) {
+    return <span className="inline-flex items-center rounded-md bg-info-soft px-1.5 py-0.5 text-xs font-semibold text-info">New</span>;
+  }
   return (
     <span className="inline-flex items-center gap-1 text-sm font-semibold text-ink">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="#B45309" aria-hidden="true">

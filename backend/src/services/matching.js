@@ -59,9 +59,11 @@ export function hardFilter(cargo, candidates, opts = {}) {
       time_gap_hours: +gap.toFixed(2),
       route_similarity: sim,
       capacity_fit: 1.0,
-      driver_rating: Number(truck.driver_rating),
-      on_time_rate: Number(truck.on_time_rate),
-      cancel_rate: Number(truck.cancel_rate),
+      // Neutral priors for brand-new (unrated) trucks — used ONLY for scoring.
+      // The API/UI still expose null so nobody ever sees a fabricated rating.
+      driver_rating: truck.driver_rating == null ? 4.0 : Number(truck.driver_rating),
+      on_time_rate: truck.on_time_rate == null ? 0.85 : Number(truck.on_time_rate),
+      cancel_rate: truck.cancel_rate == null ? 0.05 : Number(truck.cancel_rate),
       route_deviation_rate: Number(truck.route_deviation_rate ?? 0.03),
       price_per_km_ton: Number(trip.price_per_km_ton ?? 1.0),
       // context passthrough for pricing/UI

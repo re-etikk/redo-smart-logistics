@@ -79,7 +79,7 @@ export default function MatchDetail() {
               <div><dt className="text-ink-faint">Departure</dt><dd className="font-semibold text-ink">{new Date(rec.departure_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</dd></div>
               <div><dt className="text-ink-faint">Estimated ETA</dt><dd className="font-semibold text-ink">{etaAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</dd></div>
               <div><dt className="text-ink-faint">Reliability</dt><dd className="font-semibold text-ink">{Math.round(rec.reliability_score * 100)}/100</dd></div>
-              <div><dt className="text-ink-faint">On-time rate</dt><dd className="font-semibold text-ink">{Math.round(rec.on_time_rate * 100)}%</dd></div>
+              <div><dt className="text-ink-faint">On-time rate</dt><dd className="font-semibold text-ink">{rec.on_time_rate != null ? `${Math.round(rec.on_time_rate * 100)}%` : "New truck"}</dd></div>
               <div><dt className="text-ink-faint">Driver rating</dt><dd><Rating value={rec.driver_rating} /></dd></div>
             </dl>
             <Button className="w-full mt-5" onClick={book} disabled={busy}>{busy ? "Requesting…" : "Request booking"}</Button>
