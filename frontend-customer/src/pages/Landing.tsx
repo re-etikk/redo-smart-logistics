@@ -1,191 +1,252 @@
-import { Link } from "react-router-dom";
-import Logo from "../components/Logo";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowRight,
-  ShieldCheck,
-  Zap,
-  MapPin,
-  TrendingDown,
-  Clock,
-  Truck,
-  CheckCircle2,
-  PhoneCall,
+  ArrowRight, ShieldCheck, Zap, MapPin, Clock, Truck, CheckCircle2,
+  FileText, Route, Radio, ArrowUpRight, ChevronRight, Menu, X, Star
 } from "lucide-react";
+import Logo from "../components/Logo";
 
-export default function Landing() {
+export default function CustomerLanding() {
+  const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-slate-900 font-sans selection:bg-amber-400">
-      {/* Navbar */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-[#FDFCF9] text-slate-900 font-sans selection:bg-amber-400">
+      {/* ========================================================================= */}
+      {/* 1. TOP NAVBAR */}
+      {/* ========================================================================= */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-10">
+            <Link to="/">
+              <Logo />
+            </Link>
+
+            {/* Desktop Nav Links */}
+            <nav className="hidden md:flex items-center gap-7 text-xs font-bold text-slate-600">
+              <Link to="/" className="text-amber-500 font-black relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-amber-400">
+                Home
+              </Link>
+              <a href="#how-it-works" className="hover:text-slate-900 transition">How It Works</a>
+              <a href="#services" className="hover:text-slate-900 transition">Services</a>
+              <a href="#pricing" className="hover:text-slate-900 transition">Pricing</a>
+              <a href="#about" className="hover:text-slate-900 transition">About Us</a>
+              <a href="#support" className="hover:text-slate-900 transition">Support</a>
+            </nav>
+          </div>
+
+          {/* Right Action Buttons */}
+          <div className="hidden sm:flex items-center gap-3">
             <Link
               to="/login"
-              className="text-xs font-bold text-slate-700 hover:text-slate-900 px-4 py-2 rounded-xl transition"
+              className="text-xs font-bold text-slate-700 hover:text-slate-950 px-4 py-2 rounded-xl transition"
             >
               Sign In
             </Link>
             <Link
               to="/signup"
-              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition"
+              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs px-5 py-2.5 rounded-full shadow-sm hover:shadow-md transition"
             >
               Create Account
             </Link>
           </div>
+
+          {/* Mobile Hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-slate-700 hover:text-slate-900"
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
+
+        {/* Mobile Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-b border-slate-200 px-6 py-4 space-y-3 text-xs font-bold shadow-lg">
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} className="block text-amber-500 font-black">Home</Link>
+            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">How It Works</a>
+            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Services</a>
+            <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Pricing</a>
+            <div className="pt-3 border-t border-slate-100 flex gap-3">
+              <Link to="/login" className="w-1/2 text-center py-2 font-bold border border-slate-200 rounded-xl">Sign In</Link>
+              <Link to="/signup" className="w-1/2 text-center py-2 font-black bg-amber-400 rounded-xl">Create Account</Link>
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* Hero Section */}
-      <section className="py-16 md:py-24 px-6 text-center max-w-5xl mx-auto space-y-8">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100/80 border border-amber-300 text-amber-900 text-xs font-bold shadow-sm">
-          <Zap size={14} className="text-amber-600 fill-amber-500" />
-          <span>India&apos;s Fastest Intercity Logistics Booking Platform</span>
-        </div>
-
-        <h1 className="text-4xl md:text-6xl font-black tracking-tight text-slate-950 leading-[1.15]">
-          Book Verified Trucks in Minutes, <br />
-          <span className="text-amber-500 underline decoration-amber-300 underline-offset-8">
-            Ship Freight Stress-Free.
-          </span>
-        </h1>
-
-        <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto font-medium">
-          Instant transparent pricing, AI route optimization, and live GPS tracking for businesses, factories, and individual shippers across 500+ Indian cities.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-          <Link
-            to="/book"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-sm px-8 py-3.5 rounded-2xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5"
-          >
-            <span>Book a Truck Now</span>
-            <ArrowRight size={18} />
-          </Link>
-          <Link
-            to="/rate-card"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-sm px-8 py-3.5 rounded-2xl shadow-sm transition"
-          >
-            <span>Check Rate Card</span>
-          </Link>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-12 max-w-4xl mx-auto">
-          {[
-            { label: "Verified Trucks", value: "25,000+" },
-            { label: "Pan-India Pin Codes", value: "19,000+" },
-            { label: "Average Dispatch", value: "< 15 Mins" },
-            { label: "Cost Savings", value: "Up to 22%" },
-          ].map((stat, i) => (
-            <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm text-center">
-              <div className="text-2xl md:text-3xl font-black text-slate-900">{stat.value}</div>
-              <div className="text-xs font-semibold text-slate-500 mt-1">{stat.label}</div>
+      {/* ========================================================================= */}
+      {/* 2. HERO SECTION */}
+      {/* ========================================================================= */}
+      <section className="pt-8 pb-16 px-4 sm:px-8 max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-12 gap-10 items-center">
+          
+          {/* Left Column: Heading & CTAs */}
+          <div className="lg:col-span-6 space-y-6">
+            {/* Yellow Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100/90 border border-amber-300/80 text-amber-900 text-xs font-bold shadow-xs">
+              <Zap size={14} className="text-amber-600 fill-amber-500" />
+              <span>India&apos;s Fastest Intercity Logistics Booking Platform</span>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Features Grid */}
-      <section className="py-16 bg-white border-y border-slate-200 px-6">
-        <div className="max-w-6xl mx-auto space-y-12">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900">
-              Why Shippers Choose REDO
-            </h2>
-            <p className="text-sm text-slate-500">Built for modern businesses with strict deadlines</p>
-          </div>
+            {/* Main Headline */}
+            <h1 className="text-3xl sm:text-5xl lg:text-5xl font-black tracking-tight text-slate-950 leading-[1.15]">
+              Book Verified Trucks in Minutes,{" "}
+              <span className="text-[#FBBF24]">Ship Freight Stress-Free.</span>
+            </h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: ShieldCheck,
-                color: "bg-emerald-50 text-emerald-600",
-                title: "100% Verified Drivers & Fleets",
-                desc: "All vehicles & drivers are verified with Aadhaar, DL, RC, Fitness, and comprehensive insurance checks.",
-              },
-              {
-                icon: TrendingDown,
-                color: "bg-amber-50 text-amber-600",
-                title: "Dynamic Smart Pricing",
-                desc: "Transparent spot pricing without broker commissions. Pay only for the tonnage and distance you need.",
-              },
-              {
-                icon: Clock,
-                color: "bg-blue-50 text-blue-600",
-                title: "Live GPS & Milestone Alerts",
-                desc: "Track your goods round the clock with live maps, digital POD uploads, and instant WhatsApp updates.",
-              },
-            ].map((f, i) => (
-              <div key={i} className="p-6 rounded-3xl bg-slate-50 border border-slate-200/80 space-y-4 hover:shadow-md transition">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${f.color}`}>
-                  <f.icon size={24} />
+            {/* Subtitle */}
+            <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed max-w-xl">
+              Instant transparent pricing, AI route optimization, and live GPS tracking for businesses, factories, and individual shippers across 500+ Indian cities.
+            </p>
+
+            {/* Action CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+              <Link
+                to="/book"
+                className="inline-flex items-center justify-center gap-2 bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm px-7 py-3.5 rounded-full shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+              >
+                <span>Book a Truck Now</span>
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                to="/rate-card"
+                className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs sm:text-sm px-6 py-3.5 rounded-full shadow-xs transition"
+              >
+                <span>Check Rate Card</span>
+              </Link>
+            </div>
+
+            {/* 4 Key Metric Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0">
+                  <Truck size={16} />
                 </div>
-                <h3 className="text-base font-black text-slate-900">{f.title}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">{f.desc}</p>
+                <div>
+                  <span className="font-black text-xs text-slate-900 block">25,000+</span>
+                  <span className="text-[10px] text-slate-500 font-bold block">Verified Trucks</span>
+                </div>
               </div>
-            ))}
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0">
+                  <MapPin size={16} />
+                </div>
+                <div>
+                  <span className="font-black text-xs text-slate-900 block">19,000+</span>
+                  <span className="text-[10px] text-slate-500 font-bold block">Pan-India Pin Codes</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0">
+                  <Clock size={16} />
+                </div>
+                <div>
+                  <span className="font-black text-xs text-slate-900 block">&lt; 15 Mins</span>
+                  <span className="text-[10px] text-slate-500 font-bold block">Average Dispatch</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0">
+                  <Zap size={16} />
+                </div>
+                <div>
+                  <span className="font-black text-xs text-slate-900 block">Up to 22%</span>
+                  <span className="text-[10px] text-slate-500 font-bold block">Cost Savings</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Hero Visual with Live Tracking Floating Card */}
+          <div className="lg:col-span-6 relative flex items-center justify-center">
+            <div className="relative w-full max-w-lg">
+              <img
+                src="/assets/customer_landing_hero.png"
+                alt="REDO Verified Truck Booking"
+                className="w-full h-auto object-contain rounded-3xl drop-shadow-xl"
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-16 px-6 max-w-5xl mx-auto space-y-12">
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl md:text-3xl font-black text-slate-900">How to Book in 3 Steps</h2>
-          <p className="text-sm text-slate-500">From booking to delivery in minutes</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div className="space-y-3">
-            <div className="w-10 h-10 rounded-full bg-amber-400 text-slate-950 font-black text-base flex items-center justify-center mx-auto shadow-sm">
-              1
+      {/* ========================================================================= */}
+      {/* 3. 4 FEATURE CARDS ROW */}
+      {/* ========================================================================= */}
+      <section className="py-10 px-4 sm:px-8 max-w-7xl mx-auto" id="services">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1 */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+              <ShieldCheck size={20} />
             </div>
-            <h4 className="font-black text-sm text-slate-900">Enter Pickup & Destination</h4>
-            <p className="text-xs text-slate-600">Select city, cargo type, and weight requirement.</p>
-          </div>
-          <div className="space-y-3">
-            <div className="w-10 h-10 rounded-full bg-amber-400 text-slate-950 font-black text-base flex items-center justify-center mx-auto shadow-sm">
-              2
-            </div>
-            <h4 className="font-black text-sm text-slate-900">Choose Verified Truck</h4>
-            <p className="text-xs text-slate-600">Review instant pricing, driver ratings, and vehicle sizes.</p>
-          </div>
-          <div className="space-y-3">
-            <div className="w-10 h-10 rounded-full bg-amber-400 text-slate-950 font-black text-base flex items-center justify-center mx-auto shadow-sm">
-              3
-            </div>
-            <h4 className="font-black text-sm text-slate-900">Track & Pay Securely</h4>
-            <p className="text-xs text-slate-600">Monitor trip on live map. Pay only upon verified delivery.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-slate-950 text-white py-12 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-800 pb-8">
-          <div>
-            <div className="font-black text-2xl tracking-tight text-white flex items-center gap-2">
-              <span>redo</span>
-              <span className="text-amber-400 text-xs px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/30">
-                CUSTOMER
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-2">
-              Next-generation freight logistics across India.
+            <h3 className="font-black text-sm text-slate-900">Verified &amp; Trusted</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              All trucks and transporters are verified for safe &amp; secure deliveries with strict background checks.
             </p>
           </div>
 
-          <div className="flex items-center gap-6 text-xs font-semibold text-slate-300">
-            <Link to="/book" className="hover:text-amber-400 transition">Book Shipment</Link>
-            <Link to="/rate-card" className="hover:text-amber-400 transition">Rate Card</Link>
-            <Link to="/support" className="hover:text-amber-400 transition">24/7 Support</Link>
-            <Link to="/login" className="hover:text-amber-400 transition">Login</Link>
+          {/* Card 2 */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-black">
+              <FileText size={20} />
+            </div>
+            <h3 className="font-black text-sm text-slate-900">Transparent Pricing</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Get instant, all-inclusive quotes with zero hidden charges or middleman commissions.
+            </p>
+          </div>
+
+          {/* Card 3 */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black">
+              <Route size={20} />
+            </div>
+            <h3 className="font-black text-sm text-slate-900">AI Route Optimization</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Faster deliveries, optimized return backhauls, and lower logistics costs across national corridors.
+            </p>
+          </div>
+
+          {/* Card 4 */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+              <Radio size={20} />
+            </div>
+            <h3 className="font-black text-sm text-slate-900">Live GPS Tracking</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Track your shipments in real-time with complete satellite telemetry and automated milestone alerts.
+            </p>
           </div>
         </div>
+      </section>
 
-        <div className="max-w-6xl mx-auto pt-6 text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} REDO Transport & Logistics. All rights reserved.
+      {/* ========================================================================= */}
+      {/* 4. ENTERPRISE TRUST BAR AT BOTTOM */}
+      {/* ========================================================================= */}
+      <footer className="py-12 border-t border-slate-100 bg-[#FAF9F5] px-4 sm:px-8 text-center space-y-6">
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Powering logistics for thousands of businesses and individuals across India.
+        </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 opacity-70 grayscale hover:grayscale-0 transition">
+          <span className="font-black text-lg tracking-widest text-slate-800">TATA</span>
+          <span className="font-bold text-base text-slate-800 flex items-center gap-1">
+            <span className="text-rose-600 font-serif text-xl">ap</span> asianpaints
+          </span>
+          <span className="font-extrabold text-base text-slate-800">
+            Dalmia <span className="text-[10px] block font-normal text-slate-500">Bharat Cement</span>
+          </span>
+          <span className="font-serif italic font-black text-lg text-slate-800">Godrej</span>
+          <span className="font-black text-sm text-slate-800 tracking-wider">
+            JK LAKSHMI <span className="text-[9px] block font-normal">CEMENT</span>
+          </span>
+          <span className="font-serif font-black text-base text-slate-800">WIPRO</span>
+          <span className="font-serif font-bold text-base text-slate-800">PATANJALI</span>
         </div>
       </footer>
     </div>
