@@ -14,7 +14,8 @@
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0"
+    "react-router-dom": "^6.26.0",
+    "redo-smart-logistics": "file:.."
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.12",
