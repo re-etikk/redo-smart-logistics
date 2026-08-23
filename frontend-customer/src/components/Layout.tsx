@@ -10,6 +10,7 @@ import { api } from "../lib/api";
 import Logo from "../components/Logo";
 export { default as Logo } from "../components/Logo";
 import { Badge } from "../components/ui";
+import { useTranslation } from "../lib/i18n";
 import {
   getInitialTheme, applyTheme, getInitialLanguage, setLanguage,
   SUPPORTED_LANGUAGES, type ThemeMode, type LanguageCode
@@ -17,21 +18,10 @@ import {
 
 type Item = { to: string; label: string; icon: any };
 
-const NAV: Item[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/book", label: "Book Shipment", icon: Box },
-  { to: "/post-cargo", label: "Post Load", icon: PlusCircle },
-  { to: "/shipments", label: "My Shipments", icon: Package },
-  { to: "/invoices", label: "Invoices & Payments", icon: FileText },
-  { to: "/addresses", label: "Addresses", icon: MapPin },
-  { to: "/rate-card", label: "Rate Card", icon: BookOpen },
-  { to: "/support", label: "Support", icon: HelpCircle },
-  { to: "/settings", label: "Profile & GST", icon: Settings },
-];
-
 export default function Layout({ children }: { children: ReactNode }) {
   const { session, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const { t, lang } = useTranslation();
   const [drawer, setDrawer] = useState(false);
   const [unread, setUnread] = useState(0);
 
@@ -62,6 +52,18 @@ export default function Layout({ children }: { children: ReactNode }) {
   const googleName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || (session?.user?.email ? session.user.email.split('@')[0] : "");
   const displayName = session?.user ? (googleName || profile?.full_name) : (profile?.full_name || "Customer");
   const displayEmail = session?.user?.email || profile?.email || "customer@redo.app";
+
+  const NAV: Item[] = [
+    { to: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
+    { to: "/book", label: t("bookShipment"), icon: Box },
+    { to: "/post-cargo", label: t("postLoad"), icon: PlusCircle },
+    { to: "/shipments", label: t("myShipments"), icon: Package },
+    { to: "/invoices", label: t("invoices"), icon: FileText },
+    { to: "/addresses", label: t("addresses"), icon: MapPin },
+    { to: "/rate-card", label: t("rateCard"), icon: BookOpen },
+    { to: "/support", label: t("support"), icon: HelpCircle },
+    { to: "/settings", label: t("profile"), icon: Settings },
+  ];
 
   const SideNav = (
     <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1" aria-label="Main">
@@ -118,32 +120,34 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
-                className={`p-2 rounded-xl border flex items-center gap-1 text-xs font-bold transition ${
-                  theme === "dark" ? "bg-slate-800 border-slate-700 hover:bg-slate-700" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                className={`p-2 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition ${
+                  theme === "dark" ? "bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
                 }`}
                 title="Select Language"
               >
                 <Globe size={15} className="text-amber-500" />
-                <span className="uppercase text-[10px] font-mono">{currentLang}</span>
+                <span className="uppercase text-[11px] font-mono">
+                  {SUPPORTED_LANGUAGES.find(l => l.code === (lang || currentLang))?.nativeName || "English"}
+                </span>
               </button>
 
               {langMenuOpen && (
-                <div className={`absolute right-0 mt-2 w-44 rounded-2xl shadow-xl z-50 py-1 font-bold text-xs border ${
+                <div className={`absolute right-0 mt-2 w-48 rounded-2xl shadow-xl z-50 py-1 font-bold text-xs border ${
                   theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
                 }`}>
                   <div className="px-3 py-1.5 text-[10px] uppercase font-mono text-slate-400 border-b border-slate-200/40">
-                    Select Language
+                    Select Language / भाषा चुनें
                   </div>
                   {SUPPORTED_LANGUAGES.map((l) => (
                     <button
                       key={l.code}
                       onClick={() => handleSelectLanguage(l.code)}
                       className={`w-full text-left px-3.5 py-2 flex items-center justify-between hover:bg-amber-400/20 transition ${
-                        currentLang === l.code ? "text-amber-500 font-black" : ""
+                        (lang || currentLang) === l.code ? "text-amber-500 font-black bg-amber-50 dark:bg-slate-800" : ""
                       }`}
                     >
                       <span>{l.nativeName} ({l.name})</span>
-                      {currentLang === l.code && <Check size={14} className="text-amber-500" />}
+                      {(lang || currentLang) === l.code && <Check size={14} className="text-amber-500" />}
                     </button>
                   ))}
                 </div>
@@ -163,10 +167,10 @@ export default function Layout({ children }: { children: ReactNode }) {
 
             <button
               onClick={() => navigate("/book")}
-              className="hidden sm:inline-flex items-center gap-1.5 bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs shadow-sm transition"
+              className="hidden sm:inline-flex items-center gap-1.5 bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs shadow-sm transition cursor-pointer"
             >
               <Box size={16} />
-              <span>Book a Truck</span>
+              <span>{t("bookShipment")}</span>
             </button>
 
             <NavLink to="/notifications" aria-label="Notifications" className="relative p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -188,7 +192,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               </div>
               <button
                 onClick={async () => { await signOut(); navigate("/login"); }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                 title="Sign out"
               >
                 <LogOut size={16} />
@@ -210,7 +214,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="min-w-0">
               <p className="text-xs font-black truncate">{displayName}</p>
               <p className="text-[10px] font-medium text-slate-400">Shipper / Customer</p>
-              <span className="mt-0.5 inline-flex"><Badge tone="ok">Verified Account</Badge></span>
+              <span className="mt-0.5 inline-flex"><Badge tone="ok">{t("verified")}</Badge></span>
             </div>
           </div>
 
@@ -225,9 +229,9 @@ export default function Layout({ children }: { children: ReactNode }) {
             </p>
             <button
               onClick={() => navigate("/post-cargo")}
-              className="mt-3 w-full rounded-xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 text-xs font-black py-2 shadow-sm transition text-center block"
+              className="mt-3 w-full rounded-xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 text-xs font-black py-2 shadow-sm transition text-center block cursor-pointer"
             >
-              Post Load Request
+              {t("postLoad")}
             </button>
           </div>
         </aside>
