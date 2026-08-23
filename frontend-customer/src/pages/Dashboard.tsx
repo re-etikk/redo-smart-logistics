@@ -1,89 +1,213 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Box, CheckCircle2, Download, IndianRupee, MapPin, Package, Truck } from "lucide-react";
+import {
+  Box, CheckCircle2, Download, IndianRupee, MapPin, Package, Truck,
+  Navigation, Phone, ArrowRight, ShieldCheck, Clock, Eye, AlertCircle
+} from "lucide-react";
 import Layout from "../components/Layout";
-import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
-import { Badge, Button, Card, CardSkeleton, EmptyState, StatCard, statusLabel, statusTone } from "../components/ui";
-import type { Booking } from "../lib/types";
+import { useTranslation } from "../lib/i18n";
+import { getShipmentStats, getShipments, type ShipmentItem } from "../lib/shipmentStore";
+import LiveTrackingMap from "../components/LiveTrackingMap";
 
-const IN_TRANSIT = ["pickup_ready", "picked_up", "in_transit"];
-
-export default function SmeDashboard() {
-  const { profile } = useAuth();
+export default function CustomerDashboard() {
+  const { session, profile } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const { t } = useTranslation();
 
-  useEffect(() => { api.get<Booking[]>("/bookings").then(setBookings).catch(() => setBookings([])); }, []);
+  const [stats, setStats] = useState(() => getShipmentStats());
+  const [activeTab, setActiveTab] = useState<"active" | "delivered">("active");
 
-  const b = bookings ?? [];
-  const spend = b.filter((x) => x.status === "completed").reduce((a, x) => a + Number(x.agreed_price_inr || 0), 0);
+  const refreshData = () => {
+    setStats(getShipmentStats());
+  };
+
+  useEffect(() => {
+    refreshData();
+    window.addEventListener("redo_shipment_updated", refreshData);
+    window.addEventListener("redo_cargo_updated", refreshData);
+
+    const interval = setInterval(refreshData, 3000);
+
+    return () => {
+      window.removeEventListener("redo_shipment_updated", refreshData);
+      window.removeEventListener("redo_cargo_updated", refreshData);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const googleName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || (session?.user?.email ? session.user.email.split('@')[0] : "");
+  const displayName = session?.user ? (googleName || profile?.full_name) : (profile?.full_name || "Enterprise Shipper");
 
   return (
     <Layout>
-      <h1 className="text-2xl font-extrabold text-ink">Welcome back, {profile?.full_name?.split(" ")[0]}! 👋</h1>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Package} label="Total Shipments" value={b.length} tone="info" />
-        <StatCard icon={Truck} label="In Transit" value={b.filter((x) => IN_TRANSIT.includes(x.status)).length} tone="accent" />
-        <StatCard icon={CheckCircle2} label="Delivered" value={b.filter((x) => ["delivered", "completed"].includes(x.status)).length} tone="ok" />
-        <StatCard icon={IndianRupee} label="Total Spend" value={`₹${spend.toLocaleString("en-IN")}`} tone="purple" />
-      </div>
-
-      <div className="mt-6 grid gap-5 xl:grid-cols-[1fr_320px]">
-        <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-ink">Recent Shipments</h2>
-            <Link to="/shipments" className="text-sm font-semibold text-accent">View All Shipments →</Link>
+      <div className="space-y-6 text-slate-900 dark:text-white py-2">
+        {/* Welcome Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-[10px] uppercase font-black tracking-wider text-amber-500 block">
+              REDO Smart Logistics Portal
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+              Welcome back, {displayName}! 👋
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Manage your live freight shipments, view real-time GPS telemetry and download official GST tax invoices.
+            </p>
           </div>
-          {bookings === null ? <div className="mt-4"><CardSkeleton /></div> : b.length === 0 ? (
-            <div className="mt-4"><EmptyState title="No shipments yet." hint="Book your first shipment to get started."
-              action={<Button onClick={() => navigate("/book")}>Book New Shipment</Button>} /></div>
-          ) : (
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-sm min-w-[560px]">
-                <thead><tr className="text-left text-xs font-semibold text-ink-faint border-b border-line">
-                  <th className="py-2 pr-3">Shipment</th><th className="py-2 pr-3">Route</th>
-                  <th className="py-2 pr-3">Status</th><th className="py-2 pr-3">Booked On</th><th className="py-2">Action</th>
-                </tr></thead>
-                <tbody>
-                  {b.slice(0, 5).map((x) => (
-                    <tr key={x.id} className="border-b border-line last:border-0">
-                      <td className="py-3 pr-3 font-bold text-accent">{x.cargo_id}</td>
-                      <td className="py-3 pr-3 font-medium">{x.cargo.origin} → {x.cargo.destination}</td>
-                      <td className="py-3 pr-3"><Badge tone={statusTone(x.status)}>{statusLabel(x.status)}</Badge></td>
-                      <td className="py-3 pr-3 text-ink-soft">{new Date(x.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</td>
-                      <td className="py-3"><Link to={`/bookings/${x.id}`} className="font-semibold text-accent">View</Link></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
 
-        <div className="space-y-4">
-          <Card className="p-5">
-            <h2 className="font-bold text-ink">Quick Actions</h2>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {[
-                { icon: Box, label: "Book New Shipment", to: "/book" },
-                { icon: MapPin, label: "Track Shipment", to: "/shipments" },
-                { icon: Download, label: "Download Invoice", to: "/invoices" },
-                { icon: IndianRupee, label: "Price Calculator", to: "/rate-card" },
-              ].map(({ icon: Icon, label, to }) => (
-                <button key={label} onClick={() => navigate(to)}
-                  className="rounded-xl border border-line p-3 text-left hover:border-accent transition">
-                  <Icon size={18} className="text-accent" />
-                  <span className="mt-1.5 block text-xs font-bold text-ink">{label}</span>
-                </button>
-              ))}
+          <button
+            onClick={() => navigate("/book")}
+            className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-2xl shadow-md transition text-xs flex items-center gap-2 cursor-pointer"
+          >
+            <Box size={16} />
+            <span>+ Book New Shipment</span>
+          </button>
+        </div>
+
+        {/* 4 Stat Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Shipments</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{stats.totalCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <Package size={16} />
+              </div>
             </div>
-          </Card>
-          <Card className="p-5 bg-accent-soft border-0">
-            <p className="font-bold text-ink">Ship more, save more!</p>
-            <p className="mt-1 text-xs text-ink-soft">Post partial loads on active return corridors for the best backhaul rates.</p>
-            <Button className="mt-3" onClick={() => navigate("/book")}>Book Now</Button>
-          </Card>
+            <span className="text-[10px] font-bold text-slate-500 block">Booked Consignments</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">In Transit</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{stats.inTransitCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Truck size={16} />
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-amber-600 block">Live GPS Active</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Delivered</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{stats.deliveredCount}</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <CheckCircle2 size={16} />
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 block">Signed e-POD</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Freight Spend</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-purple-600 dark:text-purple-400">
+                ₹{stats.totalSpendInr.toLocaleString("en-IN")}
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                <IndianRupee size={16} />
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-purple-600 block">100% Tax Deductible (ITC)</span>
+          </div>
+        </div>
+
+        {/* Live GPS Tracking Map Section */}
+        {stats.inTransitCount > 0 && (
+          <LiveTrackingMap shipments={stats.allShipments} />
+        )}
+
+        {/* Separated Shipments Sections (Active vs Delivered Tabs) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveTab("active")}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-2 ${
+                  activeTab === "active"
+                    ? "bg-[#FFC800] text-slate-950 shadow-sm"
+                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <Truck size={15} />
+                <span>Active Highway Shipments ({stats.inTransitCount})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("delivered")}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-2 ${
+                  activeTab === "delivered"
+                    ? "bg-[#FFC800] text-slate-950 shadow-sm"
+                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <CheckCircle2 size={15} />
+                <span>Past Completed &amp; Delivered ({stats.deliveredCount})</span>
+              </button>
+            </div>
+
+            <Link to="/shipments" className="text-xs font-black text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1">
+              <span>View Full Ledger</span>
+              <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          {/* Tab Content List */}
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {(activeTab === "active" ? stats.activeShipments : stats.deliveredShipments).map((shp) => (
+              <div key={shp.id} className="py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
+                    <img src={shp.truckPhoto} alt={shp.truckModel} className="w-full h-full object-cover" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-black text-amber-500">{shp.id}</span>
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                        shp.status === "Delivered"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400"
+                          : "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400"
+                      }`}>
+                        {shp.status}
+                      </span>
+                    </div>
+
+                    <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                      {shp.origin} ➔ {shp.destination}
+                    </h4>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
+                      <span>{shp.cargoType}</span>
+                      <span>•</span>
+                      <span>{shp.weightTons} Tons</span>
+                      <span>•</span>
+                      <span className="text-slate-900 dark:text-white font-black">Driver: {shp.driverName} ({shp.truckRegNo})</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
+                  <div className="text-right">
+                    <span className="text-sm font-black text-slate-900 dark:text-white block">
+                      ₹{shp.priceInr.toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold block">{shp.bookedAt}</span>
+                  </div>
+
+                  <a
+                    href={`tel:${shp.driverPhone}`}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition whitespace-nowrap"
+                  >
+                    <Phone size={13} />
+                    <span>Call Driver</span>
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </Layout>
