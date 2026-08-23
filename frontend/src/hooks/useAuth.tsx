@@ -3,7 +3,7 @@ import {
 } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, clearStaleSession } from '../lib/supabase';
 import type { Profile, Role } from '../lib/types';
 
 interface AuthState {
@@ -113,15 +113,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     };
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        // Session corrupt/invalid nikla — stale token clear karke clean state pe aao
+        clearStaleSession();
+        handleSession(null);
+        return;
+      }
       if (data.session) {
         handleSession(data.session);
       } else if (!isHashAuth) {
         handleSession(null);
+      } else {
+        setLoading(false);
       }
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, s) => {
+      if (evt === "TOKEN_REFRESHED" && !s) {
+        // Refresh fail hua matlab session ab invalid hai
+        clearStaleSession();
+      }
       handleSession(s);
     });
 
@@ -129,12 +141,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const refreshProfile = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      clearStaleSession();
+      setSession(null);
+      setProfile(null);
+      return;
+    }
     await loadProfile(data.session);
   }, [loadProfile]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    clearStaleSession();
     setSession(null);
     setProfile(null);
   }, []);
