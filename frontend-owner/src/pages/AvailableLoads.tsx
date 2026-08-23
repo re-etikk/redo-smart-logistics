@@ -28,12 +28,26 @@ export default function AvailableLoads() {
 
   useEffect(() => {
     refreshLoads();
+    syncFromCloud().then(updated => {
+      if (updated && updated.length > 0) setAllLoads(updated);
+    });
+
     if (trucks.length > 0) {
       setSelectedTruckId(trucks[0].id);
     }
     const handleUpdate = () => refreshLoads();
     window.addEventListener("redo_cargo_updated", handleUpdate);
-    return () => window.removeEventListener("redo_cargo_updated", handleUpdate);
+
+    const interval = setInterval(() => {
+      syncFromCloud().then(updated => {
+        if (updated && updated.length > 0) setAllLoads(updated);
+      });
+    }, 3000);
+
+    return () => {
+      window.removeEventListener("redo_cargo_updated", handleUpdate);
+      clearInterval(interval);
+    };
   }, []);
 
   const filteredLoads = allLoads.filter((l) => {

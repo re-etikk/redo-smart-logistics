@@ -103,12 +103,12 @@ export default function OwnerDashboard() {
             </div>
           </div>
 
-          {/* Official REDO Container Truck Image */}
-          <div className="w-full max-w-xs lg:max-w-md shrink-0">
+          {/* Official REDO Container Truck on Highway Visual matching Mockup */}
+          <div className="w-full max-w-sm lg:max-w-lg shrink-0">
             <img
-              src="/assets/redo_truck.jpg"
-              alt="Official REDO Container Truck"
-              className="w-full h-auto max-h-56 object-contain drop-shadow-2xl rounded-2xl"
+              src="/assets/redo_hero_truck.png"
+              alt="REDO Container Truck on Highway"
+              className="w-full h-auto max-h-64 object-contain drop-shadow-xl rounded-2xl"
             />
           </div>
         </div>
