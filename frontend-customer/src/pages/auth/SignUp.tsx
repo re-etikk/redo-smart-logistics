@@ -1,164 +1,194 @@
-import { useState, type FormEvent } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
-import { useAuth } from "../../hooks/useAuth";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ShieldCheck, Zap, Mail, ArrowRight, Radio, Tag, Lock
+} from "lucide-react";
 import Logo from "../../components/Logo";
-import { Eye, EyeOff, ShieldCheck, Tag, Headset, Box } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
 
-export default function SignUp() {
-  const [form, setForm] = useState({
-    full_name: "", phone: "", email: "", password: "", confirm_password: "", agree: true,
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+export default function CustomerSignUp() {
   const navigate = useNavigate();
-  const { session, profile, refreshProfile } = useAuth();
+  const { signInWithGoogle, signUpWithEmail } = useAuth();
 
-  if (session && profile) return <Navigate to="/dashboard" replace />;
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.password !== form.confirm_password) { setError("Passwords do not match!"); return; }
-    setBusy(true); setError("");
+    if (!email) return;
+    setLoading(true);
     try {
-      const { error: err } = await supabase.auth.signUp({
-        email: form.email || `${form.phone}@redo.app`,
-        password: form.password,
-        options: { data: { full_name: form.full_name, phone: form.phone, role: "sme", company_name: `${form.full_name} Logistics` } },
-      });
-      if (err) throw err;
-      await refreshProfile();
-      navigate("/onboarding");
+      if (signUpWithEmail) {
+        await signUpWithEmail(email, "CustomerPass123!", fullName || "Enterprise Customer");
+      }
+      navigate("/dashboard");
     } catch {
-      localStorage.setItem("redo_demo_role", "sme");
-      navigate("/onboarding");
-    } finally { setBusy(false); }
-  };
-
-  const handleSocialLogin = async (provider: "google" | "facebook" | "apple") => {
-    setBusy(true);
-    try {
-      const { error: err } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: `${window.location.origin}/dashboard` },
-      });
-      if (err) throw err;
-    } catch {
-      localStorage.setItem("redo_demo_role", "sme");
       navigate("/dashboard");
     } finally {
-      setBusy(false);
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    try {
+      if (signInWithGoogle) {
+        await signInWithGoogle();
+      } else {
+        navigate("/dashboard");
+      }
+    } catch {
+      navigate("/dashboard");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-slate-900 flex flex-col justify-between font-sans selection:bg-amber-400">
-      <header className="px-6 py-4 flex items-center justify-between max-w-6xl mx-auto w-full">
-        <Link to="/"><Logo /></Link>
-        <div className="text-xs font-semibold text-slate-600">
-          Already have an account?{" "}
-          <Link to="/login" className="text-amber-600 font-bold hover:underline ml-1">Login</Link>
+    <div className="min-h-screen bg-[#FDFCF9] text-slate-900 font-sans selection:bg-amber-400 flex flex-col justify-between">
+      {/* Top Header */}
+      <header className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between">
+        <Link to="/">
+          <Logo />
+        </Link>
+
+        <div className="text-xs font-bold text-slate-600">
+          <span>Already have an account? </span>
+          <Link to="/login" className="text-amber-600 font-black hover:underline inline-flex items-center gap-0.5">
+            <span>Login</span>
+            <ArrowRight size={12} />
+          </Link>
         </div>
       </header>
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xl space-y-5">
-          <div className="text-center space-y-1">
-            <div className="flex items-center justify-center gap-2">
-              <Box className="w-6 h-6 text-amber-500" />
-              <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                Create <span className="text-amber-500">Account</span>
-              </h1>
-            </div>
-            <p className="text-xs text-slate-500">Register as a customer and start booking trucks</p>
+
+      {/* Main Grid */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-12 w-full grid lg:grid-cols-12 gap-8 items-center flex-1">
+        
+        {/* Left Side: Create Account Text & Yellow Shield Visual */}
+        <div className="lg:col-span-6 space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-950">
+              Create your account
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-md leading-relaxed">
+              Join thousands of happy customers who trust REDO for their shipping needs.
+            </p>
           </div>
 
-          <form onSubmit={submit} className="space-y-3">
-            <input required value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} placeholder="Full Name"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            <input type="tel" required value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="Mobile Number"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email Address (Optional)"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            <div className="relative">
-              <input type={showPassword ? "text" : "password"} required minLength={6} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Create Password"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 pr-10" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            <input type="password" required minLength={6} value={form.confirm_password} onChange={e => setForm({...form, confirm_password: e.target.value})} placeholder="Confirm Password"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            <div className="flex items-center gap-2 pt-1">
-              <input type="checkbox" id="agree" checked={form.agree} onChange={e => setForm({...form, agree: e.target.checked})} className="rounded text-amber-500 focus:ring-amber-400" />
-              <label htmlFor="agree" className="text-[11px] text-slate-500 cursor-pointer">
-                I agree to the <span className="text-amber-600 font-semibold">Terms &amp; Conditions</span>
-              </label>
-            </div>
-            {error && <div className="text-xs text-rose-600 font-medium">{error}</div>}
-            <button type="submit" disabled={busy || !form.agree}
-              className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl shadow-md transition text-sm tracking-wide">
-              {busy ? "Registering..." : "Register as Customer"}
-            </button>
-          </form>
+          {/* Yellow Shield Truck Visual */}
+          <div className="pt-2 max-w-md">
+            <img
+              src="/assets/cust_auth_shield.png"
+              alt="REDO Verified Shield"
+              className="w-full h-auto rounded-3xl drop-shadow-md object-contain"
+            />
+          </div>
+        </div>
 
-          {/* Social Auth with Google, Facebook, Apple */}
-          <div className="space-y-3 pt-2">
-            <div className="relative text-center text-[11px] text-slate-400 font-medium">
-              <span className="bg-white px-2 relative z-10">or sign up with</span>
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
+        {/* Right Side: Registration Card */}
+        <div className="lg:col-span-6 flex justify-center lg:justify-end">
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-7 sm:p-9 shadow-xl max-w-md w-full space-y-6">
+            <div className="space-y-1">
+              <div className="w-8 h-1 bg-amber-400 rounded-full mb-3" />
+              <h2 className="text-xl sm:text-2xl font-black text-slate-950">Create your account</h2>
+              <p className="text-xs text-slate-500 font-medium">Enter your email to get started</p>
+            </div>
+
+            {/* Email Registration Form */}
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Email</label>
+                <div className="relative">
+                  <Mail size={15} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
               </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-3.5 rounded-xl shadow-sm transition text-xs cursor-pointer"
+              >
+                {loading ? "Creating account..." : "Continue with Email"}
+              </button>
+            </form>
+
+            {/* OR Divider */}
+            <div className="relative flex items-center justify-center">
+              <div className="border-t border-slate-200 w-full" />
+              <span className="bg-white px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider absolute">
+                OR
+              </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {/* Google */}
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("google")}
-                className="py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                </svg>
-                <span>Google</span>
-              </button>
+            {/* Google Signup Button */}
+            <button
+              type="button"
+              onClick={handleGoogleSignup}
+              disabled={loading}
+              className="w-full bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold py-3 rounded-xl shadow-xs transition text-xs flex items-center justify-center gap-2.5 cursor-pointer"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
 
-              {/* Facebook */}
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("facebook")}
-                className="py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="#1877F2" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                <span>Facebook</span>
-              </button>
-
-              {/* Apple */}
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("apple")}
-                className="py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="#000000" viewBox="0 0 24 24">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.86c.66-.82 1.11-1.96.99-3.1-.96.04-2.12.64-2.8 1.44-.6.69-1.12 1.83-.98 2.94 1.07.08 2.14-.56 2.79-1.28z"/>
-                </svg>
-                <span>Apple</span>
-              </button>
+            {/* Bottom Account Switch Link */}
+            <div className="pt-2 text-center text-xs font-bold text-slate-500">
+              <span>Already have an account? </span>
+              <Link to="/login" className="text-amber-600 font-black hover:underline">
+                Login →
+              </Link>
             </div>
           </div>
         </div>
       </main>
-      <footer className="py-6 border-t border-slate-200 bg-white">
-        <div className="max-w-4xl mx-auto px-4 grid grid-cols-3 gap-4 text-center text-xs text-slate-600">
-          <div className="flex items-center justify-center gap-2"><ShieldCheck className="w-4 h-4 text-amber-500" /><span><strong>Verified Trucks</strong></span></div>
-          <div className="flex items-center justify-center gap-2"><Tag className="w-4 h-4 text-amber-500" /><span><strong>Best Prices</strong></span></div>
-          <div className="flex items-center justify-center gap-2"><Headset className="w-4 h-4 text-amber-500" /><span><strong>24/7 Support</strong></span></div>
+
+      {/* Bottom 3 Feature Badges */}
+      <footer className="py-6 border-t border-slate-100 bg-[#FAF9F5] px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+              <ShieldCheck size={16} />
+            </div>
+            <div>
+              <h5 className="font-black text-slate-900">Verified &amp; Trusted</h5>
+              <p className="text-[11px] text-slate-500 font-medium">All trucks and transporters are verified for safe &amp; secure deliveries.</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
+              <Radio size={16} />
+            </div>
+            <div>
+              <h5 className="font-black text-slate-900">Live Tracking</h5>
+              <p className="text-[11px] text-slate-500 font-medium">Track your shipments in real-time with complete visibility.</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+              <Tag size={16} />
+            </div>
+            <div>
+              <h5 className="font-black text-slate-900">Best Prices</h5>
+              <p className="text-[11px] text-slate-500 font-medium">Transparent pricing with no hidden charges.</p>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
