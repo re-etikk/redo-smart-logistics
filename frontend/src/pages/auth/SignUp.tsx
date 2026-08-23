@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase, triggerDemoLogin } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
-import { Logo } from "../../components/Layout";
+import Logo from "../../components/Logo";
 import { Eye, EyeOff, ShieldCheck, Tag, Headset } from "lucide-react";
 
 export default function SignUp() {
