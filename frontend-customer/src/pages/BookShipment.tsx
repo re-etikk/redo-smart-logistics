@@ -2,7 +2,7 @@ import { useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, CheckCircle2, Clock, ShieldCheck, Truck, MapPin, Calendar, Scale,
-  Zap, ArrowRight, ArrowLeft, Upload, Camera, X, Check, Phone, Info, Sparkles
+  Zap, ArrowRight, ArrowLeft, Upload, Camera, X, Check, Phone, Info, Sparkles, Building2, User
 } from "lucide-react";
 import Layout from "../components/Layout";
 import { useAuth } from "../hooks/useAuth";
@@ -10,7 +10,7 @@ import { postNewCargo } from "../lib/cargoStore";
 import { searchLocations, estimateHighwayDistance, estimateFairPrice, type LocationHub } from "../lib/locationService";
 import { useTranslation } from "../lib/i18n";
 
-const STEPS = ["Shipment Type", "Route & Schedule", "Cargo Details", "Review & Confirm"];
+const STEPS = ["Shipment Type", "Route & Exact Address", "Cargo Details", "Review & Confirm"];
 
 const QUICK_SLOTS = [
   { id: "immediate", label: "Immediate (Within 2 Hours)", desc: "Priority backhaul pickup", badge: "⚡ Fastest" },
@@ -31,7 +31,15 @@ export default function BookShipment() {
   // Form State
   const [shipmentType, setShipmentType] = useState<"LTL" | "FTL">("LTL");
   const [origin, setOrigin] = useState("Mumbai (Bhiwandi Logistics Park)");
+  const [pickupAddress, setPickupAddress] = useState("Plot 42, Sector 58, Okhla Phase 3 Industrial Area, Near Metro, Delhi - 110020");
+  const [pickupContactPerson, setPickupContactPerson] = useState("Rohan Verma");
+  const [pickupContactPhone, setPickupContactPhone] = useState("+91 98765 43210");
+
   const [destination, setDestination] = useState("Delhi NCR (Okhla Industrial Area)");
+  const [deliveryAddress, setDeliveryAddress] = useState("Gala No. 14, Indian Corporation Compound, Mankoli Naka, Bhiwandi, Maharashtra - 421302");
+  const [deliveryContactPerson, setDeliveryContactPerson] = useState("Anil Deshmukh");
+  const [deliveryContactPhone, setDeliveryContactPhone] = useState("+91 98220 54321");
+
   const [selectedSlot, setSelectedSlot] = useState("immediate");
   const [customDate, setCustomDate] = useState("");
   const [customTimeSlot, setCustomTimeSlot] = useState("Morning (08:00 AM - 12:00 PM)");
@@ -96,7 +104,13 @@ export default function BookShipment() {
 
     const newCargo = postNewCargo({
       origin,
+      pickupAddress,
+      pickupContactPerson,
+      pickupContactPhone,
       destination,
+      deliveryAddress,
+      deliveryContactPerson,
+      deliveryContactPhone,
       cargoType,
       weightTons: parseFloat(cargoWeightTons) || 1.5,
       truckRequired,
@@ -111,7 +125,6 @@ export default function BookShipment() {
       specialInstructions: specialHandling.join(", "),
     });
 
-    // Navigate to recommendations where real trucks are matched!
     navigate(`/recommendations?cargoId=${newCargo.id}`);
   };
 
@@ -128,7 +141,7 @@ export default function BookShipment() {
             Book Commercial Freight Shipment
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Select route, choose verified pickup schedule, and match directly with live return fleet.
+            Enter exact pickup warehouse and delivery details. The driver will receive the precise GPS coordinates and contact phone.
           </p>
         </div>
 
@@ -216,24 +229,27 @@ export default function BookShipment() {
               </div>
             )}
 
-            {/* ================= STEP 1: ROUTE & ADVANCED SCHEDULE ================= */}
+            {/* ================= STEP 1: ROUTE & EXACT ADDRESSES ================= */}
             {step === 1 && (
-              <div className="space-y-5 text-xs font-bold">
-                <h3 className="font-black text-base">Route Corridor &amp; Pickup Timing</h3>
+              <div className="space-y-6 text-xs font-bold">
+                <h3 className="font-black text-base">Route Corridor &amp; Exact Warehouse Addresses</h3>
 
-                {/* Origin / Destination with Suggestions */}
-                <div className="grid sm:grid-cols-2 gap-4 relative">
+                {/* Pickup Section */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black">
+                    <MapPin size={16} />
+                    <span className="uppercase tracking-wider text-[11px]">1. Origin &amp; Pickup Address</span>
+                  </div>
+
                   <div className="relative">
-                    <label className="text-[10px] uppercase text-slate-400 block mb-1.5 flex items-center gap-1">
-                      <MapPin size={12} className="text-emerald-500" /> Pickup Hub *
-                    </label>
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1">City / Logistics Hub *</label>
                     <input
                       required
                       value={origin}
                       onChange={(e) => handleOriginChange(e.target.value)}
                       onFocus={() => setShowOriginDrop(true)}
                       placeholder="Type Indian City or Logistics Hub"
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
                     />
                     {showOriginDrop && originSuggestions.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 max-h-44 overflow-y-auto py-1">
@@ -252,17 +268,55 @@ export default function BookShipment() {
                     )}
                   </div>
 
+                  <div>
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1">Exact Warehouse / Factory Address (Shows to Driver) *</label>
+                    <input
+                      required
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                      placeholder="Plot No., Factory/Shed Name, Street, Landmark, Pincode"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
+                    />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] uppercase text-slate-400 block mb-1">Pickup Contact Person *</label>
+                      <input
+                        value={pickupContactPerson}
+                        onChange={(e) => setPickupContactPerson(e.target.value)}
+                        placeholder="e.g. Ramesh Factory Manager"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase text-slate-400 block mb-1">Pickup Contact Phone *</label>
+                      <input
+                        value={pickupContactPhone}
+                        onChange={(e) => setPickupContactPhone(e.target.value)}
+                        placeholder="+91 98765 43210"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Section */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-black">
+                    <Building2 size={16} />
+                    <span className="uppercase tracking-wider text-[11px]">2. Destination &amp; Delivery Address</span>
+                  </div>
+
                   <div className="relative">
-                    <label className="text-[10px] uppercase text-slate-400 block mb-1.5 flex items-center gap-1">
-                      <MapPin size={12} className="text-rose-500" /> Destination Hub *
-                    </label>
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1">Delivery City / Destination Hub *</label>
                     <input
                       required
                       value={destination}
                       onChange={(e) => handleDestChange(e.target.value)}
                       onFocus={() => setShowDestDrop(true)}
-                      placeholder="Type Indian City or Delivery Destination"
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      placeholder="Type Delivery City"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
                     />
                     {showDestDrop && destSuggestions.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 max-h-44 overflow-y-auto py-1">
@@ -280,9 +334,41 @@ export default function BookShipment() {
                       </div>
                     )}
                   </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase text-slate-400 block mb-1">Exact Consignee Delivery Address (Shows to Driver) *</label>
+                    <input
+                      required
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="Gala / Shop No., Building Name, Street, Landmark, Pincode"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
+                    />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] uppercase text-slate-400 block mb-1">Consignee Contact Person *</label>
+                      <input
+                        value={deliveryContactPerson}
+                        onChange={(e) => setDeliveryContactPerson(e.target.value)}
+                        placeholder="e.g. Anil Receiver"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase text-slate-400 block mb-1">Consignee Contact Phone *</label>
+                      <input
+                        value={deliveryContactPhone}
+                        onChange={(e) => setDeliveryContactPhone(e.target.value)}
+                        placeholder="+91 98220 54321"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-bold"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Advanced Pickup Schedule Slot Picker */}
+                {/* Pickup Window Picker */}
                 <div className="space-y-3 pt-2">
                   <label className="text-[10px] uppercase text-slate-400 block flex items-center gap-1">
                     <Calendar size={12} className="text-amber-500" /> Preferred Pickup Window *
@@ -309,33 +395,6 @@ export default function BookShipment() {
                       </div>
                     ))}
                   </div>
-
-                  {selectedSlot === "custom" && (
-                    <div className="grid sm:grid-cols-2 gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 mt-2">
-                      <div>
-                        <label className="text-[10px] text-slate-400 block mb-1">Select Pickup Date</label>
-                        <input
-                          type="date"
-                          value={customDate}
-                          onChange={(e) => setCustomDate(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-slate-400 block mb-1">Time Slot Window</label>
-                        <select
-                          value={customTimeSlot}
-                          onChange={(e) => setCustomTimeSlot(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold"
-                        >
-                          <option>Morning (08:00 AM - 12:00 PM)</option>
-                          <option>Afternoon (12:00 PM - 04:00 PM)</option>
-                          <option>Evening (04:00 PM - 08:00 PM)</option>
-                          <option>Night (08:00 PM - 12:00 AM)</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -416,7 +475,7 @@ export default function BookShipment() {
                     >
                       <Upload size={18} className="text-amber-500" />
                       <span className="font-bold">Click to Upload Cargo Photo</span>
-                      <span className="text-[10px] text-slate-400">Truck owner will see this real cargo photo</span>
+                      <span className="text-[10px] text-slate-400">Truck driver will see this real cargo photo</span>
                     </button>
                   )}
                 </div>
@@ -447,7 +506,7 @@ export default function BookShipment() {
             {/* ================= STEP 3: REVIEW & CONFIRM ================= */}
             {step === 3 && (
               <div className="space-y-5 text-xs font-bold">
-                <h3 className="font-black text-base">Review &amp; Instant AI Matching</h3>
+                <h3 className="font-black text-base">Review &amp; Instant Matching</h3>
 
                 <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
                   <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
@@ -458,9 +517,15 @@ export default function BookShipment() {
                     <span className="text-slate-400">Route Corridor:</span>
                     <span className="font-black text-slate-900 dark:text-white">{origin} ➔ {destination}</span>
                   </div>
-                  <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
-                    <span className="text-slate-400">Distance &amp; ETA:</span>
-                    <span>{distanceKm} km • ~{transitHours} hrs</span>
+                  <div className="space-y-1 border-b border-slate-200/60 dark:border-slate-700 pb-2">
+                    <span className="text-slate-400 block">Exact Pickup Address:</span>
+                    <p className="text-slate-900 dark:text-white font-bold">{pickupAddress}</p>
+                    <p className="text-[11px] text-slate-400 font-medium">Contact: {pickupContactPerson} ({pickupContactPhone})</p>
+                  </div>
+                  <div className="space-y-1 border-b border-slate-200/60 dark:border-slate-700 pb-2">
+                    <span className="text-slate-400 block">Exact Delivery Address:</span>
+                    <p className="text-slate-900 dark:text-white font-bold">{deliveryAddress}</p>
+                    <p className="text-[11px] text-slate-400 font-medium">Contact: {deliveryContactPerson} ({deliveryContactPhone})</p>
                   </div>
                   <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700 pb-2">
                     <span className="text-slate-400">Pickup Window:</span>

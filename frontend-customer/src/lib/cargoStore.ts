@@ -1,11 +1,15 @@
-import { supabase } from "./supabase";
-
 export interface CargoItem {
   id: string;
   origin: string;
   originHub?: string;
+  pickupAddress?: string;
+  pickupContactPerson?: string;
+  pickupContactPhone?: string;
   destination: string;
   destHub?: string;
+  deliveryAddress?: string;
+  deliveryContactPerson?: string;
+  deliveryContactPhone?: string;
   cargoType: string;
   weightTons: number;
   truckRequired: string;
@@ -34,7 +38,13 @@ export const DEFAULT_CONSIGNMENTS: CargoItem[] = [
   {
     id: "CARGO-801",
     origin: "Delhi NCR (Okhla Industrial Area)",
+    pickupAddress: "Plot 42, Sector 58, Okhla Phase 3 Industrial Area, Near Metro Station, Delhi - 110020",
+    pickupContactPerson: "Rohan Verma",
+    pickupContactPhone: "+91 98765 43210",
     destination: "Mumbai (Bhiwandi Logistics Park)",
+    deliveryAddress: "Gala No. 14, Indian Corporation Compound, Mankoli Naka, Bhiwandi, Maharashtra - 421302",
+    deliveryContactPerson: "Anil Deshmukh",
+    deliveryContactPhone: "+91 98220 54321",
     cargoType: "Automotive Components & Spare Parts",
     weightTons: 6.5,
     truckRequired: "17-19 Feet Closed Container",
@@ -51,7 +61,13 @@ export const DEFAULT_CONSIGNMENTS: CargoItem[] = [
   {
     id: "CARGO-802",
     origin: "Delhi (Kundli Industrial Area)",
+    pickupAddress: "Shed 10, HSIIDC Industrial Complex, GT Karnal Road, Kundli, Haryana - 131028",
+    pickupContactPerson: "Sunil Gupta",
+    pickupContactPhone: "+91 98112 55667",
     destination: "Indore (Pithampur Industrial Hub)",
+    deliveryAddress: "Sector 3, Pithampur Industrial Estate, Dhar Road, Indore, MP - 454775",
+    deliveryContactPerson: "Kailash Joshi",
+    deliveryContactPhone: "+91 94250 88990",
     cargoType: "FMCG Packaged Food & Beverages",
     weightTons: 4.8,
     truckRequired: "14-17 Feet Open/Closed",
@@ -63,26 +79,9 @@ export const DEFAULT_CONSIGNMENTS: CargoItem[] = [
     urgency: "Standard Delivery",
     status: "Open",
     createdAt: "Today, 11:15 AM",
-  },
-  {
-    id: "CARGO-803",
-    origin: "Bengaluru (Peenya Industrial Area)",
-    destination: "Chennai (Sriperumbudur Auto Hub)",
-    cargoType: "Industrial Machinery & Tooling",
-    weightTons: 8.0,
-    truckRequired: "19-22 Feet Heavy Truck",
-    distanceKm: 340,
-    pickupDate: "Tomorrow, 11:00 AM",
-    offeredPriceInr: 14500,
-    shipperName: "L&T Heavy Engineering",
-    shipperPhone: "+91 98450 77889",
-    urgency: "High Priority",
-    status: "Open",
-    createdAt: "Today, 12:00 PM",
   }
 ];
 
-// Pure getter without any recursive side-effects
 export function getSharedCargoList(): CargoItem[] {
   if (typeof window === "undefined") return DEFAULT_CONSIGNMENTS;
   try {
