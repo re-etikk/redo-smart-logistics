@@ -1,4 +1,4 @@
-export type Role = "truck_owner" | "sme";
+export type Role = "truck_owner" | "sme" | "admin";
 
 export interface Profile {
   id: string; full_name: string; phone?: string; role: Role;
