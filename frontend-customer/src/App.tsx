@@ -4,6 +4,7 @@ import { AuthProvider, Protected } from "./hooks/useAuth";
 // Auth pages
 import Login from "./pages/auth/Login";
 import SignUp from "./pages/auth/SignUp";
+import CustomerOnboarding from "./pages/onboarding/Sme";
 
 // Customer pages
 import Dashboard from "./pages/Dashboard";
@@ -31,6 +32,10 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+
+          {/* Onboarding */}
+          <Route path="/onboarding" element={<Protected><CustomerOnboarding /></Protected>} />
+          <Route path="/onboarding/sme" element={<Protected><CustomerOnboarding /></Protected>} />
 
           {/* Protected — Customer Only */}
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
