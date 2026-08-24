@@ -5,6 +5,7 @@ import {
   Zap, ArrowRight, ArrowLeft, Upload, Camera, X, Check, Phone, Info, Sparkles, Building2, User
 } from "lucide-react";
 import Layout from "../components/Layout";
+import LocationSearchInput from "../components/LocationSearchInput";
 import { useAuth } from "../hooks/useAuth";
 import { postNewCargo } from "../lib/cargoStore";
 import { searchLocations, estimateHighwayDistance, estimateFairPrice, type LocationHub } from "../lib/locationService";
@@ -242,30 +243,19 @@ export default function BookShipment() {
                   </div>
 
                   <div className="relative">
-                    <label className="text-[10px] uppercase text-slate-400 block mb-1">City / Logistics Hub *</label>
-                    <input
+                    <LocationSearchInput
                       required
                       value={origin}
-                      onChange={(e) => handleOriginChange(e.target.value)}
-                      onFocus={() => setShowOriginDrop(true)}
-                      placeholder="Type Indian City or Logistics Hub"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
+                      onChange={(val, hub) => {
+                        setOrigin(val);
+                        if (hub?.fullAddress && !pickupAddress) {
+                          setPickupAddress(hub.fullAddress);
+                        }
+                      }}
+                      label="Pickup City / Logistics Hub *"
+                      iconType="pickup"
+                      placeholder="Type city, industrial area or hub (e.g. Delhi NCR, Okhla, Mumbai...)"
                     />
-                    {showOriginDrop && originSuggestions.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 max-h-44 overflow-y-auto py-1">
-                        {originSuggestions.map((h, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => { setOrigin(h.name); setShowOriginDrop(false); }}
-                            className="w-full text-left px-3.5 py-2 hover:bg-amber-100 dark:hover:bg-slate-700 flex items-center justify-between"
-                          >
-                            <span>{h.name}</span>
-                            <span className="text-[10px] text-slate-400">{h.hub}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   <div>
@@ -309,30 +299,19 @@ export default function BookShipment() {
                   </div>
 
                   <div className="relative">
-                    <label className="text-[10px] uppercase text-slate-400 block mb-1">Delivery City / Destination Hub *</label>
-                    <input
+                    <LocationSearchInput
                       required
                       value={destination}
-                      onChange={(e) => handleDestChange(e.target.value)}
-                      onFocus={() => setShowDestDrop(true)}
-                      placeholder="Type Delivery City"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 font-bold"
+                      onChange={(val, hub) => {
+                        setDestination(val);
+                        if (hub?.fullAddress && !deliveryAddress) {
+                          setDeliveryAddress(hub.fullAddress);
+                        }
+                      }}
+                      label="Delivery City / Destination Hub *"
+                      iconType="drop"
+                      placeholder="Type destination city, port or hub (e.g. Mumbai, Bhiwandi, Surat...)"
                     />
-                    {showDestDrop && destSuggestions.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 max-h-44 overflow-y-auto py-1">
-                        {destSuggestions.map((h, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => { setDestination(h.name); setShowDestDrop(false); }}
-                            className="w-full text-left px-3.5 py-2 hover:bg-amber-100 dark:hover:bg-slate-700 flex items-center justify-between"
-                          >
-                            <span>{h.name}</span>
-                            <span className="text-[10px] text-slate-400">{h.hub}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   <div>

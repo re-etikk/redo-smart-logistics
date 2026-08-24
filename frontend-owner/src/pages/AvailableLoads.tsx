@@ -6,6 +6,7 @@ import {
   Sparkles, SlidersHorizontal, RotateCcw, IndianRupee, Navigation
 } from "lucide-react";
 import OwnerLayout from "../components/OwnerLayout";
+import LocationSearchInput from "../components/LocationSearchInput";
 import { useTranslation } from "../lib/i18n";
 import { getTrucks, type TruckItem } from "../lib/truckStore";
 import { getSharedCargoList, syncFromCloud, assignTruckToCargo, type CargoItem } from "../lib/cargoStore";
@@ -328,33 +329,18 @@ export default function AvailableLoads() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
             
             {/* Origin (From City) */}
-            <div className="md:col-span-5 relative">
-              <label className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1.5 flex items-center gap-1">
-                <MapPin size={12} />
-                <span>Pickup Origin (From City / Hub)</span>
-              </label>
-              <div className="relative">
-                <Search size={16} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={originQuery}
-                  onChange={(e) => setOriginQuery(e.target.value)}
-                  placeholder="e.g. Delhi NCR, Okhla, Mumbai..."
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl pl-10 pr-8 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 dark:text-white"
-                />
-                {originQuery && (
-                  <button
-                    onClick={() => setOriginQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
+            <div className="md:col-span-5">
+              <LocationSearchInput
+                value={originQuery}
+                onChange={(val) => setOriginQuery(val)}
+                label="Pickup Origin (From City / Hub)"
+                iconType="pickup"
+                placeholder="e.g. Delhi NCR, Okhla, Mumbai, Jaipur..."
+              />
             </div>
 
             {/* Swap Button */}
-            <div className="md:col-span-2 flex justify-center pt-2 md:pt-4">
+            <div className="md:col-span-2 flex justify-center pt-2 md:pt-6">
               <button
                 type="button"
                 onClick={handleSwapCities}
@@ -366,29 +352,14 @@ export default function AvailableLoads() {
             </div>
 
             {/* Destination (To City) */}
-            <div className="md:col-span-5 relative">
-              <label className="text-[10px] uppercase font-black tracking-wider text-rose-600 dark:text-rose-400 block mb-1.5 flex items-center gap-1">
-                <Building2 size={12} />
-                <span>Drop Destination (To City / Hub)</span>
-              </label>
-              <div className="relative">
-                <Search size={16} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={destQuery}
-                  onChange={(e) => setDestQuery(e.target.value)}
-                  placeholder="e.g. Mumbai, Bhiwandi, Surat, Pune..."
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl pl-10 pr-8 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 dark:text-white"
-                />
-                {destQuery && (
-                  <button
-                    onClick={() => setDestQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
+            <div className="md:col-span-5">
+              <LocationSearchInput
+                value={destQuery}
+                onChange={(val) => setDestQuery(val)}
+                label="Drop Destination (To City / Hub)"
+                iconType="drop"
+                placeholder="e.g. Mumbai, Bhiwandi, Surat, Pune..."
+              />
             </div>
           </div>
 

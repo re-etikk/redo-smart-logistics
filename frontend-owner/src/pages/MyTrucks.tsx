@@ -5,6 +5,7 @@ import {
   Trash2, Edit, CheckCircle2, User, Gauge
 } from "lucide-react";
 import OwnerLayout from "../components/OwnerLayout";
+import LocationSearchInput from "../components/LocationSearchInput";
 import { getTrucks, addTruck, deleteTruck, updateTruck, PRESET_TRUCK_PHOTOS, type TruckItem } from "../lib/truckStore";
 
 export default function MyTrucks() {
@@ -666,23 +667,23 @@ export default function MyTrucks() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-slate-700 block mb-1">Departure Origin (Route From) *</label>
-                    <input
+                    <LocationSearchInput
                       required
                       value={newTruck.routeOrigin}
-                      onChange={(e) => setNewTruck({ ...newTruck, routeOrigin: e.target.value })}
-                      placeholder="e.g. Delhi NCR / Gurgaon"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                      onChange={(val) => setNewTruck({ ...newTruck, routeOrigin: val })}
+                      label="Departure Origin (Route From) *"
+                      iconType="pickup"
+                      placeholder="e.g. Delhi NCR, Gurgaon, Okhla..."
                     />
                   </div>
                   <div>
-                    <label className="text-slate-700 block mb-1">Destination Hub (Route To) *</label>
-                    <input
+                    <LocationSearchInput
                       required
                       value={newTruck.routeDest}
-                      onChange={(e) => setNewTruck({ ...newTruck, routeDest: e.target.value })}
-                      placeholder="e.g. Mumbai (Bhiwandi Park)"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900"
+                      onChange={(val) => setNewTruck({ ...newTruck, routeDest: val })}
+                      label="Destination Hub (Route To) *"
+                      iconType="drop"
+                      placeholder="e.g. Mumbai, Bhiwandi, Pune..."
                     />
                   </div>
                 </div>
