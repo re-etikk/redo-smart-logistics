@@ -70,7 +70,7 @@ export default function CustomerDashboard() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Shipments</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-slate-900 dark:text-white">{stats.totalCount}</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-white">{stats.totalCount || 0}</span>
               <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                 <Package size={16} />
               </div>
@@ -81,7 +81,7 @@ export default function CustomerDashboard() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">In Transit</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{stats.inTransitCount}</span>
+              <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{stats.inTransitCount || 0}</span>
               <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                 <Truck size={16} />
               </div>
@@ -92,7 +92,7 @@ export default function CustomerDashboard() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Delivered</span>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{stats.deliveredCount}</span>
+              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{stats.deliveredCount || 0}</span>
               <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <CheckCircle2 size={16} />
               </div>
@@ -104,7 +104,7 @@ export default function CustomerDashboard() {
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Freight Spend</span>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-black text-purple-600 dark:text-purple-400">
-                ₹{stats.totalSpendInr.toLocaleString("en-IN")}
+                ₹{(stats.totalSpendInr || 0).toLocaleString("en-IN")}
               </span>
               <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                 <IndianRupee size={16} />
@@ -115,8 +115,8 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Live GPS Tracking Map Section */}
-        {stats.inTransitCount > 0 && (
-          <LiveTrackingMap shipments={stats.allShipments} />
+        {(stats.inTransitCount || 0) > 0 && (
+          <LiveTrackingMap shipments={stats.allShipments || []} />
         )}
 
         {/* Separated Shipments Sections (Active vs Delivered Tabs) */}
@@ -132,7 +132,7 @@ export default function CustomerDashboard() {
                 }`}
               >
                 <Truck size={15} />
-                <span>Active Highway Shipments ({stats.inTransitCount})</span>
+                <span>Active Highway Shipments ({stats.inTransitCount || 0})</span>
               </button>
 
               <button
@@ -144,7 +144,7 @@ export default function CustomerDashboard() {
                 }`}
               >
                 <CheckCircle2 size={15} />
-                <span>Past Completed &amp; Delivered ({stats.deliveredCount})</span>
+                <span>Past Completed &amp; Delivered ({stats.deliveredCount || 0})</span>
               </button>
             </div>
 
@@ -156,7 +156,7 @@ export default function CustomerDashboard() {
 
           {/* Tab Content List */}
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {(activeTab === "active" ? stats.activeShipments : stats.deliveredShipments).map((shp) => (
+            {(activeTab === "active" ? (stats.activeShipments || []) : (stats.deliveredShipments || [])).map((shp) => (
               <div key={shp.id} className="py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
                   <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
@@ -197,13 +197,15 @@ export default function CustomerDashboard() {
                     <span className="text-[10px] text-slate-400 font-bold block">{shp.bookedAt}</span>
                   </div>
 
-                  <a
-                    href={`tel:${shp.driverPhone}`}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition whitespace-nowrap"
-                  >
-                    <Phone size={13} />
-                    <span>Call Driver</span>
-                  </a>
+                  {shp.driverPhone && (
+                    <a
+                      href={`tel:${shp.driverPhone}`}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition whitespace-nowrap"
+                    >
+                      <Phone size={13} />
+                      <span>Call Driver</span>
+                    </a>
+                  )}
                 </div>
               </div>
             ))}

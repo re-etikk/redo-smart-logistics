@@ -113,6 +113,13 @@ export function getShipmentStats() {
   const delivered = list.filter(s => s.status === "Delivered");
   const spend = list.reduce((sum, s) => sum + (Number(s.priceInr) || 0), 0);
   return {
+    totalCount: list.length,
+    inTransitCount: inTransit.length,
+    deliveredCount: delivered.length,
+    totalSpendInr: spend,
+    allShipments: list,
+    activeShipments: inTransit,
+    deliveredShipments: delivered,
     total: list.length,
     inTransit: inTransit.length,
     delivered: delivered.length,
