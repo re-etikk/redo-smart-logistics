@@ -76,5 +76,3 @@ adminRouter.patch('/kyc/:id', async (req, res, next) => {
     res.json(data);
   } catch (e) { next(e); }
 });
-
-export default adminRouter;
