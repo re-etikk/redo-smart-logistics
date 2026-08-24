@@ -52,8 +52,8 @@ export default function Recommendations() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-xs font-black mb-2">
-              <Sparkles size={14} className="text-emerald-600" />
-              <span>Multi-Factor GBDT Backhaul AI Match</span>
+              <Truck size={14} className="text-emerald-600" />
+              <span>Corridor Direct Route Matches</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
               Matched Empty Return Trucks

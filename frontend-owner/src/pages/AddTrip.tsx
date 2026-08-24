@@ -47,7 +47,7 @@ export default function AddTrip() {
     } catch {
       // Graceful fallback for offline environment
     }
-    toast("Return trip posted! Your truck is now open for AI matching.", "ok");
+    toast("Return trip posted! Your truck is now open for matching freight loads.", "ok");
     navigate("/dashboard");
   };
 
@@ -61,7 +61,7 @@ export default function AddTrip() {
           </div>
           <h1 className="text-3xl font-black text-slate-900">Post Vehicle Return Leg</h1>
           <p className="text-xs text-slate-500">
-            List your return corridor to receive AI-ranked partial cargo consignments.
+            List your return corridor to receive matching cargo consignments along your route.
           </p>
         </div>
 

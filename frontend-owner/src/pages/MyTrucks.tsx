@@ -661,7 +661,7 @@ export default function MyTrucks() {
                     <MapPin size={14} className="text-amber-600" /> Route Corridor &amp; Empty Space Availability
                   </h4>
                   <span className="text-[10px] bg-amber-200/80 text-amber-900 font-bold px-2 py-0.5 rounded-full">
-                    Instant AI Backhaul Matching
+                    Instant Corridor Matching
                   </span>
                 </div>
 

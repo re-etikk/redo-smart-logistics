@@ -123,7 +123,7 @@ export default function MatchDetail() {
 
             {/* Why This Match? */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-3">
-              <h3 className="text-sm font-black text-slate-900">Why REDO AI Selected This Truck:</h3>
+              <h3 className="text-sm font-black text-slate-900">Why REDO Selected This Truck:</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 space-y-1">
                   <span className="text-amber-800 font-black block">Empty Return Capacity</span>
@@ -146,7 +146,7 @@ export default function MatchDetail() {
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-5">
               <div className="border-b border-slate-100 pb-4 space-y-1">
                 <span className="text-[10px] font-black uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 inline-block mb-1">
-                  AI Match Score: {rec.match_score || 98}%
+                  Corridor Match: {rec.match_score || 98}%
                 </span>
                 <h3 className="text-lg font-black text-slate-900">Booking Summary</h3>
               </div>

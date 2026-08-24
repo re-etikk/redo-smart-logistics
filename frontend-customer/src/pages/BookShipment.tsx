@@ -135,8 +135,8 @@ export default function BookShipment() {
         {/* Header Title */}
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-black">
-            <Sparkles size={14} className="text-amber-500" />
-            <span>AI Freight Booking Engine</span>
+            <Truck size={14} className="text-amber-600" />
+            <span>Commercial Freight Booking</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
             Book Commercial Freight Shipment

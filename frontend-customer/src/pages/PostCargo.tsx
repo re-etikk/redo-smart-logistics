@@ -90,14 +90,14 @@ export default function PostCargo() {
         {/* Title Header */}
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-black">
-            <Sparkles size={14} className="text-amber-500" />
-            <span>AI-Powered Backhaul Freight Consignment</span>
+            <PackageCheck size={14} className="text-amber-600" />
+            <span>Backhaul Freight Consignment</span>
           </div>
           <h1 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight">
             Post Cargo Consignment
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Enter your cargo details. REDO's ML model will immediately match with returning trucks on this corridor.
+            Enter your cargo details to immediately match with verified returning trucks on this corridor.
           </p>
         </div>
 
@@ -302,10 +302,10 @@ export default function PostCargo() {
             )}
           </div>
 
-          {/* Pricing & AI Match Preview */}
+          {/* Pricing & Rate Preview */}
           <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase text-slate-400 block">AI Estimated Fair Freight</span>
+              <span className="text-[10px] uppercase text-slate-400 block">Estimated Fair Freight</span>
               <span className="text-2xl font-black text-slate-900 dark:text-white">
                 ₹{estPrice.toLocaleString("en-IN")}
               </span>
