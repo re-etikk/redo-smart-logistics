@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin, Weight, Search, Filter, ArrowRight, ArrowLeftRight, ShieldCheck, Zap,
@@ -9,7 +9,6 @@ import OwnerLayout from "../components/OwnerLayout";
 import { useTranslation } from "../lib/i18n";
 import { getTrucks, type TruckItem } from "../lib/truckStore";
 import { getSharedCargoList, syncFromCloud, assignTruckToCargo, type CargoItem } from "../lib/cargoStore";
-import { searchLocations, type LocationHub } from "../lib/locationService";
 
 const POPULAR_HUBS = [
   "Delhi NCR",
@@ -28,6 +27,7 @@ const POPULAR_HUBS = [
 
 const CARGO_CATEGORIES = [
   "All",
+  "Automotive Components",
   "FMCG & Groceries",
   "Textiles & Garments",
   "Industrial Goods",
@@ -38,16 +38,35 @@ const CARGO_CATEGORIES = [
 ];
 
 const WEIGHT_RANGES = [
-  { id: "all", label: "All Weights" },
-  { id: "ltl", label: "Light (< 3T)", min: 0, max: 3 },
-  { id: "medium", label: "Medium (3T – 7T)", min: 3, max: 7 },
-  { id: "heavy", label: "Heavy (7T – 15T)", min: 7, max: 15 },
-  { id: "ftl", label: "FTL (15T+)", min: 15, max: 100 },
+  { id: "all", label: "All Weights (0 – 50 Ton)" },
+  { id: "ltl", label: "Light (< 3 Ton)", min: 0, max: 3 },
+  { id: "medium", label: "Medium (3 – 7 Ton)", min: 3, max: 7 },
+  { id: "heavy", label: "Heavy (7 – 15 Ton)", min: 7, max: 15 },
+  { id: "ftl", label: "Full Truckload (15+ Ton)", min: 15, max: 100 },
 ];
+
+function smartMatch(target: string | undefined, query: string): boolean {
+  if (!query.trim()) return true;
+  if (!target) return false;
+
+  const cleanTarget = target.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
+  const cleanQuery = query.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
+
+  if (cleanTarget.includes(cleanQuery) || cleanQuery.includes(cleanTarget)) return true;
+
+  // Split into tokens
+  const stopWords = new Set(["the", "and", "near", "area", "park", "road", "industrial", "logistics"]);
+  const tokens = cleanQuery.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+  if (tokens.length === 0) return true;
+
+  // If any primary token matches (e.g. 'delhi', 'mumbai', 'okhla', 'bhiwandi')
+  return tokens.some(tok => cleanTarget.includes(tok));
+}
 
 export default function AvailableLoads() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Search & Filter State
   const [originQuery, setOriginQuery] = useState("");
@@ -91,7 +110,7 @@ export default function AvailableLoads() {
       syncFromCloud().then(updated => {
         if (updated && updated.length > 0) setAllLoads(updated);
       });
-    }, 2500);
+    }, 2000);
 
     return () => {
       window.removeEventListener("redo_cargo_updated", handleCargoUpdate);
@@ -133,6 +152,13 @@ export default function AvailableLoads() {
     setSortBy("newest");
   };
 
+  // Trigger search scroll
+  const handleTriggerSearch = () => {
+    if (resultsRef.current) {
+      resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   // Active filter count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -148,24 +174,22 @@ export default function AvailableLoads() {
   // Filtered & Sorted Loads
   const filteredLoads = useMemo(() => {
     const filtered = allLoads.filter((l) => {
-      // 1. Origin Filter
+      // 1. Origin Filter with Smart Token Match
       if (originQuery.trim()) {
-        const oQuery = originQuery.toLowerCase().trim();
-        const originMatch =
-          l.origin.toLowerCase().includes(oQuery) ||
-          (l.originHub && l.originHub.toLowerCase().includes(oQuery)) ||
-          (l.pickupAddress && l.pickupAddress.toLowerCase().includes(oQuery));
-        if (!originMatch) return false;
+        const originMatched =
+          smartMatch(l.origin, originQuery) ||
+          smartMatch(l.originHub, originQuery) ||
+          smartMatch(l.pickupAddress, originQuery);
+        if (!originMatched) return false;
       }
 
-      // 2. Destination Filter
+      // 2. Destination Filter with Smart Token Match
       if (destQuery.trim()) {
-        const dQuery = destQuery.toLowerCase().trim();
-        const destMatch =
-          l.destination.toLowerCase().includes(dQuery) ||
-          (l.destHub && l.destHub.toLowerCase().includes(dQuery)) ||
-          (l.deliveryAddress && l.deliveryAddress.toLowerCase().includes(dQuery));
-        if (!destMatch) return false;
+        const destMatched =
+          smartMatch(l.destination, destQuery) ||
+          smartMatch(l.destHub, destQuery) ||
+          smartMatch(l.deliveryAddress, destQuery);
+        if (!destMatched) return false;
       }
 
       // 3. Category Filter
@@ -176,7 +200,7 @@ export default function AvailableLoads() {
       // 4. Weight Range Filter
       if (selectedWeightRange !== "all") {
         const range = WEIGHT_RANGES.find(r => r.id === selectedWeightRange);
-        if (range && (range.min !== undefined && range.max !== undefined)) {
+        if (range && range.min !== undefined && range.max !== undefined) {
           if (l.weightTons < range.min || l.weightTons > range.max) return false;
         }
       }
@@ -257,7 +281,7 @@ export default function AvailableLoads() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-3.5 py-1.5 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-xs font-bold shadow-sm">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live Network Sync</span>
+              <span>Live Network Sync ({allLoads.length} Posted)</span>
             </div>
             {trucks.length > 0 && (
               <button
@@ -274,22 +298,22 @@ export default function AvailableLoads() {
         {/* 🌟 Corridor Route & City Search Engine */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
           
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-2">
               <Navigation size={15} className="text-amber-500" />
               <span>Search Route Corridor &amp; Pickup / Drop Hubs</span>
             </h2>
 
             {/* Quick Match for Fleet Truck */}
             {trucks.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-[11px] text-slate-500 hidden md:inline font-bold">Auto-Match Truck:</span>
                 <select
                   value={selectedTruckIdForMatch}
                   onChange={(e) => handleTruckSelectForMatch(e.target.value)}
-                  className="bg-amber-50 dark:bg-slate-800 border border-amber-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full sm:w-auto bg-amber-50 dark:bg-slate-800 border border-amber-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
                 >
-                  <option value="all">🔍 Search All Routes</option>
+                  <option value="all">🔍 Search All Corridors</option>
                   {trucks.map((trk) => (
                     <option key={trk.id} value={trk.id}>
                       🚚 {trk.regNo} ({trk.currentTrip?.origin || trk.location || "Delhi"} ➔ {trk.currentTrip?.dest || "Mumbai"})
@@ -315,13 +339,13 @@ export default function AvailableLoads() {
                   type="text"
                   value={originQuery}
                   onChange={(e) => setOriginQuery(e.target.value)}
-                  placeholder="e.g. Delhi NCR, Mumbai, Ahmedabad..."
+                  placeholder="e.g. Delhi NCR, Okhla, Mumbai..."
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl pl-10 pr-8 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 dark:text-white"
                 />
                 {originQuery && (
                   <button
                     onClick={() => setOriginQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
                   >
                     <X size={14} />
                   </button>
@@ -330,14 +354,14 @@ export default function AvailableLoads() {
             </div>
 
             {/* Swap Button */}
-            <div className="md:col-span-2 flex justify-center pt-3 md:pt-4">
+            <div className="md:col-span-2 flex justify-center pt-2 md:pt-4">
               <button
                 type="button"
                 onClick={handleSwapCities}
-                title="Swap From and To"
-                className="w-10 h-10 rounded-2xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 flex items-center justify-center shadow-sm hover:rotate-180 transition-transform duration-300 cursor-pointer"
+                title="Swap From and To Cities"
+                className="w-11 h-11 rounded-2xl bg-[#FFC800] hover:bg-amber-400 text-slate-950 flex items-center justify-center shadow-md hover:rotate-180 transition-transform duration-300 cursor-pointer"
               >
-                <ArrowLeftRight size={16} />
+                <ArrowLeftRight size={18} />
               </button>
             </div>
 
@@ -353,13 +377,13 @@ export default function AvailableLoads() {
                   type="text"
                   value={destQuery}
                   onChange={(e) => setDestQuery(e.target.value)}
-                  placeholder="e.g. Mumbai, Surat, Kolkata, Pune..."
+                  placeholder="e.g. Mumbai, Bhiwandi, Surat, Pune..."
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl pl-10 pr-8 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 dark:text-white"
                 />
                 {destQuery && (
                   <button
                     onClick={() => setDestQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
                   >
                     <X size={14} />
                   </button>
@@ -371,7 +395,7 @@ export default function AvailableLoads() {
           {/* Quick Popular City Chips */}
           <div className="space-y-1.5 pt-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Quick Corridor Filter:
+              Quick Popular Hubs:
             </span>
             <div className="flex flex-wrap gap-1.5">
               {POPULAR_HUBS.map((hub) => {
@@ -457,191 +481,210 @@ export default function AvailableLoads() {
             </div>
           </div>
 
-          {/* Active Filter Badges & Reset Button */}
-          {activeFiltersCount > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs font-bold">
-              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                <span className="text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 px-2.5 py-0.5 rounded-full font-black">
-                  {filteredLoads.length} Loads Matching {activeFiltersCount} Active Filters
-                </span>
+          {/* 🚀 Dedicated Search Action Button & Counter */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+              <span className="text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 px-3 py-1 rounded-full font-black border border-amber-300 dark:border-amber-700">
+                {filteredLoads.length} Matching Loads Available
+              </span>
+              {activeFiltersCount > 0 && (
+                <button
+                  onClick={handleResetFilters}
+                  className="inline-flex items-center gap-1 text-rose-600 hover:text-rose-700 font-bold hover:underline cursor-pointer text-xs ml-2"
+                >
+                  <RotateCcw size={13} />
+                  <span>Reset Filters</span>
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTriggerSearch}
+              className="w-full sm:w-auto bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-8 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer text-sm"
+            >
+              <Search size={16} />
+              <span>SEARCH AVAILABLE LOADS</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* 📦 Live Consignment Loads Results */}
+        <div ref={resultsRef} className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <Box size={16} className="text-amber-500" />
+              <span>Available Shipper Consignments ({filteredLoads.length})</span>
+            </h3>
+          </div>
+
+          {filteredLoads.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 mx-auto flex items-center justify-center font-black">
+                <Box size={30} />
               </div>
-              <button
-                onClick={handleResetFilters}
-                className="inline-flex items-center gap-1 text-rose-600 hover:text-rose-700 font-bold hover:underline cursor-pointer text-xs"
-              >
-                <RotateCcw size={13} />
-                <span>Reset All Filters</span>
-              </button>
+              <div className="space-y-1 max-w-md mx-auto">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  {activeFiltersCount > 0 ? "No Consignments Match Your Filter" : "No Open Consignments Right Now"}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {activeFiltersCount > 0
+                    ? "Try clearing the Payload Weight filter or resetting search terms to view all available consignments."
+                    : "When shippers book shipments on the Customer Portal, they will appear live here in real-time."}
+                </p>
+              </div>
+              {activeFiltersCount > 0 && (
+                <button
+                  onClick={handleResetFilters}
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl shadow-sm transition text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw size={14} />
+                  <span>Show All Consignments ({allLoads.length})</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {filteredLoads.map((load) => {
+                const isAssigned = load.status === "Assigned" || load.status === "In Transit";
+                return (
+                  <div
+                    key={load.id}
+                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+                  >
+                    {/* Left: Visual & Details */}
+                    <div className="flex flex-col sm:flex-row items-start gap-4 flex-1">
+                      {load.cargoPhotoUrl ? (
+                        <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
+                          <img src={load.cargoPhotoUrl} alt={load.cargoType} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 flex items-center justify-center font-black shrink-0 shadow-sm">
+                          <Box size={26} />
+                        </div>
+                      )}
+
+                      <div className="space-y-3 flex-1">
+                        {/* Top Badges */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-black">
+                            {load.id}
+                          </span>
+                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
+                            {load.urgency}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            Shipper: <span className="text-slate-700 dark:text-slate-200 font-black">{load.shipperName}</span>
+                          </span>
+                          {isAssigned && (
+                            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              ✓ Assigned ({load.assignedTruckReg})
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Route Corridor & Addresses */}
+                        <div className="grid md:grid-cols-2 gap-3 text-xs font-bold bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                          {/* Pickup Origin */}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black">
+                              <MapPin size={14} />
+                              <span>Pickup: {load.origin}</span>
+                            </div>
+                            {load.pickupAddress ? (
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium pl-5 leading-relaxed">
+                                {load.pickupAddress}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-slate-400 pl-5 font-normal">Warehouse Hub Station</p>
+                            )}
+                            {load.pickupContactPerson && (
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 pl-5 font-normal flex items-center gap-1 pt-0.5">
+                                <User size={11} className="text-slate-400" />
+                                <span>Contact: {load.pickupContactPerson}</span>
+                                <a href={`tel:${load.pickupContactPhone || load.shipperPhone}`} className="text-amber-600 dark:text-amber-400 font-bold hover:underline ml-1">
+                                  ({load.pickupContactPhone || load.shipperPhone})
+                                </a>
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Drop Destination */}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-black">
+                              <Building2 size={14} />
+                              <span>Drop: {load.destination}</span>
+                            </div>
+                            {load.deliveryAddress ? (
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium pl-5 leading-relaxed">
+                                {load.deliveryAddress}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-slate-400 pl-5 font-normal">Delivery Hub Station</p>
+                            )}
+                            {load.deliveryContactPerson && (
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 pl-5 font-normal flex items-center gap-1 pt-0.5">
+                                <User size={11} className="text-slate-400" />
+                                <span>Receiver: {load.deliveryContactPerson}</span>
+                                <a href={`tel:${load.deliveryContactPhone}`} className="text-amber-600 dark:text-amber-400 font-bold hover:underline ml-1">
+                                  ({load.deliveryContactPhone})
+                                </a>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Cargo Specs Badges */}
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                          <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
+                            <Box size={13} className="text-amber-500" /> {load.cargoType}
+                          </span>
+                          <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
+                            <Weight size={13} className="text-amber-500" /> {load.weightTons} Tons
+                          </span>
+                          <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
+                            <Truck size={13} className="text-amber-500" /> {load.truckRequired}
+                          </span>
+                          <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
+                            <Clock size={13} className="text-amber-500" /> Slot: {load.pickupDate}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Price & Accept Action */}
+                    <div className="w-full lg:w-56 flex flex-col items-end justify-between border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-800 pt-4 lg:pt-0 lg:pl-6 space-y-3">
+                      <div className="text-right w-full">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Offered Guaranteed Rate</span>
+                        <div className="text-2xl font-black text-slate-900 dark:text-white flex items-center justify-end gap-0.5">
+                          <span>₹{Number(load.offeredPriceInr || 23300).toLocaleString("en-IN")}</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
+                          ~{load.distanceKm || 1420} Km (Direct Highway)
+                        </span>
+                      </div>
+
+                      {isAssigned ? (
+                        <div className="w-full text-center py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-black border border-emerald-200 dark:border-emerald-800">
+                          ✓ In Fleet Schedule
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenAcceptModal(load)}
+                          className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-3 rounded-2xl shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                        >
+                          <span>Accept &amp; Assign Truck</span>
+                          <ArrowRight size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-
-        {/* 📦 Live Consignment Loads List */}
-        {filteredLoads.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 mx-auto flex items-center justify-center font-black">
-              <Box size={30} />
-            </div>
-            <div className="space-y-1 max-w-md mx-auto">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
-                {activeFiltersCount > 0 ? "No Consignments Match Your Search" : "No Open Consignments Right Now"}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {activeFiltersCount > 0
-                  ? "Try clearing origin/destination city filters or broadening your payload weight range."
-                  : "When shippers book shipments on the Customer Portal, they will appear live here in real-time."}
-              </p>
-            </div>
-            {activeFiltersCount > 0 && (
-              <button
-                onClick={handleResetFilters}
-                className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl shadow-sm transition text-xs inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <RotateCcw size={14} />
-                <span>Clear Filters &amp; View All Loads</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredLoads.map((load) => {
-              const isAssigned = load.status === "Assigned" || load.status === "In Transit";
-              return (
-                <div
-                  key={load.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
-                >
-                  {/* Left: Visual & Details */}
-                  <div className="flex flex-col sm:flex-row items-start gap-4 flex-1">
-                    {load.cargoPhotoUrl ? (
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
-                        <img src={load.cargoPhotoUrl} alt={load.cargoType} className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 flex items-center justify-center font-black shrink-0 shadow-sm">
-                        <Box size={26} />
-                      </div>
-                    )}
-
-                    <div className="space-y-3 flex-1">
-                      {/* Top Badges */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-black">
-                          {load.id}
-                        </span>
-                        <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
-                          {load.urgency}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400">
-                          Shipper: <span className="text-slate-700 dark:text-slate-200 font-black">{load.shipperName}</span>
-                        </span>
-                        {isAssigned && (
-                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                            ✓ Assigned ({load.assignedTruckReg})
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Route Corridor & Addresses */}
-                      <div className="grid md:grid-cols-2 gap-3 text-xs font-bold bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
-                        {/* Pickup Origin */}
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black">
-                            <MapPin size={14} />
-                            <span>Pickup: {load.origin}</span>
-                          </div>
-                          {load.pickupAddress ? (
-                            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium pl-5 leading-relaxed">
-                              {load.pickupAddress}
-                            </p>
-                          ) : (
-                            <p className="text-[11px] text-slate-400 pl-5 font-normal">Warehouse Hub Station</p>
-                          )}
-                          {load.pickupContactPerson && (
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 pl-5 font-normal flex items-center gap-1 pt-0.5">
-                              <User size={11} className="text-slate-400" />
-                              <span>Contact: {load.pickupContactPerson}</span>
-                              <a href={`tel:${load.pickupContactPhone || load.shipperPhone}`} className="text-amber-600 dark:text-amber-400 font-bold hover:underline ml-1">
-                                ({load.pickupContactPhone || load.shipperPhone})
-                              </a>
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Drop Destination */}
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-black">
-                            <Building2 size={14} />
-                            <span>Drop: {load.destination}</span>
-                          </div>
-                          {load.deliveryAddress ? (
-                            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium pl-5 leading-relaxed">
-                              {load.deliveryAddress}
-                            </p>
-                          ) : (
-                            <p className="text-[11px] text-slate-400 pl-5 font-normal">Delivery Hub Station</p>
-                          )}
-                          {load.deliveryContactPerson && (
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 pl-5 font-normal flex items-center gap-1 pt-0.5">
-                              <User size={11} className="text-slate-400" />
-                              <span>Receiver: {load.deliveryContactPerson}</span>
-                              <a href={`tel:${load.deliveryContactPhone}`} className="text-amber-600 dark:text-amber-400 font-bold hover:underline ml-1">
-                                ({load.deliveryContactPhone})
-                              </a>
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Cargo Specs Badges */}
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
-                        <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
-                          <Box size={13} className="text-amber-500" /> {load.cargoType}
-                        </span>
-                        <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
-                          <Weight size={13} className="text-amber-500" /> {load.weightTons} Tons
-                        </span>
-                        <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
-                          <Truck size={13} className="text-amber-500" /> {load.truckRequired}
-                        </span>
-                        <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
-                          <Clock size={13} className="text-amber-500" /> Slot: {load.pickupDate}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Price & Accept Action */}
-                  <div className="w-full lg:w-56 flex flex-col items-end justify-between border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-800 pt-4 lg:pt-0 lg:pl-6 space-y-3">
-                    <div className="text-right w-full">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Offered Guaranteed Rate</span>
-                      <div className="text-2xl font-black text-slate-900 dark:text-white flex items-center justify-end gap-0.5">
-                        <span>₹{Number(load.offeredPriceInr || 24500).toLocaleString("en-IN")}</span>
-                      </div>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
-                        ~{load.distanceKm || 1420} Km (Direct Highway)
-                      </span>
-                    </div>
-
-                    {isAssigned ? (
-                      <div className="w-full text-center py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-black border border-emerald-200 dark:border-emerald-800">
-                        ✓ In Fleet Schedule
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleOpenAcceptModal(load)}
-                        className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-3 rounded-2xl shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
-                      >
-                        <span>Accept &amp; Assign Truck</span>
-                        <ArrowRight size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {/* 🚛 Accept & Assign Truck Modal */}
         {selectedLoad && (
@@ -662,7 +705,7 @@ export default function AvailableLoads() {
                 </div>
                 <button
                   onClick={() => setSelectedLoad(null)}
-                  className="p-1 text-slate-400 hover:text-slate-600 rounded-full"
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -693,7 +736,7 @@ export default function AvailableLoads() {
                     <div className="flex justify-between font-bold">
                       <span className="text-slate-500">Guaranteed Earning:</span>
                       <span className="text-emerald-600 dark:text-emerald-400 font-black">
-                        ₹{Number(selectedLoad.offeredPriceInr || 24500).toLocaleString("en-IN")}
+                        ₹{Number(selectedLoad.offeredPriceInr || 23300).toLocaleString("en-IN")}
                       </span>
                     </div>
                   </div>
@@ -726,7 +769,7 @@ export default function AvailableLoads() {
                     <button
                       type="button"
                       onClick={() => setSelectedLoad(null)}
-                      className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-xs cursor-pointer"
                     >
                       Cancel
                     </button>

@@ -33,10 +33,9 @@ export interface CargoItem {
   assignedDriverPhone?: string;
 }
 
-const STORAGE_KEY = "redo_shared_cargo_v4";
-const CLOUD_SYNC_ENDPOINT = "https://kvdb.io/4y9q8Pj7vYqF2WfB4hWq5q/redo_live_cargo_v4";
+const STORAGE_KEY = "redo_shared_cargo_v5";
+const RELAY_ENDPOINT = "https://api.restful-api.dev/objects/ff808181932badb6019523e4cb2e2930";
 
-// ZERO PRE-POPULATED CARGO — user must book/post their own cargo
 export const DEFAULT_CONSIGNMENTS: CargoItem[] = [];
 
 export function getSharedCargoList(): CargoItem[] {
@@ -54,10 +53,13 @@ export function getSharedCargoList(): CargoItem[] {
   }
 }
 
-const CARGO_CHANNEL = supabase.channel("redo_live_cargo_sync");
+// Multi-Channel Supabase Realtime Broadcast
+const CARGO_CHANNEL = supabase.channel("redo_live_cargo_broadcast_v5", {
+  config: { broadcast: { self: false } },
+});
 
 if (typeof window !== "undefined") {
-  CARGO_CHANNEL.on("broadcast", { event: "cargo_updated" }, (payload: any) => {
+  CARGO_CHANNEL.on("broadcast", { event: "cargo_sync" }, (payload: any) => {
     if (payload?.payload && Array.isArray(payload.payload)) {
       mergeRemoteCargo(payload.payload);
     }
@@ -71,16 +73,21 @@ export function saveSharedCargoList(list: CargoItem[], syncToCloud = true): void
     window.dispatchEvent(new CustomEvent("redo_cargo_updated", { detail: list }));
 
     if (syncToCloud) {
+      // 1. Realtime WebSockets Broadcast across domains
       CARGO_CHANNEL.send({
         type: "broadcast",
-        event: "cargo_updated",
+        event: "cargo_sync",
         payload: list,
       }).catch(() => {});
 
-      fetch(CLOUD_SYNC_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify(list),
+      // 2. Cloud Relay for persistent cross-domain sync
+      fetch(RELAY_ENDPOINT, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "redo_live_cargo_v5",
+          data: { cargoList: list, updatedAt: new Date().toISOString() },
+        }),
       }).catch(() => {});
     }
   } catch {}
@@ -108,11 +115,12 @@ export function mergeRemoteCargo(remoteList: CargoItem[]): CargoItem[] {
 
 export async function syncFromCloud(): Promise<CargoItem[]> {
   try {
-    const res = await fetch(CLOUD_SYNC_ENDPOINT, { cache: "no-store" });
+    const res = await fetch(RELAY_ENDPOINT, { cache: "no-store" });
     if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return mergeRemoteCargo(data);
+      const json = await res.json();
+      const list = json?.data?.cargoList;
+      if (Array.isArray(list) && list.length > 0) {
+        return mergeRemoteCargo(list);
       }
     }
   } catch {}
