@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View, TouchableOpacity } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View, TouchableOpacity, Linking } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 import { C } from '../lib/theme';
 import { Button, Card, Input, Label, LogoRow } from '../components/ui';
 import { useI18n } from '../lib/i18n';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export const APP_ROLE = 'sme'; // Customer / Shipper role
 
@@ -38,32 +34,18 @@ export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup
   const handleGoogleSignIn = async () => {
     try {
       setBusy(true);
-      const redirectUrl = makeRedirectUri({ scheme: 'redologistics' });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
+          redirectTo: 'https://npisbdoztiweaayqmqev.supabase.co/auth/v1/callback',
         },
       });
       if (error) throw error;
       if (data?.url) {
-        const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-        if (res.type === 'success' && res.url) {
-          const params = new URLSearchParams(res.url.split('#')[1] || res.url.split('?')[1]);
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-          if (accessToken && refreshToken) {
-            await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            onDone();
-          }
-        }
+        await Linking.openURL(data.url);
       }
     } catch (e: any) {
-      Alert.alert('Google Sign-In', e.message || 'Could not sign in with Google');
+      Alert.alert('Google Sign-In', e.message || 'Could not initiate Google Sign-In');
     } finally {
       setBusy(false);
     }
@@ -79,11 +61,10 @@ export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup
     });
     setBusy(false);
     if (error) {
-      // If demo account doesn't exist, create it
-      const { data: upData, error: upErr } = await supabase.auth.signUp({
+      const { data: upData } = await supabase.auth.signUp({
         email: 'customer@redo.app',
         password: 'Customer@12345',
-        options: { data: { full_name: 'REDO Enterprise Customer' } }
+        options: { data: { full_name: 'REDO Enterprise Customer', role: APP_ROLE } }
       });
       if (upData.session) {
         onDone();
@@ -113,7 +94,7 @@ export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup
             <View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
           </View>
 
-          {/* Google Sign In */}
+          {/* Google Sign In via Native Linking */}
           <Button title="🚀 Continue with Google" variant="secondary" onPress={handleGoogleSignIn} />
 
           <View style={{ height: 10 }} />
