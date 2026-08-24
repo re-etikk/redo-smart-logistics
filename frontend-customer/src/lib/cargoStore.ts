@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 export interface CargoItem {
   id: string;
   origin: string;
@@ -52,6 +54,16 @@ export function getSharedCargoList(): CargoItem[] {
   }
 }
 
+const CARGO_CHANNEL = supabase.channel("redo_live_cargo_sync");
+
+if (typeof window !== "undefined") {
+  CARGO_CHANNEL.on("broadcast", { event: "cargo_updated" }, (payload: any) => {
+    if (payload?.payload && Array.isArray(payload.payload)) {
+      mergeRemoteCargo(payload.payload);
+    }
+  }).subscribe();
+}
+
 export function saveSharedCargoList(list: CargoItem[], syncToCloud = true): void {
   if (typeof window === "undefined") return;
   try {
@@ -59,6 +71,12 @@ export function saveSharedCargoList(list: CargoItem[], syncToCloud = true): void
     window.dispatchEvent(new CustomEvent("redo_cargo_updated", { detail: list }));
 
     if (syncToCloud) {
+      CARGO_CHANNEL.send({
+        type: "broadcast",
+        event: "cargo_updated",
+        payload: list,
+      }).catch(() => {});
+
       fetch(CLOUD_SYNC_ENDPOINT, {
         method: "POST",
         body: JSON.stringify(list),
@@ -81,7 +99,10 @@ export function mergeRemoteCargo(remoteList: CargoItem[]): CargoItem[] {
     }
   }
   const merged = Array.from(map.values());
-  saveSharedCargoList(merged, false);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    window.dispatchEvent(new CustomEvent("redo_cargo_updated", { detail: merged }));
+  } catch {}
   return merged;
 }
 
