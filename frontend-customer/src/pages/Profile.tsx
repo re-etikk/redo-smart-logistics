@@ -12,7 +12,7 @@ export default function CustomerProfile() {
     gstin: "07AAAAA0000A1Z5",
     fullName: profile?.full_name || session?.user?.user_metadata?.full_name || "Ritik Chaurasia",
     email: session?.user?.email || profile?.email || "customer@redo.app",
-    phone: profile?.phone || "+91 98765 43210",
+    phone: profile?.phone || "+91 7667405376",
     city: "Delhi NCR, Delhi",
     businessType: "Manufacturer & Wholesaler",
   });
