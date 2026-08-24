@@ -9,7 +9,10 @@ export interface ShipmentItem {
   cargoType: string;
   weightTons: number;
   priceInr: number;
-  status: "In Transit" | "Driver En Route" | "Scheduled Loading" | "Delivered";
+  negotiatedPriceInr?: number;
+  negotiationStatus?: "None" | "Proposed" | "Accepted" | "Declined";
+  negotiationNote?: string;
+  status: "Awaiting Truck Assignment" | "Driver Assigned" | "In Transit" | "Delivered";
   truckModel: string;
   truckRegNo: string;
   truckPhoto: string;
@@ -27,56 +30,67 @@ export interface ShipmentItem {
   destLng?: number;
   speedKmph?: number;
   cargoPhotoUrl?: string;
+  rating?: number;
+  reviewComment?: string;
 }
 
-const STORAGE_KEY = "redo_customer_shipments_v4";
-
-// NEW ACCOUNTS START WITH ZERO SHIPMENTS — only user-booked shipments appear
-export const DEFAULT_SHIPMENTS: ShipmentItem[] = [];
+const STORAGE_KEY = "redo_customer_shipments_v6";
 
 export function getShipments(): ShipmentItem[] {
   if (typeof window === "undefined") return [];
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    let list: ShipmentItem[] = [];
-    if (saved) {
-      list = JSON.parse(saved);
-    }
-    if (!Array.isArray(list)) {
-      list = [];
-      saveShipments(list);
-    }
-
-    // Synchronize any newly posted cargo from cargoStore (only real user-booked cargo)
     const postedCargo = getSharedCargoList();
+    const list: ShipmentItem[] = [];
+
     for (const c of postedCargo) {
-      if (!list.some(s => s.consignmentId === c.id)) {
-        const fleet = getTrucks();
-        const trk = fleet[0];
-        list.unshift({
-          id: `SHP-${Date.now().toString().slice(-4)}`,
-          consignmentId: c.id,
-          origin: c.origin,
-          destination: c.destination,
-          cargoType: c.cargoType,
-          weightTons: c.weightTons,
-          priceInr: c.offeredPriceInr || 22000,
-          status: "Driver En Route",
-          truckModel: trk ? trk.name : "Awaiting Truck Assignment",
-          truckRegNo: trk ? trk.regNo : "Pending",
-          truckPhoto: trk ? trk.photoUrl : "/assets/redo_truck.jpg",
-          driverName: trk ? trk.driverName : "Assigning Driver...",
-          driverPhone: trk ? trk.driverPhone : "",
-          driverRating: trk ? trk.rating : 0,
-          etaText: "Driver assigned • Pickup scheduled in ~30 mins",
-          progressPercent: 20,
-          bookedAt: "Just now",
-          cargoPhotoUrl: c.cargoPhotoUrl,
-          currentLat: 28.528,
-          currentLng: 77.279,
-          speedKmph: 42,
-        });
+      let mappedStatus: ShipmentItem["status"] = "Awaiting Truck Assignment";
+      let etaText = "Matching returning backhaul trucks in corridor...";
+      let progress = c.trackingProgress || 10;
+      let speed = c.currentSpeed || 0;
+
+      if (c.status === "Assigned") {
+        mappedStatus = "Driver Assigned";
+        etaText = `Driver ${c.assignedDriverName || "Mukesh"} assigned • Heading to warehouse`;
+        progress = 30;
+        speed = 25;
+      } else if (c.status === "In Transit") {
+        mappedStatus = "In Transit";
+        etaText = c.currentMilestone || "Live Highway Transit • NH-48 Corridor";
+        progress = c.trackingProgress || 65;
+        speed = c.currentSpeed || 48;
+      } else if (c.status === "Delivered") {
+        mappedStatus = "Delivered";
+        etaText = "Delivered successfully • Signed e-POD Handover";
+        progress = 100;
+        speed = 0;
       }
+
+      list.push({
+        id: `SHP-${c.id.replace("CARGO-", "")}`,
+        consignmentId: c.id,
+        origin: c.origin,
+        destination: c.destination,
+        cargoType: c.cargoType,
+        weightTons: c.weightTons,
+        priceInr: c.offeredPriceInr || 23300,
+        negotiatedPriceInr: c.negotiatedPriceInr,
+        negotiationStatus: c.negotiationStatus,
+        negotiationNote: c.negotiationNote,
+        status: mappedStatus,
+        truckModel: c.assignedTruckReg ? `Container Truck (${c.truckRequired})` : "Awaiting Truck Assignment",
+        truckRegNo: c.assignedTruckReg || "Pending Assignment",
+        truckPhoto: "/assets/redo_truck.jpg",
+        driverName: c.assignedDriverName || (c.status === "Open" ? "Assigning Driver..." : "Mukesh Yadav"),
+        driverPhone: c.assignedDriverPhone || "+91 98112 34567",
+        driverRating: 4.8,
+        etaText,
+        progressPercent: progress,
+        bookedAt: c.createdAt || "Just now",
+        cargoPhotoUrl: c.cargoPhotoUrl,
+        speedKmph: speed,
+        rating: c.rating,
+        reviewComment: c.reviewComment,
+      });
     }
 
     return list;
@@ -93,32 +107,15 @@ export function saveShipments(list: ShipmentItem[]): void {
   } catch {}
 }
 
-export function createNewShipment(item: Omit<ShipmentItem, "id" | "bookedAt" | "progressPercent">): ShipmentItem {
-  const list = getShipments();
-  const newShipment: ShipmentItem = {
-    ...item,
-    id: `SHP-${Date.now().toString().slice(-4)}`,
-    bookedAt: "Just now",
-    progressPercent: 25,
-  };
-  list.unshift(newShipment);
-  saveShipments(list);
-  return newShipment;
-}
-
 export function getShipmentStats() {
   const list = getShipments();
-  const inTransitShipments = list.filter(s => s.status !== "Delivered");
-  const deliveredShipments = list.filter(s => s.status === "Delivered");
-  const totalSpend = list.reduce((sum, s) => sum + (Number(s.priceInr) || 0), 0);
-
+  const inTransit = list.filter(s => s.status !== "Delivered");
+  const delivered = list.filter(s => s.status === "Delivered");
+  const spend = list.reduce((sum, s) => sum + (Number(s.priceInr) || 0), 0);
   return {
-    totalCount: list.length,
-    inTransitCount: inTransitShipments.length,
-    deliveredCount: deliveredShipments.length,
-    totalSpendInr: totalSpend,
-    activeShipments: inTransitShipments,
-    deliveredShipments: deliveredShipments,
-    allShipments: list,
+    total: list.length,
+    inTransit: inTransit.length,
+    delivered: delivered.length,
+    spend,
   };
 }

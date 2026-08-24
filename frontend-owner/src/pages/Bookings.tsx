@@ -1,14 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarCheck, CheckCircle2, Clock, Download, Eye, Filter, IndianRupee,
   MapPin, Phone, Search, Truck, XCircle, ChevronRight, X, RotateCcw,
-  SlidersHorizontal, Calendar, ArrowUpDown, ShieldCheck, Check
+  SlidersHorizontal, Calendar, ArrowUpDown, ShieldCheck, Check, Play, Navigation, Box
 } from "lucide-react";
 import OwnerLayout from "../components/OwnerLayout";
 import { useTranslation } from "../lib/i18n";
 import { getTrucks } from "../lib/truckStore";
-import { getSharedCargoList } from "../lib/cargoStore";
+import { getSharedCargoList, updateCargoStatus, syncFromCloud, type CargoItem } from "../lib/cargoStore";
+import { depositTripEarning } from "../lib/walletStore";
 
 interface BookingItem {
   id: string;
@@ -24,7 +25,7 @@ interface BookingItem {
   amount: number;
   paymentStatus: "Paid" | "Pending" | "Cancelled" | "Escrow Secured";
   paymentDate: string;
-  status: "In Progress" | "Upcoming" | "Completed" | "Cancelled";
+  status: "Assigned" | "In Transit" | "Delivered" | "Cancelled";
   statusDesc: string;
   statusTone: string;
   photoUrl: string;
@@ -35,147 +36,19 @@ interface BookingItem {
   weightTons: number;
   shipperName: string;
   shipperPhone?: string;
+  deliveryContactPerson?: string;
+  deliveryContactPhone?: string;
+  trackingProgress?: number;
+  currentSpeed?: number;
+  currentMilestone?: string;
 }
-
-const INITIAL_BOOKINGS: BookingItem[] = [
-  {
-    id: "B1",
-    bookingId: "RD124578",
-    truckName: "REDO Express Container (19 Feet)",
-    specs: "19 Feet · 8.5 Ton · Enclosed Container",
-    origin: "Delhi NCR (Okhla Industrial Area)",
-    pickupAddress: "Plot 42, Sector 58, Okhla Phase 3 Industrial Area, Delhi - 110020",
-    dest: "Mumbai (Bhiwandi Logistics Park)",
-    deliveryAddress: "Gala No. 14, Indian Corporation Compound, Mankoli Naka, Bhiwandi, MH - 421302",
-    date: "23 Aug 2026, 10:30 AM",
-    timestamp: new Date("2026-08-23T10:30:00").getTime(),
-    amount: 24500,
-    paymentStatus: "Escrow Secured",
-    paymentDate: "23 Aug 2026",
-    status: "In Progress",
-    statusDesc: "Live Highway Transit · Arriving in ~3 hrs 20 mins",
-    statusTone: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400",
-    photoUrl: "/assets/redo_truck.jpg",
-    driverName: "Mukesh Yadav",
-    driverPhone: "+91 98112 34567",
-    regNo: "REDO 2024",
-    goodsType: "Automotive Components & Spare Parts",
-    weightTons: 6.5,
-    shipperName: "Hero Moto Logistics",
-    shipperPhone: "+91 98765 43210",
-  },
-  {
-    id: "B2",
-    bookingId: "RD124567",
-    truckName: "BharatBenz 1917R (19 Feet)",
-    specs: "19 Feet · 10.5 Ton · Enclosed Container",
-    origin: "Delhi (Kundli Industrial Area)",
-    pickupAddress: "Shed 10, HSIIDC Industrial Complex, Kundli, Haryana - 131028",
-    dest: "Indore (Pithampur Hub)",
-    deliveryAddress: "Sector 3, Pithampur Industrial Estate, Dhar Road, MP - 454775",
-    date: "22 Aug 2026, 04:00 PM",
-    timestamp: new Date("2026-08-22T16:00:00").getTime(),
-    amount: 16800,
-    paymentStatus: "Paid",
-    paymentDate: "22 Aug 2026",
-    status: "Completed",
-    statusDesc: "Delivered successfully · Signed e-POD Handover",
-    statusTone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-    photoUrl: "/assets/redo_truck.jpg",
-    driverName: "Mukesh Yadav",
-    driverPhone: "+91 98112 34567",
-    regNo: "REDO 2024",
-    goodsType: "FMCG Packaged Food & Beverages",
-    weightTons: 4.8,
-    shipperName: "Dabur Distribution Pvt Ltd",
-    shipperPhone: "+91 98112 55667",
-  },
-  {
-    id: "B3",
-    bookingId: "RD124556",
-    truckName: "REDO Express Container (19 Feet)",
-    specs: "19 Feet · 8.5 Ton · Enclosed Container",
-    origin: "Bengaluru (Peenya Industrial Area)",
-    pickupAddress: "Plot 18, 4th Phase, Peenya Industrial Area, Bengaluru - 560058",
-    dest: "Chennai (Sriperumbudur Hub)",
-    deliveryAddress: "SIPCOT Industrial Complex, Sriperumbudur, Tamil Nadu - 602105",
-    date: "21 Aug 2026, 09:00 AM",
-    timestamp: new Date("2026-08-21T09:00:00").getTime(),
-    amount: 14500,
-    paymentStatus: "Paid",
-    paymentDate: "21 Aug 2026",
-    status: "Completed",
-    statusDesc: "Delivered · Payment Settled to Bank Account",
-    statusTone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-    photoUrl: "/assets/redo_truck.jpg",
-    driverName: "Mukesh Yadav",
-    driverPhone: "+91 98112 34567",
-    regNo: "REDO 2024",
-    goodsType: "Industrial Machinery & Tooling",
-    weightTons: 8.0,
-    shipperName: "L&T Heavy Engineering",
-    shipperPhone: "+91 98450 77889",
-  },
-  {
-    id: "B4",
-    bookingId: "RD124544",
-    truckName: "REDO Express Container (19 Feet)",
-    specs: "19 Feet · 8.5 Ton · Enclosed Container",
-    origin: "Delhi (Mayapuri Transport Hub)",
-    pickupAddress: "Phase 2, Mayapuri Industrial Area, New Delhi - 110064",
-    dest: "Lucknow (Transport Nagar)",
-    deliveryAddress: "Sector 18, Transport Nagar, Kanpur Road, Lucknow, UP - 226012",
-    date: "19 Aug 2026, 11:00 AM",
-    timestamp: new Date("2026-08-19T11:00:00").getTime(),
-    amount: 18500,
-    paymentStatus: "Paid",
-    paymentDate: "19 Aug 2026",
-    status: "Completed",
-    statusDesc: "Trip Completed · e-POD Verified",
-    statusTone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400",
-    photoUrl: "/assets/redo_truck.jpg",
-    driverName: "Mukesh Yadav",
-    driverPhone: "+91 98112 34567",
-    regNo: "REDO 2024",
-    goodsType: "E-Commerce Packaged Parcels",
-    weightTons: 5.2,
-    shipperName: "Delhivery Surface Freight",
-    shipperPhone: "+91 98445 67890",
-  },
-  {
-    id: "B5",
-    bookingId: "RD124533",
-    truckName: "REDO Express Container (19 Feet)",
-    specs: "19 Feet · 8.5 Ton · Enclosed Container",
-    origin: "Jaipur (Sitapura Industrial Zone)",
-    pickupAddress: "RIICO Industrial Area, Sitapura, Jaipur, Rajasthan - 302022",
-    dest: "Ahmedabad (Sanand Auto Corridor)",
-    deliveryAddress: "GIDC Industrial Estate, Sanand, Gujarat - 382110",
-    date: "15 Aug 2026, 08:00 AM",
-    timestamp: new Date("2026-08-15T08:00:00").getTime(),
-    amount: 15200,
-    paymentStatus: "Cancelled",
-    paymentDate: "15 Aug 2026",
-    status: "Cancelled",
-    statusDesc: "Cancelled by shipper · Full cancellation compensation paid",
-    statusTone: "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-400",
-    photoUrl: "/assets/redo_truck.jpg",
-    driverName: "Mukesh Yadav",
-    driverPhone: "+91 98112 34567",
-    regNo: "REDO 2024",
-    goodsType: "Textile Fabrics",
-    weightTons: 4.0,
-    shipperName: "Rajasthan Weaving Mills",
-    shipperPhone: "+91 98556 78901",
-  }
-];
 
 export default function Bookings() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   // Filter States
-  const [tab, setTab] = useState<"all" | "progress" | "upcoming" | "completed" | "cancelled">("all");
+  const [tab, setTab] = useState<"all" | "assigned" | "transit" | "delivered">("all");
   const [search, setSearch] = useState("");
   
   // Date Range state
@@ -193,54 +66,118 @@ export default function Bookings() {
 
   // Selected Booking for Detail Modal
   const [selectedBooking, setSelectedBooking] = useState<BookingItem | null>(null);
+  const [cargoList, setCargoList] = useState<CargoItem[]>(() => getSharedCargoList());
 
-  // Synchronize newly accepted cargo
-  const allBookings = useMemo(() => {
-    const cargoList = getSharedCargoList();
-    const assignedCargo = cargoList.filter(c => c.status === "Assigned");
-    const merged = [...INITIAL_BOOKINGS];
+  const refreshData = () => {
+    setCargoList(getSharedCargoList());
+  };
 
-    for (const c of assignedCargo) {
-      if (!merged.some(b => b.bookingId === c.id)) {
-        merged.unshift({
-          id: `B-${c.id}`,
-          bookingId: c.id,
-          truckName: "REDO Express Container (19 Feet)",
-          specs: "19 Feet · 8.5 Ton · Enclosed Container",
-          origin: c.origin,
-          pickupAddress: c.pickupAddress,
-          dest: c.destination,
-          deliveryAddress: c.deliveryAddress,
-          date: c.pickupDate || "Today, Immediate",
-          timestamp: Date.now(),
-          amount: c.offeredPriceInr || 24500,
-          paymentStatus: "Escrow Secured",
-          paymentDate: "Today",
-          status: "In Progress",
-          statusDesc: "Active Highway Dispatch · Telemetry Connected",
-          statusTone: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400",
-          photoUrl: "/assets/redo_truck.jpg",
-          driverName: c.assignedDriverName || "Mukesh Yadav",
-          driverPhone: c.assignedDriverPhone || "+91 98112 34567",
-          regNo: c.assignedTruckReg || "REDO 2024",
-          goodsType: c.cargoType,
-          weightTons: c.weightTons,
-          shipperName: c.shipperName,
-          shipperPhone: c.shipperPhone,
-        });
-      }
-    }
-    return merged;
+  useEffect(() => {
+    refreshData();
+    syncFromCloud().then(updated => {
+      if (updated && updated.length > 0) setCargoList(updated);
+    });
+
+    const handleCargoUpdate = () => refreshData();
+    window.addEventListener("redo_cargo_updated", handleCargoUpdate);
+
+    const interval = setInterval(() => {
+      syncFromCloud().then(updated => {
+        if (updated && updated.length > 0) setCargoList(updated);
+      });
+    }, 2000);
+
+    return () => {
+      window.removeEventListener("redo_cargo_updated", handleCargoUpdate);
+      clearInterval(interval);
+    };
   }, []);
+
+  // Map only assigned, in-transit, and delivered cargo
+  const allBookings = useMemo<BookingItem[]>(() => {
+    const relevant = cargoList.filter(c => c.status === "Assigned" || c.status === "In Transit" || c.status === "Delivered");
+
+    return relevant.map(c => {
+      let statusTone = "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300";
+      let statusDesc = "Driver Assigned • Heading to pickup warehouse";
+      let paymentStatus: BookingItem["paymentStatus"] = "Escrow Secured";
+
+      if (c.status === "In Transit") {
+        statusTone = "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400";
+        statusDesc = c.currentMilestone || "Live Highway Transit • Telemetry Connected";
+      } else if (c.status === "Delivered") {
+        statusTone = "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400";
+        statusDesc = "Delivered successfully • Signed e-POD Handover";
+        paymentStatus = "Paid";
+      }
+
+      return {
+        id: `B-${c.id}`,
+        bookingId: c.id,
+        truckName: c.assignedTruckReg ? `Container Truck (${c.truckRequired || "19 Feet"})` : "Assigned Fleet Truck",
+        specs: `${c.truckRequired || "19 Feet"} · ${c.weightTons} Ton · Enclosed Container`,
+        origin: c.origin,
+        pickupAddress: c.pickupAddress,
+        dest: c.destination,
+        deliveryAddress: c.deliveryAddress,
+        date: c.pickupDate || "Today",
+        timestamp: Date.now(),
+        amount: c.offeredPriceInr || 23300,
+        paymentStatus,
+        paymentDate: c.pickupDate || "Today",
+        status: c.status as BookingItem["status"],
+        statusDesc,
+        statusTone,
+        photoUrl: "/assets/redo_truck.jpg",
+        driverName: c.assignedDriverName || "Mukesh Yadav",
+        driverPhone: c.assignedDriverPhone || "+91 98112 34567",
+        regNo: c.assignedTruckReg || "MH 04 AB 1234",
+        goodsType: c.cargoType,
+        weightTons: c.weightTons,
+        shipperName: c.shipperName,
+        shipperPhone: c.pickupContactPhone || c.shipperPhone,
+        deliveryContactPerson: c.deliveryContactPerson,
+        deliveryContactPhone: c.deliveryContactPhone,
+        trackingProgress: c.trackingProgress || (c.status === "In Transit" ? 60 : c.status === "Delivered" ? 100 : 25),
+        currentSpeed: c.currentSpeed || (c.status === "In Transit" ? 48 : 0),
+        currentMilestone: c.currentMilestone,
+      };
+    });
+  }, [cargoList]);
+
+  // Lifecycle actions
+  const handleStartTransit = (bookingId: string) => {
+    updateCargoStatus(bookingId, "In Transit", {
+      trackingProgress: 55,
+      currentSpeed: 48,
+      currentMilestone: "Live Highway Transit • NH-48 Express Corridor",
+    });
+    refreshData();
+    if (selectedBooking && selectedBooking.bookingId === bookingId) {
+      setSelectedBooking(prev => prev ? { ...prev, status: "In Transit", statusDesc: "Live Highway Transit • NH-48 Express Corridor" } : null);
+    }
+  };
+
+  const handleConfirmDelivery = (bookingId: string, amount: number, regNo: string) => {
+    updateCargoStatus(bookingId, "Delivered", {
+      trackingProgress: 100,
+      currentSpeed: 0,
+      currentMilestone: "Delivered & Signed e-POD Handover Complete",
+    });
+    depositTripEarning(amount, `Trip ${bookingId} Freight Settlement (Direct Delivery Handover)`, bookingId, regNo);
+    refreshData();
+    if (selectedBooking && selectedBooking.bookingId === bookingId) {
+      setSelectedBooking(prev => prev ? { ...prev, status: "Delivered", statusDesc: "Delivered successfully • Signed e-POD Handover", paymentStatus: "Paid" } : null);
+    }
+  };
 
   // Filter Computation
   const filteredBookings = useMemo(() => {
     return allBookings.filter((b) => {
       // 1. Status Tab Filter
-      if (tab === "progress" && b.status !== "In Progress") return false;
-      if (tab === "upcoming" && b.status !== "Upcoming") return false;
-      if (tab === "completed" && b.status !== "Completed") return false;
-      if (tab === "cancelled" && b.status !== "Cancelled") return false;
+      if (tab === "assigned" && b.status !== "Assigned") return false;
+      if (tab === "transit" && b.status !== "In Transit") return false;
+      if (tab === "delivered" && b.status !== "Delivered") return false;
 
       // 2. Search Filter
       if (search.trim()) {
@@ -255,56 +192,35 @@ export default function Bookings() {
         if (!matches) return false;
       }
 
-      // 3. Date Range Filter
-      if (dateRangePreset === "today") {
-        const isToday = b.date.toLowerCase().includes("today") || b.date.includes("23 Aug 2026");
-        if (!isToday) return false;
-      } else if (dateRangePreset === "this_week") {
-        const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        if (b.timestamp < oneWeekAgo) return false;
-      } else if (dateRangePreset === "this_month") {
-        const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-        if (b.timestamp < oneMonthAgo) return false;
-      } else if (dateRangePreset === "custom" && customStartDate) {
-        const start = new Date(customStartDate).getTime();
-        const end = customEndDate ? new Date(customEndDate).getTime() + 86400000 : Infinity;
-        if (b.timestamp < start || b.timestamp > end) return false;
-      }
-
-      // 4. Payment Filter
+      // 3. Payment Filter
       if (filterPayment !== "all") {
         if (filterPayment === "Paid" && b.paymentStatus !== "Paid") return false;
-        if (filterPayment === "Pending" && b.paymentStatus !== "Pending") return false;
         if (filterPayment === "Escrow" && b.paymentStatus !== "Escrow Secured") return false;
       }
 
-      // 5. Goods Type Filter
+      // 4. Goods Type Filter
       if (filterGoods !== "all" && !b.goodsType.toLowerCase().includes(filterGoods.toLowerCase())) {
         return false;
       }
 
-      // 6. Price Range Filter
+      // 5. Price Range Filter
       if (minPrice && b.amount < parseFloat(minPrice)) return false;
       if (maxPrice && b.amount > parseFloat(maxPrice)) return false;
 
       return true;
     });
-  }, [allBookings, tab, search, dateRangePreset, customStartDate, customEndDate, filterPayment, filterGoods, minPrice, maxPrice]);
+  }, [allBookings, tab, search, filterPayment, filterGoods, minPrice, maxPrice]);
 
   // Active Filters Count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (dateRangePreset !== "all") count++;
     if (filterPayment !== "all") count++;
     if (filterGoods !== "all") count++;
     if (minPrice || maxPrice) count++;
     return count;
-  }, [dateRangePreset, filterPayment, filterGoods, minPrice, maxPrice]);
+  }, [filterPayment, filterGoods, minPrice, maxPrice]);
 
   const resetAllFilters = () => {
-    setDateRangePreset("all");
-    setCustomStartDate("");
-    setCustomEndDate("");
     setFilterPayment("all");
     setFilterGoods("all");
     setMinPrice("");
@@ -340,251 +256,100 @@ export default function Bookings() {
             </span>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{t("myBookings")}</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Filter by date range, payment status, commodity type, and download official CSV ledger statements.
+              Execute active trips, trigger live highway transit, confirm delivery receipts (e-POD), and manage settled earnings.
             </p>
           </div>
 
-          <button
-            onClick={exportBookingsCSV}
-            className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition text-xs flex items-center gap-2 cursor-pointer"
-          >
-            <Download size={14} /> {t("exportReport")}
-          </button>
-        </div>
-
-        {/* 5 Dynamic Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <CalendarCheck size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">{t("totalBookings")}</span>
-            <span className="text-lg font-black block">{allBookings.length}</span>
-            <span className="text-[10px] font-bold text-slate-500 block">All Time</span>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Truck size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">{t("inProgress")}</span>
-            <span className="text-lg font-black text-blue-600 dark:text-blue-400 block">
-              {allBookings.filter(b => b.status === "In Progress").length}
-            </span>
-            <span className="text-[10px] font-bold text-blue-600 block">Active On Highway</span>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Clock size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">{t("upcoming")}</span>
-            <span className="text-lg font-black text-amber-600 dark:text-amber-400 block">
-              {allBookings.filter(b => b.status === "Upcoming").length}
-            </span>
-            <span className="text-[10px] font-bold text-amber-600 block">Scheduled Loading</span>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1">
-            <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <CheckCircle2 size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">{t("completed")}</span>
-            <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 block">
-              {allBookings.filter(b => b.status === "Completed").length}
-            </span>
-            <span className="text-[10px] font-bold text-emerald-600 block">Signed e-POD</span>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-1 col-span-2 md:col-span-1">
-            <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-              <XCircle size={16} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pt-1">{t("cancelled")}</span>
-            <span className="text-lg font-black text-rose-600 dark:text-rose-400 block">
-              {allBookings.filter(b => b.status === "Cancelled").length}
-            </span>
-            <span className="text-[10px] font-bold text-rose-600 block">Cancelled Trips</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate("/loads")}
+              className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl shadow-sm transition text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Search size={14} />
+              <span>Find New Loads</span>
+            </button>
+            <button
+              onClick={exportBookingsCSV}
+              className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download size={14} />
+              <span>Export CSV</span>
+            </button>
           </div>
         </div>
 
-        {/* Filter & Date Range Bar */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
-          
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1.5 font-bold text-xs overflow-x-auto w-full lg:w-auto">
-            <button
-              onClick={() => setTab("all")}
-              className={`px-3.5 py-2 rounded-xl transition cursor-pointer ${tab === "all" ? "bg-[#FFC800] text-slate-950 font-black shadow-sm" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
-            >
-              {t("all")} ({allBookings.length})
-            </button>
-            <button
-              onClick={() => setTab("progress")}
-              className={`px-3.5 py-2 rounded-xl transition cursor-pointer ${tab === "progress" ? "bg-[#FFC800] text-slate-950 font-black shadow-sm" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
-            >
-              {t("inProgress")}
-            </button>
-            <button
-              onClick={() => setTab("upcoming")}
-              className={`px-3.5 py-2 rounded-xl transition cursor-pointer ${tab === "upcoming" ? "bg-[#FFC800] text-slate-950 font-black shadow-sm" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
-            >
-              {t("upcoming")}
-            </button>
-            <button
-              onClick={() => setTab("completed")}
-              className={`px-3.5 py-2 rounded-xl transition cursor-pointer ${tab === "completed" ? "bg-[#FFC800] text-slate-950 font-black shadow-sm" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
-            >
-              {t("completed")}
-            </button>
-            <button
-              onClick={() => setTab("cancelled")}
-              className={`px-3.5 py-2 rounded-xl transition cursor-pointer ${tab === "cancelled" ? "bg-[#FFC800] text-slate-950 font-black shadow-sm" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
-            >
-              {t("cancelled")}
-            </button>
-          </div>
+        {/* Filter Navigation Bar */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Status Tabs */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto text-xs font-bold">
+              {[
+                { id: "all", label: "All Active", count: allBookings.length },
+                { id: "assigned", label: "Assigned (At Warehouse)", count: allBookings.filter(b => b.status === "Assigned").length },
+                { id: "transit", label: "In Transit (Live)", count: allBookings.filter(b => b.status === "In Transit").length },
+                { id: "delivered", label: "Delivered (e-POD)", count: allBookings.filter(b => b.status === "Delivered").length },
+              ].map((tabItem) => (
+                <button
+                  key={tabItem.id}
+                  onClick={() => setTab(tabItem.id as any)}
+                  className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    tab === tabItem.id
+                      ? "bg-white dark:bg-slate-900 text-slate-950 dark:text-white font-black shadow-xs"
+                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  <span>{tabItem.label}</span>
+                  <span className="text-[10px] opacity-70">({tabItem.count})</span>
+                </button>
+              ))}
+            </div>
 
-          {/* Right Controls: Search, Date Range, Advanced Filter */}
-          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
-            <div className="relative flex-1 sm:w-48">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64 w-full">
               <Search size={14} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search bookings..."
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="Search by city, ID or shipper..."
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-900 dark:text-white"
               />
             </div>
-
-            {/* Date Range Dropdown Trigger */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowDateDropdown(!showDateDropdown)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-amber-400 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 transition cursor-pointer"
-              >
-                <CalendarCheck size={14} className="text-amber-500" />
-                <span>
-                  {dateRangePreset === "all" && "All Dates"}
-                  {dateRangePreset === "today" && "Today"}
-                  {dateRangePreset === "this_week" && "This Week"}
-                  {dateRangePreset === "this_month" && "This Month"}
-                  {dateRangePreset === "custom" && "Custom Range"}
-                </span>
-              </button>
-
-              {/* Date Range Dropdown Menu */}
-              {showDateDropdown && (
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-30 p-2 space-y-1 text-xs font-bold">
-                  {[
-                    { id: "all", label: "All Time" },
-                    { id: "today", label: "Today (23 Aug 2026)" },
-                    { id: "this_week", label: "Last 7 Days" },
-                    { id: "this_month", label: "This Month (Aug 2026)" },
-                    { id: "custom", label: "Custom Date Range" },
-                  ].map(opt => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        setDateRangePreset(opt.id);
-                        if (opt.id !== "custom") setShowDateDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 rounded-xl transition flex items-center justify-between ${
-                        dateRangePreset === opt.id ? "bg-amber-100 dark:bg-slate-800 text-amber-900 dark:text-amber-400 font-black" : "hover:bg-slate-50 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <span>{opt.label}</span>
-                      {dateRangePreset === opt.id && <Check size={13} />}
-                    </button>
-                  ))}
-
-                  {dateRangePreset === "custom" && (
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">From:</span>
-                        <input
-                          type="date"
-                          value={customStartDate}
-                          onChange={(e) => setCustomStartDate(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">To:</span>
-                        <input
-                          type="date"
-                          value={customEndDate}
-                          onChange={(e) => setCustomEndDate(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowDateDropdown(false)}
-                        className="w-full bg-amber-400 text-slate-950 font-black py-1.5 rounded-lg text-xs"
-                      >
-                        Apply Range
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Advanced Filters Button */}
-            <button
-              type="button"
-              onClick={() => setShowFiltersModal(true)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition cursor-pointer ${
-                activeFiltersCount > 0
-                  ? "bg-amber-400 text-slate-950 border-amber-400 font-black shadow-xs"
-                  : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Filter size={13} />
-              <span>Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}</span>
-            </button>
-
-            {/* Reset Filters */}
-            {activeFiltersCount > 0 && (
-              <button
-                type="button"
-                onClick={resetAllFilters}
-                title="Reset all filters"
-                className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg cursor-pointer"
-              >
-                <RotateCcw size={14} />
-              </button>
-            )}
           </div>
         </div>
 
         {/* Bookings Table List */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
           <div className="hidden lg:grid grid-cols-12 text-[10px] font-black uppercase text-slate-400 pb-3 border-b border-slate-100 dark:border-slate-800 tracking-wider">
-            <div className="col-span-4">Booking Details &amp; Vehicle</div>
+            <div className="col-span-4">Booking Details &amp; Assigned Vehicle</div>
             <div className="col-span-3">Route &amp; Warehouse Address</div>
             <div className="col-span-2">Freight &amp; Escrow</div>
-            <div className="col-span-3 text-right">Trip Status &amp; Action</div>
+            <div className="col-span-3 text-right">Trip Lifecycle &amp; Actions</div>
           </div>
 
           {filteredBookings.length === 0 ? (
-            <div className="py-12 text-center space-y-2">
-              <p className="text-sm font-bold text-slate-500">No bookings match the selected filters or date range.</p>
+            <div className="py-16 text-center space-y-3">
+              <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 mx-auto flex items-center justify-center font-black">
+                <Box size={28} />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">No Trips in this View</h3>
+                <p className="text-xs text-slate-500">
+                  Search and accept commercial shipments from <strong>Find Loads</strong> to dispatch your fleet trucks.
+                </p>
+              </div>
               <button
-                onClick={resetAllFilters}
-                className="text-xs font-black text-amber-500 hover:underline"
+                onClick={() => navigate("/loads")}
+                className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl shadow-sm text-xs cursor-pointer inline-flex items-center gap-1.5"
               >
-                Clear all filters
+                <Search size={14} />
+                <span>Browse Available Loads</span>
               </button>
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredBookings.map((b) => (
-                <div key={b.id} className="py-4 flex flex-col lg:grid lg:grid-cols-12 gap-4 items-start lg:items-center">
+                <div key={b.id} className="py-5 flex flex-col lg:grid lg:grid-cols-12 gap-4 items-start lg:items-center">
                   {/* Vehicle Thumbnail & Info */}
                   <div className="lg:col-span-4 flex items-center gap-3 w-full">
                     <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
@@ -598,7 +363,7 @@ export default function Bookings() {
                       </span>
                     </div>
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-bold block">
                         ID: {b.bookingId}
                       </span>
@@ -645,24 +410,55 @@ export default function Bookings() {
                     </span>
                   </div>
 
-                  {/* Trip Status & Modal Trigger */}
-                  <div className="lg:col-span-3 flex items-center justify-between lg:justify-end gap-3 w-full">
+                  {/* Trip Status & Interactive Rapido/Flipkart Style Lifecycle Actions */}
+                  <div className="lg:col-span-3 flex flex-col sm:flex-row lg:flex-col items-stretch lg:items-end justify-between gap-2.5 w-full">
                     <div className="lg:text-right">
-                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full block w-fit lg:ml-auto ${b.statusTone}`}>
-                        {b.status}
+                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full inline-block ${b.statusTone}`}>
+                        {b.status === "Assigned" ? "Assigned (At Pickup)" : b.status === "In Transit" ? "Live Highway Transit" : "Delivered"}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-medium block truncate max-w-xs">
+                      <span className="text-[10px] text-slate-400 font-medium block truncate max-w-xs mt-0.5">
                         {b.statusDesc}
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedBooking(b)}
-                      className="bg-slate-100 dark:bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-slate-700 dark:text-slate-300 font-bold p-2.5 rounded-xl transition cursor-pointer shrink-0"
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
+                    {/* Interactive Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {b.status === "Assigned" && (
+                        <button
+                          type="button"
+                          onClick={() => handleStartTransit(b.bookingId)}
+                          className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                        >
+                          <Play size={13} />
+                          <span>Goods Loaded / Start Transit</span>
+                        </button>
+                      )}
+
+                      {b.status === "In Transit" && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmDelivery(b.bookingId, b.amount, b.regNo)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                        >
+                          <CheckCircle2 size={13} />
+                          <span>Confirm Delivery (e-POD)</span>
+                        </button>
+                      )}
+
+                      {b.status === "Delivered" && (
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-xl">
+                          ✓ Settled to Wallet
+                        </span>
+                      )}
+
+                      <button
+                        onClick={() => setSelectedBooking(b)}
+                        className="bg-slate-100 dark:bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-slate-700 dark:text-slate-300 font-bold p-2 rounded-xl transition cursor-pointer shrink-0"
+                        title="View Full Trip Details"
+                      >
+                        <Eye size={15} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -672,171 +468,122 @@ export default function Bookings() {
       </div>
 
       {/* ========================================================================= */}
-      {/* ADVANCED FILTERS MODAL */}
-      {/* ========================================================================= */}
-      {showFiltersModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-5 text-xs font-bold text-slate-900 dark:text-white">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal size={16} className="text-amber-500" />
-                <h3 className="text-base font-black">Filter Bookings</h3>
-              </div>
-              <button onClick={() => setShowFiltersModal(false)} className="p-1.5 text-slate-400 hover:text-slate-600">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Payment Filter */}
-              <div>
-                <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Payment Status</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["all", "Paid", "Escrow"].map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setFilterPayment(p)}
-                      className={`py-2 rounded-xl text-xs font-bold border transition ${
-                        filterPayment === p
-                          ? "bg-amber-400 text-slate-950 border-amber-400 font-black"
-                          : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      {p === "all" ? "All Payments" : p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Commodity Goods Type Filter */}
-              <div>
-                <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Cargo Commodity Type</label>
-                <select
-                  value={filterGoods}
-                  onChange={(e) => setFilterGoods(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold"
-                >
-                  <option value="all">All Commodities</option>
-                  <option value="Automotive">Automotive &amp; Spare Parts</option>
-                  <option value="FMCG">FMCG &amp; Packaged Foods</option>
-                  <option value="Machinery">Machinery &amp; Industrial</option>
-                  <option value="Textile">Textiles &amp; Fabrics</option>
-                  <option value="E-Commerce">E-Commerce Parcels</option>
-                </select>
-              </div>
-
-              {/* Freight Price Range */}
-              <div>
-                <label className="text-[10px] uppercase text-slate-400 block mb-1.5">Freight Rate Range (₹ INR)</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="number"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value)}
-                    placeholder="Min Price (₹)"
-                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold"
-                  />
-                  <input
-                    type="number"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value)}
-                    placeholder="Max Price (₹)"
-                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={resetAllFilters}
-                className="text-xs text-rose-500 hover:underline font-bold"
-              >
-                Reset Filters
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowFiltersModal(false)}
-                className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs shadow-sm transition"
-              >
-                Apply Filters ({filteredBookings.length} results)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* BOOKING DETAILS MODAL */}
+      {/* FULL TRIP DETAIL MODAL */}
       {/* ========================================================================= */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-5 text-xs font-bold text-slate-900 dark:text-white">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <span className="text-[10px] font-mono text-amber-500 font-bold block">CONSIGNMENT LEDGER</span>
-                <h3 className="text-base font-black">{selectedBooking.bookingId} • {selectedBooking.goodsType}</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 space-y-6 text-xs text-slate-900 dark:text-white">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 flex items-center justify-center font-black">
+                  <Truck size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black">Trip Consignment Dossier</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">Consignment #{selectedBooking.bookingId}</p>
+                </div>
               </div>
-              <button onClick={() => setSelectedBooking(null)} className="p-1.5 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setSelectedBooking(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-[11px]">
-                <div>
-                  <span className="text-slate-400 block text-[10px]">VEHICLE</span>
-                  <span className="font-black">{selectedBooking.truckName}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px]">REG NO</span>
-                  <span className="font-mono text-amber-500 font-black">{selectedBooking.regNo}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px]">ASSIGNED DRIVER</span>
-                  <span className="font-black">{selectedBooking.driverName}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px]">DRIVER CONTACT</span>
-                  <a href={`tel:${selectedBooking.driverPhone}`} className="text-emerald-600 hover:underline font-mono">
-                    {selectedBooking.driverPhone}
-                  </a>
-                </div>
+            {/* Status Banner */}
+            <div className={`p-4 rounded-2xl flex items-center justify-between font-bold ${selectedBooking.statusTone}`}>
+              <div>
+                <span className="text-[10px] uppercase tracking-wider block font-black">Current Trip Status</span>
+                <span className="text-sm font-black">{selectedBooking.status}</span>
               </div>
+              <span className="text-xs">{selectedBooking.statusDesc}</span>
+            </div>
 
-              {/* Exact Warehouse Addresses */}
-              <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-                <div>
-                  <span className="text-[10px] text-emerald-600 font-black uppercase block">Pickup Warehouse Address:</span>
-                  <p className="text-slate-800 dark:text-slate-200">{selectedBooking.pickupAddress || selectedBooking.origin}</p>
-                </div>
-                <div className="pt-1 border-t border-slate-200/60 dark:border-slate-700">
-                  <span className="text-[10px] text-rose-600 font-black uppercase block">Delivery Destination Address:</span>
-                  <p className="text-slate-800 dark:text-slate-200">{selectedBooking.deliveryAddress || selectedBooking.dest}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3.5 bg-amber-50 dark:bg-slate-800 border border-amber-300 dark:border-slate-700 rounded-2xl">
-                <div>
-                  <span className="text-[10px] text-slate-400 block">SETTLED FREIGHT</span>
-                  <span className="text-base font-black">₹{selectedBooking.amount.toLocaleString("en-IN")}</span>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">
-                  {selectedBooking.paymentStatus}
+            {/* Warehouse Addresses */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                <span className="text-[10px] text-emerald-600 uppercase font-black block flex items-center gap-1">
+                  <MapPin size={11} /> 1. Pickup Origin Warehouse
                 </span>
+                <p className="font-bold text-xs">{selectedBooking.origin}</p>
+                <p className="text-[11px] text-slate-500">{selectedBooking.pickupAddress || "Standard Logistics Warehouse Station"}</p>
+                <p className="text-[10px] text-slate-400 pt-1">Shipper Contact: {selectedBooking.shipperName} ({selectedBooking.shipperPhone})</p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                <span className="text-[10px] text-rose-600 uppercase font-black block flex items-center gap-1">
+                  <MapPin size={11} /> 2. Delivery Destination Warehouse
+                </span>
+                <p className="font-bold text-xs">{selectedBooking.dest}</p>
+                <p className="text-[11px] text-slate-500">{selectedBooking.deliveryAddress || "Standard Unloading Bay Station"}</p>
+                {selectedBooking.deliveryContactPerson && (
+                  <p className="text-[10px] text-slate-400 pt-1">Receiver: {selectedBooking.deliveryContactPerson} ({selectedBooking.deliveryContactPhone})</p>
+                )}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setSelectedBooking(null)}
-              className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition"
-            >
-              Close Details
-            </button>
+            {/* Specs & Freight Payment */}
+            <div className="grid grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-800/80 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 font-bold text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase block">Vehicle Assigned</span>
+                <span className="font-black">{selectedBooking.regNo}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase block">Cargo Weight</span>
+                <span className="font-black">{selectedBooking.weightTons} Tons ({selectedBooking.goodsType})</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase block">Total Freight Value</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-black text-sm">₹{selectedBooking.amount.toLocaleString("en-IN")}</span>
+              </div>
+            </div>
+
+            {/* Driver Contact */}
+            <div className="flex items-center justify-between p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800">
+              <div>
+                <span className="text-[10px] text-amber-900 dark:text-amber-300 uppercase font-black block">Assigned Fleet Driver</span>
+                <span className="text-xs font-black text-slate-900 dark:text-white">{selectedBooking.driverName}</span>
+              </div>
+              <a
+                href={`tel:${selectedBooking.driverPhone}`}
+                className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm"
+              >
+                <Phone size={13} />
+                <span>Call Driver ({selectedBooking.driverPhone})</span>
+              </a>
+            </div>
+
+            {/* Actions in Modal */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSelectedBooking(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer"
+              >
+                Close
+              </button>
+
+              {selectedBooking.status === "Assigned" && (
+                <button
+                  type="button"
+                  onClick={() => handleStartTransit(selectedBooking.bookingId)}
+                  className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <Play size={14} />
+                  <span>Goods Loaded / Start Transit</span>
+                </button>
+              )}
+
+              {selectedBooking.status === "In Transit" && (
+                <button
+                  type="button"
+                  onClick={() => handleConfirmDelivery(selectedBooking.bookingId, selectedBooking.amount, selectedBooking.regNo)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Confirm Delivery &amp; Handover e-POD</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

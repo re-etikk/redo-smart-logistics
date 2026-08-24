@@ -165,3 +165,34 @@ export function addBankAccount(bank: Omit<BankAccount, "id" | "verified">): void
   };
   saveWallet(updated);
 }
+
+export function depositTripEarning(amount: number, description: string, tripId?: string, regNo?: string): void {
+  const wallet = getWallet();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const newTxn: WalletTransaction = {
+    id: `TXN-${Date.now().toString().slice(-4)}`,
+    txId: `REDO-EARN-${Math.floor(10000 + Math.random() * 90000)}`,
+    utrNumber: `ESCROW${Date.now().toString().slice(-10)}`,
+    type: "Trip Earning",
+    amount,
+    direction: "credit",
+    description,
+    tripId,
+    regNo,
+    date: dateStr,
+    timestamp: Date.now(),
+    status: "Completed",
+    mode: "Freight Escrow",
+    beneficiary: "REDO Fleet Balance"
+  };
+
+  const updated: WalletState = {
+    ...wallet,
+    balance: wallet.balance + amount,
+    transactions: [newTxn, ...wallet.transactions],
+  };
+
+  saveWallet(updated);
+}

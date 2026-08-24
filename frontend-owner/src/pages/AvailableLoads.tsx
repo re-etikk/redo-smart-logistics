@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import {
   MapPin, Weight, Search, Filter, ArrowRight, ArrowLeftRight, ShieldCheck, Zap,
   CheckCircle2, Clock, Truck, Box, Phone, X, Check, Camera, Building2, User,
-  Sparkles, SlidersHorizontal, RotateCcw, IndianRupee, Navigation
+  Sparkles, SlidersHorizontal, RotateCcw, IndianRupee, Navigation, MessageSquare, Send
 } from "lucide-react";
 import OwnerLayout from "../components/OwnerLayout";
 import LocationSearchInput from "../components/LocationSearchInput";
 import { useTranslation } from "../lib/i18n";
 import { getTrucks, type TruckItem } from "../lib/truckStore";
-import { getSharedCargoList, syncFromCloud, assignTruckToCargo, type CargoItem } from "../lib/cargoStore";
+import { getSharedCargoList, syncFromCloud, assignTruckToCargo, proposeNegotiation, type CargoItem } from "../lib/cargoStore";
 
 const POPULAR_HUBS = [
   "Delhi NCR",
@@ -83,8 +83,32 @@ export default function AvailableLoads() {
   const [acceptedSuccess, setAcceptedSuccess] = useState(false);
   const [assigningTruckId, setAssigningTruckId] = useState("");
 
+  // Negotiate Price Modal State
+  const [negotiateLoad, setNegotiateLoad] = useState<CargoItem | null>(null);
+  const [counterPrice, setCounterPrice] = useState<number>(0);
+  const [negotiateNote, setNegotiateNote] = useState("");
+  const [negotiateSentSuccess, setNegotiateSentSuccess] = useState(false);
+
   const [trucks, setTrucks] = useState<TruckItem[]>([]);
   const [allLoads, setAllLoads] = useState<CargoItem[]>([]);
+
+  const handleOpenNegotiateModal = (load: CargoItem) => {
+    setNegotiateLoad(load);
+    setCounterPrice(load.negotiatedPriceInr || load.offeredPriceInr || 24000);
+    setNegotiateNote(load.negotiationNote || "Can pickup promptly within 1 hour. Verified enclosed container truck.");
+    setNegotiateSentSuccess(false);
+  };
+
+  const handleSendNegotiation = () => {
+    if (!negotiateLoad) return;
+    proposeNegotiation(negotiateLoad.id, Number(counterPrice) || 0, negotiateNote);
+    setNegotiateSentSuccess(true);
+    setTimeout(() => {
+      setNegotiateLoad(null);
+      setNegotiateSentSuccess(false);
+      refreshData();
+    }, 1500);
+  };
 
   const refreshData = () => {
     const loadedTrucks = getTrucks();
@@ -625,37 +649,63 @@ export default function AvailableLoads() {
                     </div>
 
                     {/* Right: Price & Accept Action */}
-                    <div className="w-full lg:w-56 flex flex-col items-end justify-between border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-800 pt-4 lg:pt-0 lg:pl-6 space-y-3">
-                      <div className="text-right w-full">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Offered Guaranteed Rate</span>
-                        <div className="text-2xl font-black text-slate-900 dark:text-white flex items-center justify-end gap-0.5">
-                          <span>₹{Number(load.offeredPriceInr || 23300).toLocaleString("en-IN")}</span>
+                    <div className="w-full lg:w-64 flex flex-col items-end justify-between border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-800 pt-4 lg:pt-0 lg:pl-6 space-y-3">
+                        <div className="text-right w-full">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Offered Shipper Rate</span>
+                          <div className="text-2xl font-black text-slate-900 dark:text-white flex items-center justify-end gap-0.5">
+                            <span>₹{Number(load.offeredPriceInr || 23300).toLocaleString("en-IN")}</span>
+                          </div>
+                          {load.negotiationStatus === "Proposed" && (
+                            <span className="text-[10px] bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold inline-block mt-0.5">
+                              💬 Proposed Offer: ₹{load.negotiatedPriceInr?.toLocaleString("en-IN")}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                            ~{load.distanceKm || 1420} Km (Direct Highway)
+                          </span>
                         </div>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
-                          ~{load.distanceKm || 1420} Km (Direct Highway)
-                        </span>
-                      </div>
 
-                      {isAssigned ? (
-                        <div className="w-full text-center py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-black border border-emerald-200 dark:border-emerald-800">
-                          ✓ In Fleet Schedule
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenAcceptModal(load)}
-                          className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-3 rounded-2xl shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
-                        >
-                          <span>Accept &amp; Assign Truck</span>
-                          <ArrowRight size={14} />
-                        </button>
-                      )}
+                        {isAssigned ? (
+                          <div className="w-full text-center py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-black border border-emerald-200 dark:border-emerald-800">
+                            ✓ In Fleet Schedule
+                          </div>
+                        ) : (
+                          <div className="w-full space-y-2">
+                            <button
+                              onClick={() => handleOpenAcceptModal(load)}
+                              className="w-full bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-2xl shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                            >
+                              <span>Accept &amp; Assign Truck</span>
+                              <ArrowRight size={14} />
+                            </button>
+
+                            <div className="grid grid-cols-2 gap-1.5 w-full">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenNegotiateModal(load)}
+                                className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 transition cursor-pointer"
+                              >
+                                <MessageSquare size={12} className="text-amber-500" />
+                                <span>Negotiate</span>
+                              </button>
+
+                              <a
+                                href={`tel:${load.pickupContactPhone || load.shipperPhone}`}
+                                className="bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 border border-emerald-200 dark:border-emerald-800 transition text-center"
+                              >
+                                <Phone size={12} />
+                                <span>Call Shipper</span>
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
         {/* 🚛 Accept & Assign Truck Modal */}
         {selectedLoad && (
@@ -751,6 +801,113 @@ export default function AvailableLoads() {
                     >
                       <Check size={15} />
                       <span>Confirm &amp; Start Trip</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 💬 Price Negotiation & Counter-Offer Modal */}
+        {negotiateLoad && (
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 flex items-center justify-center font-black">
+                    <MessageSquare size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                      Negotiate Rate with Shipper
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">Consignment #{negotiateLoad.id}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setNegotiateLoad(null)}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {negotiateSentSuccess ? (
+                <div className="p-6 text-center space-y-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-2xl border border-emerald-200 dark:border-emerald-800">
+                  <CheckCircle2 size={40} className="text-emerald-500 mx-auto" />
+                  <h4 className="text-base font-black text-emerald-900 dark:text-emerald-200">
+                    Rate Proposal Dispatched to Shipper!
+                  </h4>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                    Proposed: ₹{counterPrice.toLocaleString("en-IN")} • Shipper will review and confirm.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Route & Current Rate */}
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 space-y-2 text-xs">
+                    <div className="flex justify-between font-bold">
+                      <span className="text-slate-500">Route:</span>
+                      <span className="text-slate-900 dark:text-white">{negotiateLoad.origin} ➔ {negotiateLoad.destination}</span>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <span className="text-slate-500">Shipper Offered Rate:</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-bold">₹{negotiateLoad.offeredPriceInr?.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <span className="text-slate-500">Shipper Contact:</span>
+                      <span className="text-slate-900 dark:text-white">{negotiateLoad.shipperName} ({negotiateLoad.pickupContactPhone || negotiateLoad.shipperPhone})</span>
+                    </div>
+                  </div>
+
+                  {/* Proposed Counter Price */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Your Proposed Freight Rate (₹) *
+                    </label>
+                    <div className="relative">
+                      <IndianRupee size={16} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="number"
+                        value={counterPrice}
+                        onChange={(e) => setCounterPrice(parseFloat(e.target.value) || 0)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        placeholder="Enter your proposed rate"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Negotiation Message / Note */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Note to Shipper (Vehicle details, loading readiness)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={negotiateNote}
+                      onChange={(e) => setNegotiateNote(e.target.value)}
+                      placeholder="e.g. Can pickup within 45 mins with 19ft Container truck..."
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setNegotiateLoad(null)}
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-xs cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendNegotiation}
+                      className="bg-[#FFC800] hover:bg-amber-400 text-slate-950 font-black px-6 py-2.5 rounded-xl shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Send size={14} />
+                      <span>Send Rate Offer to Shipper</span>
                     </button>
                   </div>
                 </div>
