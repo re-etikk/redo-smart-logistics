@@ -9,6 +9,7 @@ import {
   StatCard, Tabs, statusLabel, statusTone,
 } from "../components/ui";
 import type { Booking } from "../lib/types";
+import { useRealtimeRefresh } from "../lib/realtime";
 
 const GROUPS: Record<string, string[]> = {
   all: [],
@@ -27,6 +28,8 @@ export default function Bookings() {
   const isSme = profile?.role === "sme";
 
   useEffect(() => { api.get<Booking[]>("/bookings").then(setBookings).catch(() => setBookings([])); }, []);
+  useRealtimeRefresh(["bookings"], () =>
+    api.get<Booking[]>("/bookings").then(setBookings).catch(() => {}));
 
   const b = bookings ?? [];
   const filtered = useMemo(() => b.filter((x) =>

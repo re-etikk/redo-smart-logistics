@@ -5,6 +5,8 @@ import { api } from '../lib/api';
 import { C } from '../lib/theme';
 import { STATUS_LABEL, type Booking } from '../lib/types';
 import { Badge, Card, Empty, Stat, statusTone } from '../components/ui';
+import AppHeader from '../components/AppHeader';
+import { useLive } from '../lib/useLive';
 
 export default function BookingsScreen({ navigation }: any) {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
@@ -14,12 +16,15 @@ export default function BookingsScreen({ navigation }: any) {
     setRefreshing(false);
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  useLive('bookings', load);
 
   const b = bookings ?? [];
   const active = b.filter((x) => ['confirmed', 'pickup_ready', 'picked_up', 'in_transit'].includes(x.status));
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.canvas, padding: 14 }}>
+    <View style={{ flex: 1, backgroundColor: C.canvas }}>
+      <AppHeader />
+      <View style={{ flex: 1, padding: 14 }}>
       <Text style={{ fontSize: 20, fontWeight: '900', color: C.ink, marginBottom: 12 }}>My Bookings</Text>
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
         <Stat label="Total" value={b.length} />
@@ -45,6 +50,7 @@ export default function BookingsScreen({ navigation }: any) {
             </Card>
           </Pressable>
         )} />
+      </View>
     </View>
   );
 }

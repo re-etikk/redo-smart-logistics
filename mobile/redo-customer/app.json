@@ -1,21 +1,18 @@
 {
   "expo": {
-    "name": "Redo",
+    "name": "REDO Customer",
     "slug": "redo-customer",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#111417"
+      "backgroundColor": "#0F172A"
     },
     "android": {
       "package": "app.redo.customer",
       "permissions": [
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ],
       "config": {
         "googleMaps": {
@@ -34,6 +31,7 @@
       "eas": {
         "projectId": "541891d8-858a-40d3-adec-c49224879ef3"
       }
-    }
+    },
+    "scheme": "redocustomer"
   }
 }

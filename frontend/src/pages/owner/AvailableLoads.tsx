@@ -18,6 +18,9 @@ export default function AvailableLoads() {
     api.get<any[]>("/cargo").then(setLoads).catch(() => setLoads([]));
     api.get<any[]>("/trucks").then(setTrucks).catch(() => {});
   }, []);
+  // New shipper cargo appears here instantly — no refresh needed.
+  useRealtimeRefresh(["cargo_requests"], () =>
+    api.get<any[]>("/cargo").then(setLoads).catch(() => {}));
 
   const accept = async (c: any) => {
     if (!trucks[0]) { toast("Add a truck first to accept loads.", "warn"); return; }

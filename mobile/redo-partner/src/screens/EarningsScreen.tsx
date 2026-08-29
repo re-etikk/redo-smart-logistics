@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../lib/api';
 import { C } from '../lib/theme';
 import { Badge, Card, Empty, Stat } from '../components/ui';
+import AppHeader from '../components/AppHeader';
 
 export default function EarningsScreen() {
   const [data, setData] = useState<any | null>(null);
@@ -14,7 +15,9 @@ export default function EarningsScreen() {
   const txns: any[] = data?.transactions ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.canvas, padding: 14 }}>
+    <View style={{ flex: 1, backgroundColor: C.canvas }}>
+      <AppHeader />
+      <View style={{ flex: 1, padding: 14 }}>
       <Text style={{ fontSize: 20, fontWeight: '900', color: C.ink, marginBottom: 12 }}>Earnings</Text>
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
         <Stat label="Total earned" value={`₹${Number(t.completed_inr ?? 0).toLocaleString('en-IN')}`} />
@@ -42,6 +45,7 @@ export default function EarningsScreen() {
             </View>
           </Card>
         )} />
+      </View>
     </View>
   );
 }

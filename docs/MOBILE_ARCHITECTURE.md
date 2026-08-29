@@ -211,3 +211,72 @@ RateCard, Addresses, Profile.
 documents), Home (greeting + live map + available-loads feed with Accept), Bookings,
 BookingDetail (state machine + proof photos + real-GPS sharing), Earnings, Trucks,
 Documents (KYC), Notifications, Support, Profile (reviews inside).
+
+
+---
+
+## 5. FULL WIRING CHECKLIST (industry run-book — do these in order)
+
+The customer side and truck side connect through TWO things: **return trips** (matching) and
+**Supabase Realtime** (live updates). Miss either and the sides look "disconnected".
+
+### 5.1 Database (Supabase SQL editor)
+- Run migrations **0001 → 0005** in order. `0005_realtime_wiring.sql` is what makes a shipper's
+  new cargo appear LIVE in the partner feed (adds `cargo_requests` + `truck_trips` to the
+  realtime publication). Also run `cleanup_synthetic.sql` once if the DB has old SEED data.
+- Supabase → Database → Replication: confirm `supabase_realtime` publication lists
+  `tracking_events, bookings, notifications, cargo_requests, truck_trips`.
+
+### 5.2 Why "customer posts cargo but truck owner sees nothing / shipper search finds no trucks"
+Root cause found: **matching runs against return TRIPS, not bare trucks.** If an owner only adds
+a truck (web MyTrucks or the app) and never posts a return trip, the shipper's Find Trucks is
+correctly empty. Fixed in three places:
+- **Partner app onboarding** now collects the next empty return trip (From → home city, departure)
+  and posts it right after truck creation.
+- **Partner app → My Trucks** has a "+ Post return trip" per truck.
+- **Website → My Trucks** has the same "+ Post Return Trip" form per truck.
+And the reverse feed (owner sees shipper cargo) is the `/cargo` open-loads endpoint + the new
+realtime subscription — new cargo pops into the partner Home instantly, Rapido-style.
+
+### 5.3 Backend + website
+- `backend`: `npm run dev` (port 8000) with `.env` filled; `ml-service`: `uvicorn api:app --port 8001`.
+- Website `.env`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`.
+- Supabase Auth: "Confirm email" **OFF** for demo (or SMTP configured).
+
+### 5.4 Apps
+- Both `app.json → expo.extra`: real `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `API_URL`
+  (**emulator → `http://10.0.2.2:8000`**, real phone → laptop LAN IP, deployed → https URL).
+- On boot each app now runs a **connection self-check**: bad config or unreachable backend shows
+  ONE clear screen listing exactly what to fix (no more random errors everywhere).
+- `npm install` then `npx expo start -c` (the `-c` clears cache after config changes).
+
+### 5.5 Google login in the apps (same method as the website)
+The apps use native PKCE OAuth (`expo-auth-session` + `expo-web-browser`).
+1. Supabase → Auth → Providers → Google enabled (already done for the website).
+2. First time you tap "Continue with Google", if Supabase rejects the redirect the app shows the
+   EXACT redirect URL to whitelist — copy it into Supabase → Auth → URL Configuration →
+   Additional Redirect URLs (Expo Go uses an `exp://…` URL; APK builds use `redocustomer://` /
+   `redopartner://`). Add both once; done forever.
+
+### 5.6 Live-wiring map (what updates without refresh)
+| Event | Who sees it live |
+|---|---|
+| Shipper posts cargo (web or app) | Partner app Home feed · website Available Loads |
+| Owner accepts / any status change | Customer Shipments + ShipmentDetail · Partner Bookings + BookingDetail · website Bookings + BookingDetail |
+| Any notification (booking request, KYC decision…) | Bell badge on website header AND both app headers |
+| Partner shares real GPS | Customer Tracking map (website + app) |
+
+### 5.7 GitHub reminder
+The repo currently has **no `mobile/` folder and is missing the latest fixes** — push this
+delivered folder as-is (`git add mobile supabase docs frontend backend && git commit && git push`)
+so the deployed site and your local apps run the same wired code.
+
+### 5.8 Troubleshooting matrix
+| Symptom | Cause → Fix |
+|---|---|
+| App shows "Connection setup needed" | It tells you exactly what: fill extra config / start backend / fix API_URL |
+| Login fails only with email+password | Supabase "Confirm email" ON without SMTP → turn OFF (or confirm the email) |
+| Shipper search returns nothing | Owner has no OPEN return trip on that corridor → post one (see 5.2) |
+| Partner feed empty | No open cargo yet, or cargo cities outside known corridors — post from customer side |
+| Nothing updates live | Migration 0005 not run / publication missing tables (see 5.1) |
+| Google button errors with a URL | Add that exact URL in Supabase Additional Redirect URLs |

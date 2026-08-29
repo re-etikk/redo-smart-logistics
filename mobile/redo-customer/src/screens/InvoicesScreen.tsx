@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../lib/api';
 import { C } from '../lib/theme';
 import { Badge, Card, Empty, Stat } from '../components/ui';
+import AppHeader from '../components/AppHeader';
 
 export default function InvoicesScreen() {
   const [invoices, setInvoices] = useState<any[] | null>(null);
@@ -12,7 +13,9 @@ export default function InvoicesScreen() {
   const total = list.reduce((a, i) => a + Number(i.total_inr), 0);
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.canvas, padding: 14 }}>
+    <View style={{ flex: 1, backgroundColor: C.canvas }}>
+      <AppHeader />
+      <View style={{ flex: 1, padding: 14 }}>
       <Text style={{ fontSize: 20, fontWeight: '900', color: C.ink, marginBottom: 12 }}>Invoices &amp; Payments</Text>
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
         <Stat label="Invoices" value={list.length} />
@@ -37,6 +40,7 @@ export default function InvoicesScreen() {
             </Text>
           </Card>
         )} />
+      </View>
     </View>
   );
 }

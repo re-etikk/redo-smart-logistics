@@ -10,6 +10,7 @@ import { C, R } from '../lib/theme';
 import { CITY_COORDS } from '../lib/types';
 import { Badge, Button, Card, Empty, LogoRow } from '../components/ui';
 import { useI18n } from '../lib/i18n';
+import { useLive } from '../lib/useLive';
 
 const estimate = (km?: number | null, t?: number | null) =>
   Math.round(Number(km || 0) * Number(t || 0) * 1.05) || 0;
@@ -28,6 +29,9 @@ export default function HomeScreen({ navigation }: any) {
     api.get<any[]>('/cargo').then(setLoads).catch(() => setLoads([]));
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  // LIVE WIRING: a shipper posting cargo anywhere (website or customer app)
+  // shows up here instantly — the Rapido "new ride request" moment.
+  useLive('cargo_requests', () => api.get<any[]>('/cargo').then(setLoads).catch(() => {}));
 
   useEffect(() => {
     (async () => {

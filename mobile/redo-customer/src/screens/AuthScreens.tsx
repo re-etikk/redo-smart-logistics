@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View, TouchableOpacity, Linking } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 import { C } from '../lib/theme';
 import { Button, Card, Input, Label, LogoRow } from '../components/ui';
 import { useI18n } from '../lib/i18n';
+import { signInWithGoogleNative } from '../lib/googleAuth';
 
-export const APP_ROLE = 'sme'; // Customer / Shipper role
+export const APP_ROLE = 'sme'; // partner app uses 'truck_owner'
 
 export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup: () => void }) {
   const { t } = useI18n();
@@ -15,61 +16,14 @@ export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!email || !password) {
-      Alert.alert(t('signin_failed'), 'Please enter both email and password.');
-      return;
-    }
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) {
       const msg = error.message.toLowerCase().includes('confirm')
-        ? t('confirm_email_first') : error.message;
+        ? t('confirm_email_first') : t('wrong_creds');
       Alert.alert(t('signin_failed'), msg);
       return;
-    }
-    onDone();
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setBusy(true);
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'https://npisbdoztiweaayqmqev.supabase.co/auth/v1/callback',
-        },
-      });
-      if (error) throw error;
-      if (data?.url) {
-        await Linking.openURL(data.url);
-      }
-    } catch (e: any) {
-      Alert.alert('Google Sign-In', e.message || 'Could not initiate Google Sign-In');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleQuickDemoLogin = async () => {
-    setEmail('customer@redo.app');
-    setPassword('Customer@12345');
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: 'customer@redo.app',
-      password: 'Customer@12345',
-    });
-    setBusy(false);
-    if (error) {
-      const { data: upData } = await supabase.auth.signUp({
-        email: 'customer@redo.app',
-        password: 'Customer@12345',
-        options: { data: { full_name: 'REDO Enterprise Customer', role: APP_ROLE } }
-      });
-      if (upData.session) {
-        onDone();
-        return;
-      }
     }
     onDone();
   };
@@ -84,28 +38,16 @@ export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup
           <Input autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="you@business.com" />
           <Label>{t('password')}</Label>
           <Input secureTextEntry value={password} onChangeText={setPassword} placeholder="••••••••" />
-          
           <View style={{ height: 16 }} />
           <Button title={busy ? t('signing_in') : t('sign_in')} loading={busy} onPress={submit} />
-          
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 14 }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
-            <Text style={{ marginHorizontal: 10, fontSize: 10, fontWeight: '800', color: C.inkFaint }}>OR</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
-          </View>
-
-          {/* Google Sign In via Native Linking */}
-          <Button title="🚀 Continue with Google" variant="secondary" onPress={handleGoogleSignIn} />
-
+          <View style={{ height: 10 }} />
+          <Button title="Continue with Google" variant="secondary" onPress={async () => {
+            const r = await signInWithGoogleNative();
+            if (r.ok) onDone(); else if (r.message) Alert.alert('Google sign-in', r.message);
+          }} />
           <View style={{ height: 10 }} />
           <Button title={t('create_account')} variant="secondary" onPress={goSignup} />
-
-          {/* One-Tap Demo Access */}
-          <TouchableOpacity onPress={handleQuickDemoLogin} style={{ marginTop: 12, paddingVertical: 6, alignItems: 'center' }}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: C.brand }}>⚡ Quick Demo Shipper Access</Text>
-          </TouchableOpacity>
         </Card>
-
         <Text style={{ marginTop: 14, fontSize: 11, color: C.inkFaint, textAlign: 'center' }}>
           {t('same_account')}
         </Text>
@@ -121,14 +63,10 @@ export function SignupScreen({ onDone, goLogin }: { onDone: () => void; goLogin:
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async () => {
-    if (!form.email || !form.password || !form.full_name) {
-      Alert.alert('Incomplete Form', 'Please enter your name, email and password.');
-      return;
-    }
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
       email: form.email, password: form.password,
-      options: { data: { full_name: form.full_name, role: APP_ROLE } },
+      options: { data: { full_name: form.full_name } },
     });
     if (error) { setBusy(false); Alert.alert('Sign up failed', error.message); return; }
     if (!data.session) {
@@ -140,9 +78,7 @@ export function SignupScreen({ onDone, goLogin }: { onDone: () => void; goLogin:
     try {
       await api.post('/auth/profile', { full_name: form.full_name, phone: form.phone, role: APP_ROLE });
       onDone();
-    } catch {
-      onDone();
-    }
+    } catch (e: any) { Alert.alert('Error', e.message); }
     setBusy(false);
   };
 
@@ -153,15 +89,20 @@ export function SignupScreen({ onDone, goLogin }: { onDone: () => void; goLogin:
         <Card>
           <Text style={{ fontSize: 20, fontWeight: '900', color: C.ink }}>{t('create_account')}</Text>
           <Label>{t('full_name')}</Label>
-          <Input value={form.full_name} onChangeText={(v) => set('full_name', v)} placeholder="Company / Business Name" />
+          <Input value={form.full_name} onChangeText={(v) => set('full_name', v)} />
           <Label>{t('email')}</Label>
-          <Input autoCapitalize="none" keyboardType="email-address" value={form.email} onChangeText={(v) => set('email', v)} placeholder="you@business.com" />
+          <Input autoCapitalize="none" keyboardType="email-address" value={form.email} onChangeText={(v) => set('email', v)} />
           <Label>{t('phone')}</Label>
-          <Input keyboardType="phone-pad" value={form.phone} onChangeText={(v) => set('phone', v)} placeholder="+91 98765 43210" />
+          <Input keyboardType="phone-pad" value={form.phone} onChangeText={(v) => set('phone', v)} />
           <Label>{t('password_min')}</Label>
-          <Input secureTextEntry value={form.password} onChangeText={(v) => set('password', v)} placeholder="••••••••" />
+          <Input secureTextEntry value={form.password} onChangeText={(v) => set('password', v)} />
           <View style={{ height: 16 }} />
           <Button title={busy ? t('creating') : t('create_account')} loading={busy} onPress={submit} />
+          <View style={{ height: 10 }} />
+          <Button title="Sign up with Google" variant="secondary" onPress={async () => {
+            const r = await signInWithGoogleNative();
+            if (r.ok) onDone(); else if (r.message) Alert.alert('Google sign-in', r.message);
+          }} />
           <View style={{ height: 10 }} />
           <Button title={t('have_account')} variant="secondary" onPress={goLogin} />
         </Card>

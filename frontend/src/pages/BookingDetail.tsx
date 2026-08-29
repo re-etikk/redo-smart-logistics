@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRealtimeRefresh } from '../lib/realtime';
 import { Link, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { api } from '../services/api';
@@ -62,6 +63,7 @@ export default function BookingDetail() {
 
   const load = useCallback(() => { api.get<Booking>(`/bookings/${id}`).then(setB).catch(() => {}); }, [id]);
   useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(['bookings'], load, `id=eq.${id}`);
 
   if (!b || !profile) return <Layout><CardSkeleton /></Layout>;
 

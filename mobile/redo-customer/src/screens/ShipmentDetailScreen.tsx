@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { C } from '../lib/theme';
 import { STATUS_LABEL } from '../lib/types';
 import { Badge, Button, Card, statusTone } from '../components/ui';
+import { useLive } from '../lib/useLive';
 
 const FLOW = ['pending', 'accepted', 'confirmed', 'pickup_ready', 'picked_up', 'in_transit', 'delivered', 'completed'];
 
@@ -19,6 +20,8 @@ export default function ShipmentDetailScreen({ route, navigation }: any) {
     try { setData(await api.get(`/bookings/${bookingId}`)); } catch { /* keep last */ }
   }, [bookingId]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useLive('bookings', load, `id=eq.${bookingId}`);
 
   if (!data) return <View style={{ flex: 1, backgroundColor: C.canvas }} />;
   const b = data.booking ?? data;

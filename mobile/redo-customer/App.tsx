@@ -11,6 +11,7 @@ import { api } from './src/lib/api';
 import { C } from './src/lib/theme';
 import { I18nProvider, hasChosenLanguage, useI18n } from './src/lib/i18n';
 import LanguageScreen from './src/screens/LanguageScreen';
+import { StartupErrorScreen, runStartupChecks } from './src/screens/StartupCheck';
 import PermissionScreen from './src/screens/PermissionScreen';
 import { LoginScreen, SignupScreen } from './src/screens/AuthScreens';
 import CustomerOnboarding from './src/screens/CustomerOnboarding';
@@ -54,11 +55,21 @@ function MainTabs() {
   );
 }
 
-type Phase = 'boot' | 'language' | 'permission' | 'auth' | 'onboarding' | 'main';
+type Phase = 'boot' | 'language' | 'permission' | 'health' | 'auth' | 'onboarding' | 'main';
 
 function Root() {
   const [phase, setPhase] = useState<Phase>('boot');
   const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login');
+  const [problems, setProblems] = useState<string[]>([]);
+
+  const healthThenAuth = useCallback(async () => {
+    const found = await runStartupChecks();
+    if (found.length) { setProblems(found); setPhase('health'); return; }
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) { setPhase('auth'); return; }
+    await decideAfterAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const decideAfterAuth = useCallback(async () => {
     try {
@@ -71,15 +82,13 @@ function Root() {
     (async () => {
       if (!(await hasChosenLanguage())) { setPhase('language'); return; }
       if (!(await AsyncStorage.getItem(PERM_KEY))) { setPhase('permission'); return; }
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) { setPhase('auth'); return; }
-      await decideAfterAuth();
+      await healthThenAuth();
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!s) setPhase((p) => (['main', 'onboarding'].includes(p) ? 'auth' : p));
     });
     return () => sub.subscription.unsubscribe();
-  }, [decideAfterAuth]);
+  }, [decideAfterAuth, healthThenAuth]);
   signOutCb = () => setPhase('auth');
 
   if (phase === 'boot') return null;
@@ -91,9 +100,11 @@ function Root() {
   if (phase === 'permission') {
     return <PermissionScreen whyKey="loc_why_c" onDone={async () => {
       await AsyncStorage.setItem(PERM_KEY, '1');
-      const { data } = await supabase.auth.getSession();
-      if (data.session) await decideAfterAuth(); else setPhase('auth');
+      await healthThenAuth();
     }} />;
+  }
+  if (phase === 'health') {
+    return <StartupErrorScreen problems={problems} onRetry={healthThenAuth} />;
   }
   if (phase === 'auth') {
     return authScreen === 'login'

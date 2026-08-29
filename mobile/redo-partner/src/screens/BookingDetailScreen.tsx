@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 import { C } from '../lib/theme';
 import { STATUS_LABEL } from '../lib/types';
 import { Badge, Button, Card, statusTone } from '../components/ui';
+import { useLive } from '../lib/useLive';
 
 const NEXT: Record<string, { to: string; label: string; needsProof?: 'pickup' | 'delivery' }> = {
   confirmed: { to: 'pickup_ready', label: 'Reached pickup point' },
@@ -34,6 +35,8 @@ export default function BookingDetailScreen({ route }: any) {
     load();
     return () => { watcher.current?.remove(); watcher.current = null; };
   }, [load]));
+
+  useLive('bookings', load, `id=eq.${bookingId}`);
 
   if (!data) return <View style={{ flex: 1, backgroundColor: C.canvas }} />;
   const b = data.booking ?? data;

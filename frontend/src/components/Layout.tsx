@@ -8,6 +8,7 @@ import {
   Truck, Wallet, X,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import { useRealtimeRefresh } from "../lib/realtime";
 import { api } from "../services/api";
 import Logo from "./Logo";
 export { default as Logo } from "./Logo";
@@ -64,8 +65,11 @@ export default function Layout({ children }: { children: ReactNode }) {
   const nav = NAV[role];
   const isDemo = profile?.full_name?.includes("(Demo)");
 
-  useEffect(() => {
+  const refreshUnread = () =>
     api.get<any[]>("/notifications").then((n) => setUnread(n.filter((x) => !x.read).length)).catch(() => {});
+  useRealtimeRefresh(["notifications"], refreshUnread);
+  useEffect(() => {
+    refreshUnread();
     if (role === "truck_owner") {
       api.get<any>("/earnings").then((e) => setWallet(e.totals?.pending_inr ?? 0)).catch(() => {});
     }

@@ -13,6 +13,14 @@ import { Badge, Button, Card, Input, Label, LogoRow } from '../components/ui';
 const CITIES = ['Mumbai', 'Delhi', 'Pune', 'Jaipur', 'Surat'];
 const TRUCK_TYPES = ['14FT', '17FT', '22FT', '32FT'];
 const BODY_TYPES = ['Closed container', 'Open body', 'Refrigerated', 'Tipper'];
+const DEPART = [{ label: 'Today 6 PM' }, { label: 'Tomorrow 10 AM' }, { label: 'Day after' }];
+function departAt(idx: number): string {
+  const d = new Date();
+  if (idx === 0) { d.setHours(18, 0, 0, 0); if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1); }
+  if (idx === 1) { d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); }
+  if (idx === 2) { d.setDate(d.getDate() + 2); d.setHours(10, 0, 0, 0); }
+  return d.toISOString();
+}
 
 const DOCS: { type: string; label: string; required: boolean }[] = [
   { type: 'driving_licence', label: 'Driving Licence', required: true },
@@ -42,6 +50,8 @@ export default function PartnerOnboarding({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [driver, setDriver] = useState({ full_name: '', phone: '', city: 'Delhi' });
   const [truck, setTruck] = useState({ registration_number: '', truck_type: '22FT', body_type: 'Closed container', capacity: '9' });
+  const [tripFrom, setTripFrom] = useState('Mumbai');
+  const [departIdx, setDepartIdx] = useState(1);
   const [uploaded, setUploaded] = useState<Record<string, boolean>>({});
   const [busyDoc, setBusyDoc] = useState<string | null>(null);
 
@@ -55,12 +65,20 @@ export default function PartnerOnboarding({ onDone }: { onDone: () => void }) {
   };
 
   const saveTruck = async () => {
+    if (tripFrom === driver.city) { Alert.alert('Route', 'Return trip From and To must be different cities.'); return; }
     setBusy(true);
     try {
-      await api.post('/trucks', {
+      const created: any = await api.post('/trucks', {
         registration_number: truck.registration_number.toUpperCase(),
         truck_type: truck.truck_type, body_type: truck.body_type,
         home_origin: driver.city, default_capacity_tons: +truck.capacity,
+      });
+      // The wiring that makes matching work: post the empty RETURN TRIP.
+      // Shippers are matched against trips, not bare trucks.
+      await api.post(`/trucks/${created.truck_id}/trips`, {
+        origin: tripFrom, destination: driver.city,
+        departure_at: departAt(departIdx),
+        available_capacity_tons: +truck.capacity,
       });
       setStep(2);
     } catch (e: any) { Alert.alert('Error', e.message); }
@@ -141,6 +159,16 @@ export default function PartnerOnboarding({ onDone }: { onDone: () => void }) {
           <Chips options={BODY_TYPES} value={truck.body_type} onChange={(v) => setTruck({ ...truck, body_type: v })} />
           <Label>{t('capacity_t')}</Label>
           <Input keyboardType="decimal-pad" value={truck.capacity} onChangeText={(v) => setTruck({ ...truck, capacity: v })} />
+
+          <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 12 }}>
+            <Text style={{ fontWeight: '900', color: C.ink }}>Next empty return trip</Text>
+            <Text style={{ fontSize: 12, color: C.inkFaint }}>Shippers get matched to this trip → {driver.city}</Text>
+            <Label>Empty at (From)</Label>
+            <Chips options={CITIES.filter((c) => c !== driver.city)} value={tripFrom} onChange={setTripFrom} />
+            <Label>Departure</Label>
+            <Chips options={DEPART.map((d) => d.label)} value={DEPART[departIdx].label}
+              onChange={(v) => setDepartIdx(DEPART.findIndex((d) => d.label === v))} />
+          </View>
           <View style={{ height: 18 }} />
           <Button title={busy ? '…' : t('save_continue')} loading={busy}
             disabled={!truck.registration_number} onPress={saveTruck} />
