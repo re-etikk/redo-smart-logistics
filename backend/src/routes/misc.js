@@ -36,12 +36,24 @@ r.post("/auth/profile", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+r.get("/auth/profile", async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin.from("profiles").select("*").eq("id", req.user.id).single();
+    if (error && error.code !== 'PGRST116') throw apiError(500, "DB_ERROR", error.message);
+    res.json(data || { id: req.user.id, onboarding_complete: false });
+  } catch (e) { next(e); }
+});
+
 r.patch("/auth/profile", async (req, res, next) => {
   try {
-    const allowed = ["full_name", "phone", "company_name", "avatar_url", "onboarding_complete"];
+    const allowed = ["full_name", "phone", "company_name", "avatar_url", "onboarding_complete", "role"];
     const patch = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
-    const { data, error } = await supabaseAdmin.from("profiles").update(patch).eq("id", req.profile.id).select().single();
-    if (error) throw apiError(500, "DB_ERROR", "Could not update your profile.");
+    const { data, error } = await supabaseAdmin.from("profiles").upsert({
+      id: req.user.id,
+      role: patch.role || req.profile?.role || "truck_owner",
+      ...patch,
+    }).select().single();
+    if (error) throw apiError(500, "DB_ERROR", error.message || "Could not update your profile.");
     res.json(data);
   } catch (e) { next(e); }
 });

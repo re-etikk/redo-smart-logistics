@@ -8,12 +8,18 @@ export async function requireAuth(req, res, next) {
   if (error || !data?.user) {
     return res.status(401).json({ error: "SESSION_INVALID", message: "Your session has expired. Sign in again." });
   }
+
+  req.user = data.user;
+  req.token = token;
+
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("*").eq("id", data.user.id).single();
-  if (!profile) return res.status(403).json({ error: "PROFILE_MISSING", message: "Complete your profile first." });
-  req.user = data.user;
-  req.profile = profile;
-  req.token = token;
+
+  if (!profile && req.path !== "/auth/profile") {
+    return res.status(403).json({ error: "PROFILE_MISSING", message: "Complete your profile first." });
+  }
+
+  req.profile = profile || { id: data.user.id, role: 'truck_owner' };
   next();
 }
 

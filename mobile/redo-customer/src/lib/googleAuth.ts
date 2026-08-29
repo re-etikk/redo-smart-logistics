@@ -3,11 +3,14 @@ import { supabase } from './supabase';
 
 export async function signInWithGoogleNative(): Promise<{ ok: boolean; message?: string }> {
   try {
-    const redirectTo = 'https://npisbdoztiweaayqmqev.supabase.co/auth/v1/callback';
+    const redirectTo = 'redocustomer://auth/callback';
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo, skipBrowserRedirect: true },
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
     });
 
     if (error || !data?.url) {

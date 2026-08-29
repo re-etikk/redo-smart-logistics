@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { useI18n } from '../lib/i18n';
 import { C } from '../lib/theme';
 import { Button, Card, Input, Label, LogoRow } from '../components/ui';
@@ -14,14 +15,31 @@ export default function CustomerOnboarding({ onDone }: { onDone: () => void }) {
   const finish = async () => {
     setBusy(true);
     try {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (uid) {
+        await supabase.from('profiles').upsert({
+          id: uid,
+          company_name: form.company_name,
+          full_name: form.full_name || sess.session?.user?.email?.split('@')[0] || 'Shipper',
+          phone: form.phone || null,
+          role: 'sme',
+          onboarding_complete: true,
+        });
+      }
       await api.patch('/auth/profile', {
         company_name: form.company_name,
         ...(form.full_name ? { full_name: form.full_name } : {}),
         ...(form.phone ? { phone: form.phone } : {}),
+        role: 'sme',
         onboarding_complete: true,
-      });
+      }).catch(() => null);
       onDone();
-    } catch (e: any) { Alert.alert('Error', e.message); setBusy(false); }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not save profile.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

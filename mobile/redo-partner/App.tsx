@@ -1,7 +1,7 @@
 // Boot flow (Rapido-Captain-style):
 // Language → Location permission → Auth → Driver reg → Truck reg → Documents → Main app.
 import React, { useCallback, useEffect, useState } from 'react';
-import { Text } from 'react-native';
+import { Linking, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -61,33 +61,81 @@ function Root() {
   const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login');
   const [problems, setProblems] = useState<string[]>([]);
 
+  const decideAfterAuth = useCallback(async () => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.user) {
+        setPhase('auth');
+        return;
+      }
+      const uid = sess.session.user.id;
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', uid).single();
+      if (profile && profile.onboarding_complete) {
+        setPhase('main');
+        return;
+      }
+      const apiProfile: any = await api.get('/auth/profile').catch(() => null);
+      if (apiProfile?.onboarding_complete) {
+        setPhase('main');
+        return;
+      }
+      setPhase('onboarding');
+    } catch {
+      setPhase('onboarding');
+    }
+  }, []);
+
   const healthThenAuth = useCallback(async () => {
     const found = await runStartupChecks();
     if (found.length) { setProblems(found); setPhase('health'); return; }
     const { data } = await supabase.auth.getSession();
     if (!data.session) { setPhase('auth'); return; }
     await decideAfterAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const decideAfterAuth = useCallback(async () => {
-    try {
-      const profile: any = await api.get('/auth/profile');
-      setPhase(profile?.onboarding_complete ? 'main' : 'onboarding');
-    } catch { setPhase('onboarding'); }
-  }, []);
+  }, [decideAfterAuth]);
 
   useEffect(() => {
+    const handleDeepLink = async (url: string | null) => {
+      if (!url) return;
+      try {
+        if (url.includes('access_token') || url.includes('refresh_token')) {
+          const hash = url.split('#')[1] || url.split('?')[1] || '';
+          const params = new URLSearchParams(hash);
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+            await decideAfterAuth();
+          }
+        } else if (url.includes('code=')) {
+          const code = new URL(url).searchParams.get('code');
+          if (code) {
+            await supabase.auth.exchangeCodeForSession(code);
+            await decideAfterAuth();
+          }
+        }
+      } catch {}
+    };
+
+    Linking.getInitialURL().then(handleDeepLink);
+    const subUrl = Linking.addEventListener('url', (e) => handleDeepLink(e.url));
+
     (async () => {
       if (!(await hasChosenLanguage())) { setPhase('language'); return; }
       if (!(await AsyncStorage.getItem(PERM_KEY))) { setPhase('permission'); return; }
       await healthThenAuth();
     })();
+
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!s) setPhase((p) => (['main', 'onboarding'].includes(p) ? 'auth' : p));
+      else decideAfterAuth();
     });
-    return () => sub.subscription.unsubscribe();
+
+    return () => {
+      sub.subscription.unsubscribe();
+      subUrl.remove();
+    };
   }, [decideAfterAuth, healthThenAuth]);
+
   signOutCb = () => setPhase('auth');
 
   if (phase === 'boot') return null;

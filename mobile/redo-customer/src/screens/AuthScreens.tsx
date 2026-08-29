@@ -7,7 +7,7 @@ import { Button, Card, Input, Label, LogoRow } from '../components/ui';
 import { useI18n } from '../lib/i18n';
 import { signInWithGoogleNative } from '../lib/googleAuth';
 
-export const APP_ROLE = 'sme'; // partner app uses 'truck_owner'
+export const APP_ROLE = 'sme';
 
 export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup: () => void }) {
   const { t } = useI18n();
@@ -28,6 +28,31 @@ export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup
     onDone();
   };
 
+  const demoLogin = async () => {
+    setBusy(true);
+    try {
+      let { error } = await supabase.auth.signInWithPassword({ email: 'customer@redo.app', password: 'Password@123' });
+      if (error) {
+        await supabase.auth.signUp({
+          email: 'customer@redo.app',
+          password: 'Password@123',
+          options: { data: { full_name: 'Rajesh Sharma (Shipper Demo)' } },
+        });
+        const res = await supabase.auth.signInWithPassword({ email: 'customer@redo.app', password: 'Password@123' });
+        error = res.error;
+      }
+      if (error) {
+        Alert.alert('Demo Login', error.message);
+      } else {
+        onDone();
+      }
+    } catch (e: any) {
+      Alert.alert('Demo Login', e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: C.canvas }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
@@ -45,6 +70,8 @@ export function LoginScreen({ onDone, goSignup }: { onDone: () => void; goSignup
             const r = await signInWithGoogleNative();
             if (r.ok) onDone(); else if (r.message) Alert.alert('Google sign-in', r.message);
           }} />
+          <View style={{ height: 10 }} />
+          <Button title="⚡ 1-Tap Quick Demo Shipper Login" variant="secondary" onPress={demoLogin} />
           <View style={{ height: 10 }} />
           <Button title={t('create_account')} variant="secondary" onPress={goSignup} />
         </Card>
@@ -76,7 +103,15 @@ export function SignupScreen({ onDone, goLogin }: { onDone: () => void; goLogin:
       return;
     }
     try {
-      await api.post('/auth/profile', { full_name: form.full_name, phone: form.phone, role: APP_ROLE });
+      const uid = data.session.user.id;
+      await supabase.from('profiles').upsert({
+        id: uid,
+        full_name: form.full_name,
+        phone: form.phone || null,
+        role: APP_ROLE,
+        onboarding_complete: false,
+      });
+      await api.post('/auth/profile', { full_name: form.full_name, phone: form.phone, role: APP_ROLE }).catch(() => null);
       onDone();
     } catch (e: any) { Alert.alert('Error', e.message); }
     setBusy(false);

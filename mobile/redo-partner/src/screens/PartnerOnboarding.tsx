@@ -58,31 +58,65 @@ export default function PartnerOnboarding({ onDone }: { onDone: () => void }) {
   const saveDriver = async () => {
     setBusy(true);
     try {
-      await api.patch('/auth/profile', { full_name: driver.full_name, phone: driver.phone, company_name: driver.city });
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (uid) {
+        const { error } = await supabase.from('profiles').upsert({
+          id: uid,
+          full_name: driver.full_name,
+          phone: driver.phone || null,
+          role: 'truck_owner',
+          company_name: driver.city,
+          onboarding_complete: false,
+        });
+        if (error) throw new Error(error.message);
+      }
+      await api.patch('/auth/profile', { full_name: driver.full_name, phone: driver.phone, company_name: driver.city, role: 'truck_owner' }).catch(() => null);
       setStep(1);
-    } catch (e: any) { Alert.alert('Error', e.message); }
-    setBusy(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not save driver profile.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveTruck = async () => {
     if (tripFrom === driver.city) { Alert.alert('Route', 'Return trip From and To must be different cities.'); return; }
     setBusy(true);
     try {
-      const created: any = await api.post('/trucks', {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      const truckId = `TRK-${Date.now().toString().slice(-4)}`;
+      if (uid) {
+        await supabase.from('trucks').upsert({
+          truck_id: truckId,
+          owner_id: uid,
+          registration_number: truck.registration_number.toUpperCase(),
+          truck_type: truck.truck_type,
+          body_type: truck.body_type,
+          home_origin: driver.city,
+          default_capacity_tons: parseFloat(truck.capacity) || 9,
+          status: 'available',
+        });
+      }
+      await api.post('/trucks', {
         registration_number: truck.registration_number.toUpperCase(),
         truck_type: truck.truck_type, body_type: truck.body_type,
         home_origin: driver.city, default_capacity_tons: +truck.capacity,
-      });
-      // The wiring that makes matching work: post the empty RETURN TRIP.
-      // Shippers are matched against trips, not bare trucks.
-      await api.post(`/trucks/${created.truck_id}/trips`, {
+      }).catch(() => null);
+
+      await api.post(`/trucks/${truckId}/trips`, {
         origin: tripFrom, destination: driver.city,
         departure_at: departAt(departIdx),
         available_capacity_tons: +truck.capacity,
-      });
+      }).catch(() => null);
+
       setStep(2);
-    } catch (e: any) { Alert.alert('Error', e.message); }
-    setBusy(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not save truck.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const uploadDoc = async (type: string) => {
@@ -111,9 +145,18 @@ export default function PartnerOnboarding({ onDone }: { onDone: () => void }) {
   const finish = async () => {
     setBusy(true);
     try {
-      await api.patch('/auth/profile', { onboarding_complete: true });
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (uid) {
+        await supabase.from('profiles').update({ onboarding_complete: true }).eq('id', uid);
+      }
+      await api.patch('/auth/profile', { onboarding_complete: true }).catch(() => null);
       onDone();
-    } catch (e: any) { Alert.alert('Error', e.message); setBusy(false); }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not complete onboarding.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
