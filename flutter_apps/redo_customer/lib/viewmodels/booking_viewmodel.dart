@@ -75,17 +75,17 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Post or register cargo
+      // 1. Post cargo via the backend (it computes real corridor distance)
       _lastPostedCargo = await SupabaseService.postCargoRequest(
         origin: _origin,
         destination: _destination,
         cargoType: _cargoType,
         weightTons: _weightTons,
-        distanceKm: 1420.0,
       );
 
-      // 2. Fetch matches
+      // 2. ML-ranked matches for THIS cargo (honest: throws if ML is down)
       _matches = await SupabaseService.getMatchesForCargo(
+        cargoId: _lastPostedCargo!.cargoId,
         origin: _origin,
         destination: _destination,
         weightTons: _weightTons,
@@ -107,11 +107,15 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final cargoId = _lastPostedCargo?.cargoId ?? 'CRG-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+      final cargoId = _lastPostedCargo?.cargoId;
+      if (cargoId == null) {
+        throw Exception('Cargo not posted yet - search for trucks first.');
+      }
       _lastBooking = await SupabaseService.createBooking(
         cargoId: cargoId,
         truckId: match.truckId,
         agreedPriceInr: match.finalPriceInr,
+        matchScore: match.matchScore,
         origin: _origin,
         destination: _destination,
         cargoType: _cargoType,

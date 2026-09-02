@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
+import '../../../data/models/models.dart';
 import '../../../viewmodels/partner_trips_viewmodel.dart';
 import '../../widgets/ui_components.dart';
+import '../misc/notifications_screen.dart';
+
+const _cityLatLng = <String, LatLng>{
+  'Mumbai': LatLng(19.0760, 72.8777),
+  'Delhi NCR': LatLng(28.6139, 77.2090),
+  'Delhi': LatLng(28.6139, 77.2090),
+  'Pune': LatLng(18.5204, 73.8567),
+  'Jaipur': LatLng(26.9124, 75.7873),
+  'Surat': LatLng(21.1702, 72.8311),
+  'Ahmedabad': LatLng(23.0225, 72.5714),
+};
+LatLng _posFor(String city) =>
+    _cityLatLng[city] ??
+    _cityLatLng[city.split(' ').first] ??
+    const LatLng(23.5, 76.0);
 
 class AvailableLoadsScreen extends StatefulWidget {
   const AvailableLoadsScreen({super.key});
@@ -24,20 +41,64 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   Widget build(BuildContext context) {
     final tripsVM = context.watch<PartnerTripsViewModel>();
     final loads = tripsVM.availableLoads;
-    final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
         title: const Text('Available Return Loads'),
         actions: [
+          const NotificationsBell(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => tripsVM.fetchAll(),
           ),
         ],
       ),
-      body: tripsVM.isLoading
+      body: Column(
+        children: [
+          // Live network map - load pickup points appear here in realtime,
+          // the Rapido "requests around you" feel, REDO-corridor style.
+          SizedBox(
+            height: 170,
+            child: GoogleMap(
+              initialCameraPosition:
+                  const CameraPosition(target: LatLng(23.5, 76.0), zoom: 4.4),
+              zoomControlsEnabled: false,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              liteModeEnabled: true, // smooth: static-render map header, no jank
+              markers: {
+                for (final l in loads)
+                  Marker(
+                    markerId: MarkerId('load-${l.cargoId}'),
+                    position: _posFor(l.origin),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                        BitmapDescriptor.hueYellow),
+                    infoWindow: InfoWindow(
+                        title: '${l.origin} → ${l.destination}',
+                        snippet: '${l.weightTons} T • ₹${l.offeredPriceInr.round()}'),
+                  ),
+              },
+            ),
+          ),
+          Expanded(
+            child: _LoadsBody(tripsVM: tripsVM, loads: loads),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadsBody extends StatelessWidget {
+  final PartnerTripsViewModel tripsVM;
+  final List<AvailableLoad> loads;
+  const _LoadsBody({required this.tripsVM, required this.loads});
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    return tripsVM.isLoading
           ? const Center(child: CircularProgressIndicator())
           : loads.isEmpty
               ? Center(
@@ -73,7 +134,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                                       const Icon(Icons.bolt, size: 14, color: AppColors.success),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '${load.matchScore}% Route Match',
+                                        load.distanceKm > 0
+                                            ? '${load.distanceKm.round()} km return corridor'
+                                            : 'Return corridor load',
                                         style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.success),
                                       ),
                                     ],
@@ -129,11 +192,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                                   width: 140,
                                   child: RedoButton(
                                     title: 'Accept Load',
-                                    onPressed: () {
-                                      tripsVM.acceptLoad(load);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Load accepted! Added to Active Trips.')),
-                                      );
+                                    onPressed: () async {
+                                      final err = await tripsVM.acceptLoad(load);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(err ?? 'Load accepted! Shipper notified - see Active Trips.')),
+                                        );
+                                      }
                                     },
                                   ),
                                 ),
@@ -144,7 +209,6 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       ),
                     );
                   },
-                ),
-    );
+                );
   }
 }

@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../data/services/supabase_service.dart';
 import '../../../viewmodels/booking_viewmodel.dart';
 import '../../widgets/ui_components.dart';
 import '../matches/matching_trucks_screen.dart';
@@ -26,6 +28,36 @@ class HomeMapScreen extends StatefulWidget {
 
 class _HomeMapScreenState extends State<HomeMapScreen> {
   GoogleMapController? _mapController;
+  List<Map<String, dynamic>> _liveTrips = [];
+  RealtimeChannel? _tripsCh;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+    // Rapido-style: trucks (open return trips) appear on the map LIVE.
+    _tripsCh = SupabaseService.subscribeTrips(_loadTrips);
+  }
+
+  @override
+  void dispose() {
+    if (_tripsCh != null) SupabaseService.removeChannel(_tripsCh!);
+    super.dispose();
+  }
+
+  Future<void> _loadTrips() async {
+    try {
+      final t = await SupabaseService.getLiveReturnTrips();
+      if (mounted) setState(() => _liveTrips = t);
+    } catch (_) {}
+  }
+
+  LatLng _cityPos(String name) {
+    for (final c in majorCities) {
+      if (name.startsWith(c.name.split(' ').first)) return c.latLng;
+    }
+    return majorCities.first.latLng;
+  }
 
   void _onSearch() async {
     final bookingVM = context.read<BookingViewModel>();
@@ -66,7 +98,28 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     final originPos = bookingVM.originLatLng;
     final destPos = bookingVM.destinationLatLng;
 
+    // LIVE trucks: every open return trip = a truck marker at its current
+    // (empty-at) city, slightly fanned out so clusters stay readable.
+    final tripMarkers = <Marker>{};
+    for (var i = 0; i < _liveTrips.length; i++) {
+      final t = _liveTrips[i];
+      final base = _cityPos('${t['origin']}');
+      final jitter = 0.06 * (i % 5) - 0.12; // fan-out so trucks don't overlap
+      final tripId = t['id'] ?? t['trip_id'] ?? '$i';
+      final cap = t['available_capacity_tons'] != null ? '${t['available_capacity_tons']} T free capacity' : 'Live on REDO network';
+      tripMarkers.add(Marker(
+        markerId: MarkerId('trip-$tripId'),
+        position: LatLng(base.latitude + jitter, base.longitude + jitter * 0.7),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+        infoWindow: InfoWindow(
+          title: 'Return truck → ${t['destination']}',
+          snippet: cap,
+        ),
+      ));
+    }
+
     final markers = {
+      ...tripMarkers,
       Marker(
         markerId: const MarkerId('origin'),
         position: originPos,
@@ -137,6 +190,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                             Text(
                               'Save up to 40% vs spot market rates',
                               style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 12, color: AppColors.success),
+                            ),
+                            Text(
+                              _liveTrips.isEmpty
+                                  ? 'Scanning for live trucks…'
+                                  : '🚚 ${_liveTrips.length} trucks LIVE on the network right now',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 11, color: AppColors.slateDark),
                             ),
                           ],
                         ),

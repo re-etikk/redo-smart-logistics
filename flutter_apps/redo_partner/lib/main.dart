@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config.dart';
+import 'data/services/api_service.dart';
 import 'core/theme.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/partner_trips_viewmodel.dart';
@@ -19,6 +20,8 @@ void main() async {
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
   );
+
+  ApiService.warmup(); // wake the Render backend early (free tier sleeps)
 
   runApp(const RedoPartnerApp());
 }

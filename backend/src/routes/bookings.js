@@ -10,6 +10,27 @@ import { routeDistanceKm } from "../services/matching.js";
 const r = Router();
 r.use(requireAuth);
 
+// 4-digit OTPs for secure pickup/delivery handover (Rapido/Porter-style).
+const genOtp = () => String(Math.floor(1000 + Math.random() * 9000));
+
+// Only the SME (shipper side) ever SEES the OTPs; the driver must be TOLD
+// them at the dock and enter them — that's the whole point of the handshake.
+function shapeForRole(b, role) {
+  if (role === "sme") return b;
+  const { pickup_otp, delivery_otp, ...rest } = b;
+  return rest;
+}
+
+async function ensureOtps(b) {
+  if (b.pickup_otp && b.delivery_otp) return b;
+  const patch = {
+    pickup_otp: b.pickup_otp || genOtp(),
+    delivery_otp: b.delivery_otp || genOtp(),
+  };
+  await supabaseAdmin.from("bookings").update(patch).eq("id", b.id);
+  return { ...b, ...patch };
+}
+
 async function loadBookingForUser(id, profile) {
   const { data: b } = await supabaseAdmin
     .from("bookings")
@@ -45,7 +66,7 @@ r.post("/", async (req, res, next) => {
     // the shipper then confirms — same state machine, no skipped steps.
     const initialStatus = isOwnerFlow ? "accepted" : "pending";
     const { data: booking, error } = await supabaseAdmin.from("bookings")
-      .insert({ cargo_id, truck_id, trip_id, match_score, agreed_price_inr, status: initialStatus })
+      .insert({ cargo_id, truck_id, trip_id, match_score, agreed_price_inr, status: initialStatus, pickup_otp: genOtp(), delivery_otp: genOtp() })
       .select().single();
     if (error) throw apiError(500, "DB_ERROR", "Could not create the booking.");
     await supabaseAdmin.from("cargo_requests").update({ status: "matched" }).eq("cargo_id", cargo_id);
@@ -67,9 +88,12 @@ r.get("/", async (req, res, next) => {
   try {
     let q = supabaseAdmin.from("bookings").select("*, cargo:cargo_requests(*), truck:trucks(*)").order("created_at", { ascending: false });
     const { data: all } = await q;
-    const mine = (all || []).filter((b) =>
+    let mine = (all || []).filter((b) =>
       req.profile.role === "truck_owner" ? b.truck.owner_id === req.profile.id : b.cargo.sme_id === req.profile.id);
-    res.json(mine);
+    if (req.profile.role === "sme") {
+      mine = await Promise.all(mine.map((b) => ensureOtps(b))); // backfill old rows
+    }
+    res.json(mine.map((b) => shapeForRole(b, req.profile.role)));
   } catch (e) { next(e); }
 });
 
@@ -78,7 +102,30 @@ r.get("/:id", async (req, res, next) => {
     const { booking } = await loadBookingForUser(req.params.id, req.profile);
     const { data: proofs } = await supabaseAdmin.from("digital_proof").select("*").eq("booking_id", booking.id);
     const { data: events } = await supabaseAdmin.from("booking_events").select("*").eq("booking_id", booking.id).order("created_at");
-    res.json({ ...booking, proofs: proofs || [], events: events || [] });
+    const shaped = req.profile.role === "sme" ? await ensureOtps(booking) : booking;
+    res.json({ ...shapeForRole(shaped, req.profile.role), proofs: proofs || [], events: events || [] });
+  } catch (e) { next(e); }
+});
+
+// POST /bookings/:id/verify-otp — driver enters the OTP the shipper shares
+// at the dock. Verified timestamps then gate picked_up / delivered below.
+r.post("/:id/verify-otp", async (req, res, next) => {
+  try {
+    const { type, otp } = req.body || {};
+    if (!["pickup", "delivery"].includes(type) || !otp)
+      throw apiError(400, "VALIDATION", "type (pickup|delivery) and otp are required.");
+    const { booking } = await loadBookingForUser(req.params.id, req.profile);
+    if (req.profile.role !== "truck_owner")
+      throw apiError(403, "FORBIDDEN", "Only the driver enters handover OTPs.");
+    const withOtps = await ensureOtps(booking);
+    const expected = type === "pickup" ? withOtps.pickup_otp : withOtps.delivery_otp;
+    if (String(otp).trim() !== String(expected))
+      throw apiError(409, "OTP_INVALID", "Incorrect OTP — ask the shipper for the " + type + " OTP.");
+    const col = type === "pickup" ? "pickup_otp_verified_at" : "delivery_otp_verified_at";
+    await supabaseAdmin.from("bookings").update({ [col]: new Date().toISOString() }).eq("id", booking.id);
+    await notify(booking.cargo.sme_id, "booking_status", "OTP verified at " + type,
+      `${booking.cargo.origin} → ${booking.cargo.destination} · secure handover confirmed.`);
+    res.json({ ok: true, type });
   } catch (e) { next(e); }
 });
 
@@ -89,6 +136,11 @@ r.patch("/:id/status", async (req, res, next) => {
     const { booking } = await loadBookingForUser(req.params.id, req.profile);
     const { data: proofRows } = await supabaseAdmin.from("digital_proof").select("proof_type").eq("booking_id", booking.id);
     const proofs = (proofRows || []).map((p) => p.proof_type);
+    // Secure handover: OTP must be verified before goods change hands.
+    if (to === "picked_up" && !booking.pickup_otp_verified_at)
+      throw apiError(409, "OTP_REQUIRED", "Verify the shipper's pickup OTP first.");
+    if (to === "delivered" && !booking.delivery_otp_verified_at)
+      throw apiError(409, "OTP_REQUIRED", "Verify the delivery OTP first.");
     const check = canTransition(booking.status, to, req.profile.role, { proofs });
     if (!check.ok) {
       const msgs = {

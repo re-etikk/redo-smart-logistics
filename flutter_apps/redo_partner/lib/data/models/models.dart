@@ -83,7 +83,7 @@ class AvailableLoad {
   final String cargoType;
   final double weightTons;
   final double offeredPriceInr;
-  final int matchScore;
+  final double distanceKm;
   final String pickupWindow;
 
   AvailableLoad({
@@ -94,7 +94,7 @@ class AvailableLoad {
     required this.cargoType,
     required this.weightTons,
     required this.offeredPriceInr,
-    required this.matchScore,
+    required this.distanceKm,
     required this.pickupWindow,
   });
 
@@ -106,10 +106,10 @@ class AvailableLoad {
       origin: json['origin'] as String? ?? 'Mumbai',
       destination: json['destination'] as String? ?? 'Delhi',
       cargoType: json['cargo_type'] as String? ?? 'General Freight',
-      weightTons: (json['cargo_weight_tons'] as num?)?.toDouble() ?? 7.5,
-      offeredPriceInr: (json['offered_price_inr'] as num?)?.toDouble() ?? 24000.0,
-      matchScore: (json['match_score'] as num?)?.toInt() ?? 95,
-      pickupWindow: json['pickup_window'] as String? ?? 'Today 6 PM - 9 PM',
+      weightTons: (json['cargo_weight_tons'] as num?)?.toDouble() ?? 0,
+      offeredPriceInr: (json['offered_price_inr'] as num?)?.toDouble() ?? 0,
+      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
+      pickupWindow: json['pickup_window'] as String? ?? 'Flexible pickup',
     );
   }
 }
@@ -124,7 +124,7 @@ class ActiveTrip {
   final double payoutInr;
   String status; // accepted, confirmed, pickup_ready, in_transit, delivered
   final String shipperName;
-  final String shipperPhone;
+  final String? shipperPhone;
   final String? podUrl;
 
   ActiveTrip({
@@ -137,7 +137,7 @@ class ActiveTrip {
     required this.payoutInr,
     required this.status,
     required this.shipperName,
-    required this.shipperPhone,
+    this.shipperPhone,
     this.podUrl,
   });
 
@@ -152,10 +152,10 @@ class ActiveTrip {
       destination: cargo?['destination'] as String? ?? 'Delhi NCR Hub',
       cargoType: cargo?['cargo_type'] as String? ?? 'Industrial Cargo',
       weightTons: (cargo?['cargo_weight_tons'] as num?)?.toDouble() ?? 8.5,
-      payoutInr: (json['agreed_price_inr'] as num?)?.toDouble() ?? 22100.0,
-      status: json['status'] as String? ?? 'in_transit',
-      shipperName: sme?['company_name'] ?? 'Apex Logistics',
-      shipperPhone: sme?['phone'] ?? '+91 98765 11223',
+      payoutInr: (json['agreed_price_inr'] as num?)?.toDouble() ?? 0,
+      status: json['status'] as String? ?? 'pending',
+      shipperName: sme?['company_name'] ?? sme?['full_name'] ?? 'Shipper',
+      shipperPhone: sme?['phone'] as String?,
       podUrl: json['pod_url'] as String?,
     );
   }

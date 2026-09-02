@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
 import '../../../viewmodels/auth_viewmodel.dart';
+import '../misc/notifications_screen.dart';
+import '../misc/support_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -73,23 +75,27 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.location_city_outlined, color: AppColors.slateDark),
-                    title: Text('Saved Hubs & Warehouses', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                    title: Text('Notifications', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const NotificationsScreen())),
                   ),
                   const Divider(height: 1, color: AppColors.border),
                   ListTile(
                     leading: const Icon(Icons.receipt_long_outlined, color: AppColors.slateDark),
                     title: Text('GST & Billing Details', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                    subtitle: Text('Invoices tab me dekhe - auto 18% GST', style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Open the Invoices tab below for GST bills.'))),
                   ),
                   const Divider(height: 1, color: AppColors.border),
                   ListTile(
                     leading: const Icon(Icons.headset_mic_outlined, color: AppColors.slateDark),
                     title: Text('Help & 24x7 Control Desk', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const SupportScreen())),
                   ),
                   const Divider(height: 1, color: AppColors.border),
                   ListTile(

@@ -1,7 +1,14 @@
 import 'dart:typed_data';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
+import 'api_service.dart';
 
+/// Partner data layer.
+/// Auth + onboarding writes go to Supabase directly (RLS: owner-own rows).
+/// Loads, bookings, status transitions, GPS and earnings go through the
+/// Express backend — the same state machine the website and customer app use,
+/// so both sides can never disagree about a trip.
 class SupabaseService {
   static final SupabaseClient client = Supabase.instance.client;
 
@@ -72,7 +79,7 @@ class SupabaseService {
           'company_name': 'Delhi NCR',
           'phone': '+91 98765 43210',
           'role': 'truck_owner',
-          'onboarding_complete': true,
+          'onboarding_complete': false, // demo driver also registers his truck once
         });
       }
       return res;
@@ -83,7 +90,7 @@ class SupabaseService {
     await client.auth.signOut();
   }
 
-  // --- Profile Methods ---
+  // --- Profile / Onboarding ---
   static Future<DriverProfile?> getProfile() async {
     final uid = currentUser?.id;
     if (uid == null) return null;
@@ -113,6 +120,8 @@ class SupabaseService {
     });
   }
 
+  /// Truck + the empty RETURN TRIP — the trip is what shippers get matched
+  /// against, so registering it here is what makes the driver discoverable.
   static Future<void> saveTruckStep({
     required String registrationNumber,
     required String truckType,
@@ -121,28 +130,19 @@ class SupabaseService {
     required String homeOrigin,
     required String emptyReturnFrom,
   }) async {
-    final uid = currentUser?.id;
-    if (uid == null) return;
-    final truckId = 'TRK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-
-    await client.from('trucks').upsert({
-      'truck_id': truckId,
-      'owner_id': uid,
+    final created = await ApiService.post('/trucks', {
       'registration_number': registrationNumber.toUpperCase(),
       'truck_type': truckType,
       'body_type': bodyType,
       'home_origin': homeOrigin,
       'default_capacity_tons': capacityTons,
-      'status': 'available',
     });
-
-    // Register return trip for matching
-    await client.from('truck_trips').insert({
-      'truck_id': truckId,
+    await ApiService.post('/trucks/${created['truck_id']}/trips', {
       'origin': emptyReturnFrom,
       'destination': homeOrigin,
+      'departure_at':
+          DateTime.now().add(const Duration(hours: 6)).toUtc().toIso8601String(),
       'available_capacity_tons': capacityTons,
-      'departure_at': DateTime.now().add(const Duration(hours: 4)).toIso8601String(),
     });
   }
 
@@ -150,28 +150,22 @@ class SupabaseService {
     required String docType,
     required Uint8List fileBytes,
   }) async {
-    final uid = currentUser?.id ?? 'guest-driver';
+    final uid = currentUser!.id; // must be signed in to upload KYC
     final fileName = '$uid/$docType-${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-    try {
-      await client.storage.from('kyc-documents').uploadBinary(
-        fileName,
-        fileBytes,
-        fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
-      );
-
-      await client.from('kyc_verifications').insert({
-        'user_id': uid,
-        'document_type': docType,
-        'verification_status': 'pending',
-        'verification_source': 'driver_app_upload',
-        'document_reference_masked': 'upload:…${fileName.substring(fileName.length - 8)}',
-      });
-
-      return fileName;
-    } catch (_) {
-      return fileName;
-    }
+    await client.storage.from('kyc-documents').uploadBinary(
+          fileName,
+          fileBytes,
+          fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+        );
+    await client.from('kyc_verifications').insert({
+      'user_id': uid,
+      'document_type': docType,
+      'verification_status': 'pending',
+      'verification_source': 'driver_app_upload',
+      'document_reference_masked':
+          'upload:…${fileName.substring(fileName.length - 8)}',
+    });
+    return fileName;
   }
 
   static Future<void> finishOnboarding() async {
@@ -180,104 +174,221 @@ class SupabaseService {
     await client.from('profiles').update({'onboarding_complete': true}).eq('id', uid);
   }
 
-  // --- Loads & Trips ---
+  // --- My trucks (needed to accept loads) ---
+  static Future<List<TruckModel>> getMyTrucks() async {
+    final res = await ApiService.get('/trucks') as List;
+    return res.map((r) => TruckModel.fromJson(Map<String, dynamic>.from(r))).toList();
+  }
+
+  // --- Loads & Trips (via backend — real, cross-app visible) ---
+
   static Future<List<AvailableLoad>> getAvailableLoads() async {
-    try {
-      final res = await client.from('cargo_requests')
-          .select('*, sme:profiles(*)')
-          .eq('status', 'open')
-          .limit(10);
+    final res = await ApiService.get('/cargo') as List;
+    return res.map((raw) {
+      final r = Map<String, dynamic>.from(raw);
+      final km = (r['distance_km'] as num?)?.toDouble() ?? 0;
+      final tons = (r['cargo_weight_tons'] as num?)?.toDouble() ?? 0;
+      String window = 'Flexible pickup';
+      final p = DateTime.tryParse('${r['pickup_at'] ?? ''}')?.toLocal();
+      if (p != null) window = DateFormat('EEE, d MMM - h:mm a').format(p);
+      return AvailableLoad(
+        cargoId: '${r['cargo_id']}',
+        smeName: 'Verified Shipper',
+        origin: '${r['origin']}',
+        destination: '${r['destination']}',
+        cargoType: '${r['cargo_type'] ?? 'General Freight'}',
+        weightTons: tons,
+        // Payout from the SAME corridor formula the backend prices with
+        // (km × tons × ₹1.05) — computed, not invented.
+        offeredPriceInr: (km * tons * 1.05).roundToDouble(),
+        distanceKm: km,
+        pickupWindow: window,
+      );
+    }).toList();
+  }
 
-      if (res.isNotEmpty) {
-        return (res as List).map((r) => AvailableLoad.fromJson(r)).toList();
-      }
-    } catch (_) {}
-
-    // Fallback live freight loads on high-traffic return corridors
-    return [
-      AvailableLoad(
-        cargoId: 'CRG-MH04-881',
-        smeName: 'Tata AutoComp Systems',
-        origin: 'Mumbai (Bhiwandi Hub)',
-        destination: 'Delhi NCR (Manesar)',
-        cargoType: 'Automotive Engine Parts',
-        weightTons: 8.5,
-        offeredPriceInr: 24500.0,
-        matchScore: 98,
-        pickupWindow: 'Today 6:00 PM - 9:00 PM',
-      ),
-      AvailableLoad(
-        cargoId: 'CRG-GJ01-442',
-        smeName: 'Reliance Retail Logistics',
-        origin: 'Surat',
-        destination: 'Delhi NCR',
-        cargoType: 'Packaged Consumer Goods',
-        weightTons: 6.0,
-        offeredPriceInr: 18000.0,
-        matchScore: 92,
-        pickupWindow: 'Tomorrow 8:00 AM',
-      ),
-      AvailableLoad(
-        cargoId: 'CRG-RJ14-109',
-        smeName: 'Jaipur Rugs Exports',
-        origin: 'Jaipur',
-        destination: 'Mumbai Port',
-        cargoType: 'Handicrafts & Rugs',
-        weightTons: 11.0,
-        offeredPriceInr: 28500.0,
-        matchScore: 89,
-        pickupWindow: 'Tomorrow 11:00 AM',
-      ),
-    ];
+  /// REAL accept: creates a booking via the backend (owner_initiated), which
+  /// notifies the shipper and shows up on their app/website instantly.
+  static Future<String> acceptLoad({
+    required String cargoId,
+    required String truckId,
+    required double payoutInr,
+  }) async {
+    final res = await ApiService.post('/bookings', {
+      'cargo_id': cargoId,
+      'truck_id': truckId,
+      'agreed_price_inr': payoutInr,
+      'owner_initiated': true,
+    });
+    return '${res['id']}';
   }
 
   static Future<List<ActiveTrip>> getActiveTrips() async {
-    final uid = currentUser?.id;
-    if (uid == null) return [];
-    try {
-      final res = await client.from('bookings')
-          .select('*, cargo:cargo_requests(*, sme:profiles(*)), truck:trucks(*)')
-          .order('created_at', ascending: false);
-
-      if (res.isNotEmpty) {
-        return (res as List).map((r) => ActiveTrip.fromJson(r)).toList();
-      }
-    } catch (_) {}
-
-    return [
-      ActiveTrip(
-        bookingId: 'BK-89421',
-        cargoId: 'CRG-5512',
-        origin: 'Mumbai (Bhiwandi Hub)',
-        destination: 'Delhi NCR (Gurugram)',
-        cargoType: 'Automotive Components',
-        weightTons: 8.5,
-        payoutInr: 22100.0,
-        status: 'in_transit',
-        shipperName: 'Sharma Logistics (Rajesh)',
-        shipperPhone: '+91 98765 43210',
-      ),
-    ];
+    final res = await ApiService.get('/bookings') as List;
+    return res.map((r) => ActiveTrip.fromJson(Map<String, dynamic>.from(r))).toList();
   }
 
-  static Future<void> updateTripStatus(String bookingId, String newStatus) async {
-    try {
-      await client.from('bookings').update({'status': newStatus}).eq('id', bookingId);
-    } catch (_) {}
+  /// Legal transitions only — the backend state machine is the referee.
+  static Future<void> updateTripStatus(String bookingId, String newStatus) =>
+      ApiService.patch('/bookings/$bookingId/status', {'to': newStatus});
+
+  /// e-POD: photo → private bucket → /proof metadata (GPS-stamped serverside).
+  /// Required before picked_up (pickup proof) and delivered (delivery proof).
+  static Future<void> uploadTripProof({
+    required String bookingId,
+    required String proofType, // 'pickup' | 'delivery'
+    required Uint8List photoBytes,
+    double? lat,
+    double? lng,
+  }) async {
+    final uid = currentUser!.id;
+    final bucket = proofType == 'pickup' ? 'pickup-proofs' : 'delivery-proofs';
+    final path = '$uid/$bookingId-$proofType-${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await client.storage.from(bucket).uploadBinary(
+          path,
+          photoBytes,
+          fileOptions: const FileOptions(contentType: 'image/jpeg'),
+        );
+    await ApiService.post('/proof', {
+      'booking_id': bookingId,
+      'proof_type': proofType,
+      'photo_url': '$bucket/$path',
+      if (lat != null) 'gps_lat': lat,
+      if (lng != null) 'gps_lng': lng,
+    });
   }
 
+  /// REAL GPS → tracking_events (is_simulated: false). The shipper's map
+  /// moves live via Supabase Realtime — the Rapido moment.
   static Future<void> broadcastDriverGps({
+    required String bookingId,
     required double lat,
     required double lng,
   }) async {
-    final uid = currentUser?.id;
-    if (uid == null) return;
-    try {
-      await client.from('trucks').update({
-        'current_lat': lat,
-        'current_lng': lng,
-        'gps_enabled': true,
-      }).eq('owner_id', uid);
-    } catch (_) {}
+    await ApiService.post('/tracking/$bookingId/events', {
+      'lat': lat,
+      'lng': lng,
+      'is_simulated': false,
+    });
   }
+
+  // --- Earnings (computed by the backend from completed bookings) ---
+  static Future<Map<String, dynamic>> getEarnings() async {
+    final res = await ApiService.get('/earnings');
+    return Map<String, dynamic>.from(res);
+  }
+
+  // --- Realtime ---
+  /// New shipper cargo (from the website OR the customer app) pops into the
+  /// loads feed instantly.
+  static RealtimeChannel subscribeCargo(void Function() onChange) {
+    final ch = client.channel('cargo-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'cargo_requests',
+      callback: (_) => onChange(),
+    );
+    ch.subscribe();
+    return ch;
+  }
+
+  static RealtimeChannel subscribeBookings(void Function() onChange) {
+    final ch = client.channel('bookings-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'bookings',
+      callback: (_) => onChange(),
+    );
+    ch.subscribe();
+    return ch;
+  }
+
+  static void removeChannel(RealtimeChannel ch) => client.removeChannel(ch);
+
+  // --- Notifications (live bell) ---
+  static Future<List<Map<String, dynamic>>> getNotifications() async {
+    final res = await ApiService.get('/notifications') as List;
+    return res.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> markNotificationRead(String id) =>
+      ApiService.patch('/notifications/$id/read');
+
+  static RealtimeChannel subscribeNotifications(void Function() onChange) {
+    final ch = client.channel('notif-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'notifications',
+      callback: (_) => onChange(),
+    );
+    ch.subscribe();
+    return ch;
+  }
+
+  // --- Support tickets ---
+  static Future<List<Map<String, dynamic>>> getSupportTickets() async {
+    final res = await ApiService.get('/support/tickets') as List;
+    return res.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> createSupportTicket(String subject, String description) =>
+      ApiService.post('/support/tickets',
+          {'subject': subject, 'description': description, 'category': 'Partner App'});
+
+  /// Post an extra empty RETURN TRIP on any corridor — this is what makes the
+  /// truck matchable again after each run (the heart of the backhaul model).
+  static Future<void> postReturnTrip({
+    required String truckId,
+    required String origin,
+    required String destination,
+    required double capacityTons,
+  }) async {
+    final d = DateTime.now().add(const Duration(days: 1));
+    await ApiService.post('/trucks/$truckId/trips', {
+      'origin': origin,
+      'destination': destination,
+      'departure_at':
+          DateTime(d.year, d.month, d.day, 10).toUtc().toIso8601String(),
+      'available_capacity_tons': capacityTons,
+    });
+  }
+
+  // --- KYC status rows (docs screen) ---
+  static Future<List<Map<String, dynamic>>> getKycRows() async {
+    final uid = currentUser?.id;
+    if (uid == null) return [];
+    final res = await client
+        .from('kyc_verifications')
+        .select()
+        .eq('user_id', uid)
+        .order('created_at');
+    return (res as List).map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+
+  /// Secure handover: driver enters the OTP the shipper shares at the dock.
+  /// Backend refuses picked_up/delivered until the matching OTP is verified.
+  static Future<void> verifyOtp({
+    required String bookingId,
+    required String type, // 'pickup' | 'delivery'
+    required String otp,
+  }) =>
+      ApiService.post('/bookings/$bookingId/verify-otp', {'type': type, 'otp': otp});
+
+  static Future<void> verifyTripOtp({
+    required String bookingId,
+    required String type,
+    required String otp,
+  }) =>
+      verifyOtp(bookingId: bookingId, type: type, otp: otp);
+
+  /// Two-way trust: the driver rates the shipper too (same ratings ledger).
+  static Future<void> submitRating(String bookingId, int score) =>
+      ApiService.post('/ratings', {'booking_id': bookingId, 'score': score});
+
+  static Future<void> rateShipper(String bookingId, int score) =>
+      submitRating(bookingId, score);
 }

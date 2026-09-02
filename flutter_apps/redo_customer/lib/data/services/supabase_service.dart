@@ -1,7 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/config.dart';
+import 'package:intl/intl.dart';
 import '../models/models.dart';
+import 'api_service.dart';
 
+/// Data layer for the customer app.
+/// Auth + profile go straight to Supabase (RLS-safe).
+/// Cargo, matching, bookings and tracking go through the Express backend —
+/// the same API the website uses — so ML matching, the booking state machine,
+/// notifications and invoices are REAL, never invented locally.
 class SupabaseService {
   static final SupabaseClient client = Supabase.instance.client;
 
@@ -113,180 +119,228 @@ class SupabaseService {
     });
   }
 
-  // --- Cargo & Matching Methods ---
+  // --- Cargo & Matching (via backend — real ML pipeline) ---
+
   static Future<CargoRequest> postCargoRequest({
     required String origin,
     required String destination,
     required String cargoType,
     required double weightTons,
-    required double distanceKm,
   }) async {
-    final uid = currentUser?.id ?? 'guest-sme';
-    final cargoId = 'CRG-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-
-    final data = {
-      'cargo_id': cargoId,
-      'sme_id': uid,
+    final pickup = DateTime.now().add(const Duration(days: 1));
+    final at = DateTime(pickup.year, pickup.month, pickup.day, 10);
+    final res = await ApiService.post('/cargo', {
       'origin': origin,
       'destination': destination,
-      'distance_km': distanceKm,
       'cargo_type': cargoType,
       'cargo_weight_tons': weightTons,
+      'pickup_at': at.toUtc().toIso8601String(),
       'urgency': 'normal',
-      'status': 'open',
-    };
-
-    await client.from('cargo_requests').insert(data);
-    return CargoRequest.fromJson(data);
+    });
+    return CargoRequest.fromJson(Map<String, dynamic>.from(res));
   }
 
+  /// ML-ranked matches for a posted cargo. Honest by design:
+  /// - scores/prices come from the backend + ML service, never invented here;
+  /// - if the ML service is down the backend returns MATCHING_UNAVAILABLE and
+  ///   we surface it with a Retry, we do NOT show made-up trucks.
   static Future<List<TruckMatch>> getMatchesForCargo({
+    required String cargoId,
     required String origin,
     required String destination,
     required double weightTons,
   }) async {
-    try {
-      // 1. Check real return trips in database
-      final res = await client.from('truck_trips').select('*, truck:trucks(*, owner:profiles(*))')
-          .eq('origin', origin)
-          .eq('destination', destination)
-          .limit(10);
-
-      if (res.isNotEmpty) {
-        return (res as List).map((row) {
-          final t = row['truck'] as Map<String, dynamic>?;
-          return TruckMatch(
-            truckId: t?['truck_id'] ?? 'TRK-101',
-            ownerId: t?['owner_id'] ?? '',
-            truckType: t?['truck_type'] ?? '22FT',
-            registrationNumber: t?['registration_number'] ?? 'MH 04 AZ 8899',
-            origin: origin,
-            destination: destination,
-            availableCapacityTons: (row['available_capacity_tons'] as num?)?.toDouble() ?? 10.0,
-            matchScore: 94.0,
-            basePriceInr: 28000.0,
-            backhaulDiscountPercent: 32.0,
-            finalPriceInr: 19040.0,
-            driverRating: 4.9,
-            onTimeRate: 0.96,
-            departureAt: 'Today 6:30 PM',
-          );
-        }).toList();
+    final res = await ApiService.get('/recommendations/trucks/$cargoId');
+    final recs = (res['recommendations'] as List?) ?? [];
+    return recs.map((raw) {
+      final r = Map<String, dynamic>.from(raw);
+      final backendPrice = (r['estimated_price_inr'] as num?)?.toDouble() ?? 0;
+      final km = (r['distance_km'] as num?)?.toDouble() ?? 0;
+      final tons = (r['capacity_available_tons'] as num?)?.toDouble() ?? 0;
+      // Spot-market baseline (~Rs 1.55/ton-km, industry reference) so the
+      // backhaul discount is COMPUTED from real numbers, not hardcoded.
+      final base = km > 0 ? km * weightTons * 1.55 : backendPrice * 1.45;
+      String depart = 'Flexible';
+      final dep = r['departure_at'];
+      if (dep != null) {
+        final d = DateTime.tryParse('$dep')?.toLocal();
+        if (d != null) depart = DateFormat('EEE, d MMM - h:mm a').format(d);
       }
-    } catch (_) {}
-
-    // Fallback calibrated instant market matches
-    final basePrice = (1400.0 * 24.0); // estimated
-    return [
-      TruckMatch(
-        truckId: 'TRK-MH04-88',
-        ownerId: 'demo-owner-1',
-        truckType: '22FT Multi-Axle',
-        registrationNumber: 'MH 04 GP 4421',
+      return TruckMatch(
+        truckId: '${r['truck_id']}',
+        ownerId: '${r['owner_id'] ?? ''}',
+        truckType: '${r['truck_type'] ?? '22FT'}',
+        registrationNumber: r['registration_number'] as String?,
         origin: origin,
         destination: destination,
-        availableCapacityTons: 12.0,
-        matchScore: 96.0,
-        basePriceInr: 34000.0,
-        backhaulDiscountPercent: 35.0,
-        finalPriceInr: 22100.0,
-        driverRating: 4.9,
-        onTimeRate: 0.98,
-        departureAt: 'Today 7:00 PM',
-      ),
-      TruckMatch(
-        truckId: 'TRK-DL01-19',
-        ownerId: 'demo-owner-2',
-        truckType: '17FT Closed Container',
-        registrationNumber: 'DL 01 AA 9021',
-        origin: origin,
-        destination: destination,
-        availableCapacityTons: 8.5,
-        matchScore: 91.0,
-        basePriceInr: 26000.0,
-        backhaulDiscountPercent: 28.0,
-        finalPriceInr: 18720.0,
-        driverRating: 4.8,
-        onTimeRate: 0.94,
-        departureAt: 'Tomorrow 9:00 AM',
-      ),
-      TruckMatch(
-        truckId: 'TRK-RJ14-63',
-        ownerId: 'demo-owner-3',
-        truckType: '32FT High Deck',
-        registrationNumber: 'RJ 14 CC 3110',
-        origin: origin,
-        destination: destination,
-        availableCapacityTons: 18.0,
-        matchScore: 88.0,
-        basePriceInr: 45000.0,
-        backhaulDiscountPercent: 30.0,
-        finalPriceInr: 31500.0,
-        driverRating: 4.7,
-        onTimeRate: 0.92,
-        departureAt: 'Tomorrow 11:30 AM',
-      ),
-    ];
+        availableCapacityTons: tons,
+        matchScore: ((r['match_score'] as num?)?.toDouble() ?? 0) * 100,
+        basePriceInr: base.roundToDouble(),
+        backhaulDiscountPercent:
+            base > 0 ? ((1 - backendPrice / base) * 100).clamp(0, 60).roundToDouble() : 0,
+        finalPriceInr: backendPrice,
+        // null rating = new driver (no fake 4.9): 0 here, UI shows "New".
+        driverRating: (r['driver_rating'] as num?)?.toDouble() ?? 0,
+        onTimeRate: (r['on_time_rate'] as num?)?.toDouble() ?? 0,
+        departureAt: depart,
+      );
+    }).toList();
   }
 
-  // --- Bookings Methods ---
+  // --- Bookings (via backend — real state machine) ---
+
   static Future<BookingItem> createBooking({
     required String cargoId,
     required String truckId,
     required double agreedPriceInr,
+    required double matchScore,
     required String origin,
     required String destination,
     required String cargoType,
     required double weightTons,
   }) async {
-    final uid = currentUser?.id;
-    try {
-      final res = await client.from('bookings').insert({
-        'cargo_id': cargoId,
-        'truck_id': truckId,
-        'agreed_price_inr': agreedPriceInr,
-        'status': 'confirmed',
-      }).select().single();
-
-      return BookingItem(
-        id: res['id'],
-        cargoId: cargoId,
-        truckId: truckId,
-        origin: origin,
-        destination: destination,
-        cargoType: cargoType,
-        weightTons: weightTons,
-        agreedPriceInr: agreedPriceInr,
-        status: 'confirmed',
-        createdAt: DateTime.now().toIso8601String(),
-      );
-    } catch (_) {
-      return BookingItem(
-        id: 'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-        cargoId: cargoId,
-        truckId: truckId,
-        origin: origin,
-        destination: destination,
-        cargoType: cargoType,
-        weightTons: weightTons,
-        agreedPriceInr: agreedPriceInr,
-        status: 'confirmed',
-        createdAt: DateTime.now().toIso8601String(),
-      );
-    }
+    final res = await ApiService.post('/bookings', {
+      'cargo_id': cargoId,
+      'truck_id': truckId,
+      'agreed_price_inr': agreedPriceInr,
+      'match_score': matchScore / 100,
+    });
+    return BookingItem(
+      id: '${res['id']}',
+      cargoId: cargoId,
+      truckId: truckId,
+      origin: origin,
+      destination: destination,
+      cargoType: cargoType,
+      weightTons: weightTons,
+      agreedPriceInr: agreedPriceInr,
+      status: '${res['status'] ?? 'pending'}',
+      createdAt: DateTime.now().toIso8601String(),
+    );
   }
 
   static Future<List<BookingItem>> getShipments() async {
-    final uid = currentUser?.id;
-    if (uid == null) return [];
-    try {
-      final res = await client.from('bookings')
-          .select('*, cargo:cargo_requests(*), truck:trucks(*, owner:profiles(*))')
-          .order('created_at', ascending: false);
+    final res = await ApiService.get('/bookings') as List;
+    return res.map((r) => BookingItem.fromJson(Map<String, dynamic>.from(r))).toList();
+  }
 
-      return (res as List).map((r) => BookingItem.fromJson(r)).toList();
-    } catch (_) {
-      return [];
-    }
+  /// SME confirms the truck (accepted -> confirmed) — unlocks the trip.
+  static Future<void> confirmBooking(String bookingId) =>
+      ApiService.patch('/bookings/$bookingId/status', {'to': 'confirmed'});
+
+  /// SME closes the loop (delivered -> completed) — settles earnings + invoice.
+  static Future<void> completeBooking(String bookingId) =>
+      ApiService.patch('/bookings/$bookingId/status', {'to': 'completed'});
+
+  static Future<void> submitRating(String bookingId, int score) =>
+      ApiService.post('/ratings', {'booking_id': bookingId, 'score': score});
+
+  // --- Live tracking (real telemetry: tracking_events + Realtime) ---
+
+  static Future<List<Map<String, dynamic>>> getTrackingHistory(String bookingId) async {
+    final res = await ApiService.get('/tracking/$bookingId') as List;
+    return res.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static RealtimeChannel subscribeTracking(
+      String bookingId, void Function(Map<String, dynamic> point) onPoint) {
+    final ch = client.channel('track-$bookingId-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'tracking_events',
+      filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq, column: 'booking_id', value: bookingId),
+      callback: (payload) => onPoint(payload.newRecord),
+    );
+    ch.subscribe();
+    return ch;
+  }
+
+  /// Any booking change (partner advances status on their app) -> refresh.
+  static RealtimeChannel subscribeBookings(void Function() onChange) {
+    final ch = client.channel('bookings-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'bookings',
+      callback: (_) => onChange(),
+    );
+    ch.subscribe();
+    return ch;
+  }
+
+  static void removeChannel(RealtimeChannel ch) => client.removeChannel(ch);
+
+  // --- Notifications (live bell — Rapido-style) ---
+  static Future<List<Map<String, dynamic>>> getNotifications() async {
+    final res = await ApiService.get('/notifications') as List;
+    return res.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> markNotificationRead(String id) =>
+      ApiService.patch('/notifications/$id/read');
+
+  static RealtimeChannel subscribeNotifications(void Function() onChange) {
+    final ch = client.channel('notif-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'notifications',
+      callback: (_) => onChange(),
+    );
+    ch.subscribe();
+    return ch;
+  }
+
+  // --- Support tickets ---
+  static Future<List<Map<String, dynamic>>> getSupportTickets() async {
+    final res = await ApiService.get('/support/tickets') as List;
+    return res.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> createSupportTicket(String subject, String description) =>
+      ApiService.post('/support/tickets',
+          {'subject': subject, 'description': description, 'category': 'App'});
+
+  // --- Invoices (auto-generated with 18% GST when a trip completes) ---
+  static Future<List<Map<String, dynamic>>> getInvoices() async {
+    final res = await ApiService.get('/invoices') as List;
+    return res.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  // --- Saved addresses / hubs ---
+  static Future<List<Map<String, dynamic>>> getAddresses() async {
+    final res = await ApiService.get('/addresses') as List;
+    return res.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> addAddress(String label, String city) =>
+      ApiService.post('/addresses', {'label': label, 'city': city, 'type': 'pickup'});
+
+
+  // --- Rapido-style live trucks: open RETURN TRIPS on the network ---
+  // Direct Supabase read (trips_read_open policy) + realtime channel, so new
+  // driver trips pop onto the customer map the moment they're posted.
+  static Future<List<Map<String, dynamic>>> getLiveReturnTrips() async {
+    final res = await client
+        .from('truck_trips')
+        .select('id, origin, destination, available_capacity_tons, departure_at, status')
+        .eq('status', 'open')
+        .order('departure_at')
+        .limit(60);
+    return (res as List).map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static RealtimeChannel subscribeTrips(void Function() onChange) {
+    final ch = client.channel('trips-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'truck_trips',
+      callback: (_) => onChange(),
+    );
+    ch.subscribe();
+    return ch;
   }
 }

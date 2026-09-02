@@ -66,3 +66,36 @@ earnings + generates the GST invoice.
   → Auth → URL Configuration → Additional Redirect URLs.
 - Maps key is in AndroidManifest + config — rotate it before making the repo
   public-public, it's already in git history.
+
+
+---
+
+# 🆕 Round 2 — Rapido/Uber-grade features added
+
+## 🔐 Secure OTP Handover (pickup + delivery)
+- Booking बनते ही backend 4-digit **pickup OTP + delivery OTP** generate karta hai.
+- **Customer app/website**: shipment card pe OTP bade akshron me dikhta hai
+  ("share with driver at loading"). Sirf shipper ko dikhta hai — owner-side
+  responses se backend strip kar deta hai.
+- **Driver app**: pickup/delivery se pehle OTP dialog → `POST /verify-otp` →
+  galat OTP = aage nahi. Verify hote hi shipper ko live notification.
+- Backend `picked_up`/`delivered` ko OTP-verify ke bina REFUSE karta hai —
+  security server-side hai, UI-side nahi.
+- ⚠️ Requires: backend_otp_patch.zip apply + SQL section 4 (REQUIRED_SUPABASE_SQL.sql).
+
+## 🗺️ Live Network Maps (Rapido home-screen feel)
+- **Customer home map**: network ke saare OPEN return trips yellow truck markers
+  ke roop me — tap karo to "Return truck → Delhi · 9T free". Naya trip post ho
+  (driver onboarding/My Trucks se) to marker LIVE aata hai (truck_trips realtime).
+  REDO model ke hisaab se: idle taxis nahi, RETURN TRIPS dikh rahi hain.
+- **Partner loads feed**: upar 170px live map — har open load ka pickup point
+  yellow marker (liteMode = zero jank). Naya load aate hi map + list dono update.
+
+## ⭐ Two-way Reviews (Uber-style trust)
+- Customer pehle se rate karta tha; ab **driver bhi shipper ko rate karta hai**
+  (completed trip pe "Rate this Shipper"). Same ratings ledger, ALREADY_RATED
+  guard backend me.
+
+## 📱 Real-phone crash
+- Dekho `CRASH_FIX_REAL_PHONE.md` — 90% chance purani (hacked-gradle) APK hai;
+  fresh build steps + adb logcat one-liner diya hai jisse exact crash line milegi.

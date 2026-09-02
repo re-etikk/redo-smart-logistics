@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
-import '../../../data/models/models.dart';
 import '../../../viewmodels/booking_viewmodel.dart';
 import '../../widgets/ui_components.dart';
 import '../shipments/tracking_screen.dart';
@@ -128,7 +127,7 @@ class MatchingTrucksScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Regular Market: ${currency.format(match.basePriceInr)}',
+                                  'Est. spot market: ${currency.format(match.basePriceInr)}',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     color: AppColors.inkMuted,

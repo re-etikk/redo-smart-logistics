@@ -141,6 +141,8 @@ class BookingItem {
   final String id;
   final String cargoId;
   final String truckId;
+  final String? pickupOtp; // shipper shares on arrival
+  final String? deliveryOtp; // shipper shares on delivery
   final String origin;
   final String destination;
   final String cargoType;
@@ -158,6 +160,8 @@ class BookingItem {
     required this.id,
     required this.cargoId,
     required this.truckId,
+    this.pickupOtp,
+    this.deliveryOtp,
     required this.origin,
     required this.destination,
     required this.cargoType,
@@ -179,6 +183,8 @@ class BookingItem {
 
     return BookingItem(
       id: json['id'] as String,
+      pickupOtp: json['pickup_otp'] as String?,
+      deliveryOtp: json['delivery_otp'] as String?,
       cargoId: json['cargo_id'] as String? ?? cargo?['cargo_id'] as String? ?? '',
       truckId: json['truck_id'] as String? ?? truck?['truck_id'] as String? ?? '',
       origin: cargo?['origin'] as String? ?? json['origin'] as String? ?? 'Mumbai',
@@ -189,9 +195,9 @@ class BookingItem {
       status: json['status'] as String? ?? 'pending',
       currentLat: (truck?['current_lat'] as num?)?.toDouble() ?? (json['current_lat'] as num?)?.toDouble(),
       currentLng: (truck?['current_lng'] as num?)?.toDouble() ?? (json['current_lng'] as num?)?.toDouble(),
-      driverName: owner?['full_name'] as String? ?? 'Driver Assigned',
-      driverPhone: owner?['phone'] as String? ?? '+91 98765 43210',
-      truckReg: truck?['registration_number'] as String? ?? 'DL 01 AB 4321',
+      driverName: owner?['full_name'] as String? ?? 'Driver',
+      driverPhone: owner?['phone'] as String?,
+      truckReg: truck?['registration_number'] as String?,
       createdAt: json['created_at'] as String? ?? DateTime.now().toIso8601String(),
     );
   }

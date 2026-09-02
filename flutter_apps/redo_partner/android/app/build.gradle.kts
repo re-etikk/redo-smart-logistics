@@ -17,7 +17,6 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
-        freeCompilerArgs = listOf("-Xskip-metadata-version-check")
     }
 
     defaultConfig {
@@ -31,6 +30,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
+            // Hackathon-safe: no R8 shrinking → no release-only reflection crashes.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

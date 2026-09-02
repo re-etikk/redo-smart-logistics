@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
 import '../../../viewmodels/shipments_viewmodel.dart';
 import '../../widgets/ui_components.dart';
+import '../misc/notifications_screen.dart';
 import 'tracking_screen.dart';
 
 class ShipmentsScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
       appBar: AppBar(
         title: const Text('My Shipments'),
         actions: [
+          const NotificationsBell(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => shipmentsVM.fetchShipments(),
@@ -113,6 +115,75 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
                                   ),
                                 ],
                               ),
+                              if ((s.status == 'confirmed' || s.status == 'pickup_ready') && s.pickupOtp != null) ...[
+                                const SizedBox(height: 10),
+                                _OtpChip(label: 'PICKUP OTP - share with driver at loading', otp: s.pickupOtp!),
+                              ],
+                              if ((s.status == 'picked_up' || s.status == 'in_transit') && s.deliveryOtp != null) ...[
+                                const SizedBox(height: 10),
+                                _OtpChip(label: 'DELIVERY OTP - share with receiver', otp: s.deliveryOtp!),
+                              ],
+                              if (s.pickupOtp != null &&
+                                  const ['confirmed', 'pickup_ready'].contains(s.status)) ...[
+                                const SizedBox(height: 10),
+                                _OtpChip(label: 'PICKUP OTP - share with driver at loading', otp: s.pickupOtp!),
+                              ],
+                              if (s.deliveryOtp != null &&
+                                  const ['picked_up', 'in_transit'].contains(s.status)) ...[
+                                const SizedBox(height: 10),
+                                _OtpChip(label: 'DELIVERY OTP - share on arrival', otp: s.deliveryOtp!),
+                              ],
+                              if (s.status == 'accepted' || s.status == 'delivered') ...[
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.brandYellow,
+                                      foregroundColor: AppColors.slateDark,
+                                    ),
+                                    onPressed: () async {
+                                      final vm = context.read<ShipmentsViewModel>();
+                                      String? err;
+                                      if (s.status == 'accepted') {
+                                        err = await vm.confirmBooking(s);
+                                      } else {
+                                        err = await vm.completeBooking(s);
+                                        if (err == null && context.mounted) {
+                                          final stars = await showDialog<int>(
+                                            context: context,
+                                            builder: (ctx) => SimpleDialog(
+                                              title: const Text('Rate this trip'),
+                                              children: [
+                                                for (var n = 5; n >= 1; n--)
+                                                  SimpleDialogOption(
+                                                    onPressed: () => Navigator.pop(ctx, n),
+                                                    child: Text('${'★' * n} ($n)'),
+                                                  ),
+                                              ],
+                                            ),
+                                          );
+                                          if (stars != null) err = await vm.rate(s, stars);
+                                        }
+                                      }
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                          content: Text(err ??
+                                              (s.status == 'accepted'
+                                                  ? 'Truck confirmed! Driver has been notified.'
+                                                  : 'Trip completed - invoice generated, payout settled.')),
+                                        ));
+                                      }
+                                    },
+                                    child: Text(
+                                      s.status == 'accepted'
+                                          ? 'Confirm this Truck'
+                                          : 'Mark Completed & Rate',
+                                      style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -120,6 +191,43 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+class _OtpChip extends StatelessWidget {
+  final String label;
+  final String otp;
+  const _OtpChip({required this.label, required this.otp});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.brandYellow, width: 1.2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(label,
+                style: GoogleFonts.inter(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.inkMuted)),
+          ),
+          Text(otp.split('').join(' '),
+              style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                  color: AppColors.slateDark)),
+        ],
+      ),
     );
   }
 }

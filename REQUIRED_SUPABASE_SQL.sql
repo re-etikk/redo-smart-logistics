@@ -35,9 +35,3 @@ alter table public.bookings add column if not exists delivery_otp_verified_at ti
 -- 4) Verify
 select tablename from pg_publication_tables
  where pubname = 'supabase_realtime' order by tablename;
-
--- 4) SECURE HANDOVER OTPs (Rapido/Porter-style pickup & delivery verification)
-alter table public.bookings add column if not exists pickup_otp text;
-alter table public.bookings add column if not exists delivery_otp text;
-alter table public.bookings add column if not exists pickup_otp_verified_at timestamptz;
-alter table public.bookings add column if not exists delivery_otp_verified_at timestamptz;
