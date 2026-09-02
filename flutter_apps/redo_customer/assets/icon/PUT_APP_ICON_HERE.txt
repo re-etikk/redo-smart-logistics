@@ -1,0 +1,2 @@
+Yahan apni app icon image save karein jiska naam 'app_icon.png' ho (preferable 1024x1024 resolution).
+Save your app icon here as: app_icon.png
