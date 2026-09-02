@@ -13,5 +13,16 @@ dist/
 **/dist/
 .DS_Store
 
-apks/
+# Mobile legacy
+mobile/
 
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Build artifacts
+apks/
+*.apk
+flutter_apps_clean/
+flutter_apps.zip
