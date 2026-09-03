@@ -89,23 +89,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> demoLogin() async {
-    _status = AuthStatus.loading;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await SupabaseService.demoLogin();
-      await checkProfileStatus();
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      _status = AuthStatus.unauthenticated;
-      notifyListeners();
-      return false;
-    }
-  }
-
   Future<bool> signInWithGoogle() async {
     try {
       return await SupabaseService.signInWithGoogle();

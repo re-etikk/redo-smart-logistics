@@ -34,15 +34,26 @@ class SupabaseService {
     final res = await client.auth.signUp(
       email: email.trim(),
       password: password,
-      data: {'full_name': fullName},
+      data: {'full_name': fullName, 'role': 'truck_owner'},
     );
-    if (res.user != null) {
-      await client.from('profiles').upsert({
-        'id': res.user!.id,
-        'full_name': fullName,
-        'role': 'truck_owner',
-        'onboarding_complete': false,
-      });
+    if (client.auth.currentSession == null) {
+      try {
+        await client.auth.signInWithPassword(
+          email: email.trim(),
+          password: password,
+        );
+      } catch (_) {}
+    }
+    final user = client.auth.currentUser ?? res.user;
+    if (user != null) {
+      try {
+        await client.from('profiles').upsert({
+          'id': user.id,
+          'full_name': fullName,
+          'role': 'truck_owner',
+          'onboarding_complete': false,
+        });
+      } catch (_) {}
     }
     return res;
   }
@@ -52,38 +63,6 @@ class SupabaseService {
       OAuthProvider.google,
       redirectTo: 'redopartner://auth',
     );
-  }
-
-  static Future<AuthResponse> demoLogin() async {
-    const demoEmail = 'driver@redo.app';
-    const demoPass = 'Password@123';
-    try {
-      return await client.auth.signInWithPassword(
-        email: demoEmail,
-        password: demoPass,
-      );
-    } catch (_) {
-      await client.auth.signUp(
-        email: demoEmail,
-        password: demoPass,
-        data: {'full_name': 'Harpreet Singh (Demo Partner)'},
-      );
-      final res = await client.auth.signInWithPassword(
-        email: demoEmail,
-        password: demoPass,
-      );
-      if (res.user != null) {
-        await client.from('profiles').upsert({
-          'id': res.user!.id,
-          'full_name': 'Harpreet Singh (Demo Partner)',
-          'company_name': 'Delhi NCR',
-          'phone': '+91 98765 43210',
-          'role': 'truck_owner',
-          'onboarding_complete': false, // demo driver also registers his truck once
-        });
-      }
-      return res;
-    }
   }
 
   static Future<void> signOut() async {

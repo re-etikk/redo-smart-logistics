@@ -45,16 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _demoLogin() async {
-    final authVM = context.read<AuthViewModel>();
-    final success = await authVM.demoLogin();
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authVM.errorMessage ?? 'Demo sign in failed')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final authVM = context.watch<AuthViewModel>();
@@ -113,13 +103,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           title: 'Sign In to Driver Console',
                           isLoading: authVM.isLoading,
                           onPressed: _submit,
-                        ),
-                        const SizedBox(height: 12),
-                        RedoButton(
-                          title: '⚡ 1-Tap Quick Demo Driver Login',
-                          isSecondary: true,
-                          isLoading: authVM.isLoading,
-                          onPressed: _demoLogin,
                         ),
                         const SizedBox(height: 12),
                         RedoButton(

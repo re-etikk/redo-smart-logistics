@@ -33,15 +33,26 @@ class SupabaseService {
     final res = await client.auth.signUp(
       email: email.trim(),
       password: password,
-      data: {'full_name': fullName},
+      data: {'full_name': fullName, 'role': 'sme'},
     );
-    if (res.user != null) {
-      await client.from('profiles').upsert({
-        'id': res.user!.id,
-        'full_name': fullName,
-        'role': 'sme',
-        'onboarding_complete': false,
-      });
+    if (client.auth.currentSession == null) {
+      try {
+        await client.auth.signInWithPassword(
+          email: email.trim(),
+          password: password,
+        );
+      } catch (_) {}
+    }
+    final user = client.auth.currentUser ?? res.user;
+    if (user != null) {
+      try {
+        await client.from('profiles').upsert({
+          'id': user.id,
+          'full_name': fullName,
+          'role': 'sme',
+          'onboarding_complete': false,
+        });
+      } catch (_) {}
     }
     return res;
   }
@@ -51,37 +62,6 @@ class SupabaseService {
       OAuthProvider.google,
       redirectTo: 'redocustomer://auth',
     );
-  }
-
-  static Future<AuthResponse> demoLogin() async {
-    const demoEmail = 'customer@redo.app';
-    const demoPass = 'Password@123';
-    try {
-      return await client.auth.signInWithPassword(
-        email: demoEmail,
-        password: demoPass,
-      );
-    } catch (_) {
-      await client.auth.signUp(
-        email: demoEmail,
-        password: demoPass,
-        data: {'full_name': 'Rajesh Sharma (Shipper Demo)'},
-      );
-      final res = await client.auth.signInWithPassword(
-        email: demoEmail,
-        password: demoPass,
-      );
-      if (res.user != null) {
-        await client.from('profiles').upsert({
-          'id': res.user!.id,
-          'full_name': 'Rajesh Sharma (Shipper Demo)',
-          'company_name': 'Sharma Logistics & Trading',
-          'role': 'sme',
-          'onboarding_complete': true,
-        });
-      }
-      return res;
-    }
   }
 
   static Future<void> signOut() async {
