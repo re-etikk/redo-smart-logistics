@@ -40,6 +40,12 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
       fullName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
       phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
     );
+    // If onboarding failed, show the error without blanking the form
+    if (authVM.status != AuthStatus.authenticated && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authVM.errorMessage ?? 'Could not save profile. Please try again.')),
+      );
+    }
   }
 
   @override

@@ -1,7 +1,11 @@
 -- ============================================================
--- REDO — run ONCE in Supabase SQL Editor  (v3 — realtime + OTP + auth fix)
+-- REDO — run ONCE in Supabase SQL Editor  (v4 — onboarding fix)
 -- Safe to re-run (idempotent).
 -- ============================================================
+
+-- 0) Drop the phone UNIQUE constraint — it silently blocks onboarding
+-- when two users share a dispatch number or enter the same placeholder.
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_phone_key;
 
 -- 1) Realtime publication (live cross-app wiring)
 do $$ begin

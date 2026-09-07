@@ -88,15 +88,25 @@ class SupabaseService {
     bool onboardingComplete = true,
   }) async {
     final uid = currentUser?.id;
-    if (uid == null) return;
-    await client.from('profiles').upsert({
+    if (uid == null) throw Exception('Not signed in. Please log in first.');
+    // Always include full_name — the column is NOT NULL. Fall back to the
+    // email prefix or 'User' so the upsert never violates the constraint.
+    final resolvedName = (fullName != null && fullName.trim().isNotEmpty)
+        ? fullName.trim()
+        : (currentUser?.email?.split('@').first ?? 'User');
+    final data = <String, dynamic>{
       'id': uid,
       'company_name': companyName,
-      if (fullName != null) 'full_name': fullName,
-      if (phone != null) 'phone': phone,
+      'full_name': resolvedName,
       'role': 'sme',
       'onboarding_complete': onboardingComplete,
-    });
+    };
+    // Only set phone if user actually entered one — avoids UNIQUE constraint
+    // violations from blank strings or duplicates.
+    if (phone != null && phone.trim().isNotEmpty) {
+      data['phone'] = phone.trim();
+    }
+    await client.from('profiles').upsert(data);
   }
 
   // --- Cargo & Matching (via backend — real ML pipeline) ---

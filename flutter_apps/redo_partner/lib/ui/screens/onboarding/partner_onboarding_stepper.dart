@@ -20,14 +20,14 @@ class PartnerOnboardingStepper extends StatefulWidget {
 }
 
 class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
-  final _nameController = TextEditingController(text: 'Harpreet Singh');
-  final _phoneController = TextEditingController(text: '+91 98765 43210');
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   String _selectedCity = 'Delhi NCR';
 
-  final _regController = TextEditingController(text: 'DL 01 AB 4321');
+  final _regController = TextEditingController();
   String _selectedTruckType = '22FT Multi-Axle';
   String _selectedBodyType = 'Closed container';
-  final _capacityController = TextEditingController(text: '9.0');
+  final _capacityController = TextEditingController();
   String _returnFromCity = 'Mumbai';
 
   @override
@@ -107,13 +107,13 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                               const SizedBox(height: 16),
                               TextField(
                                 controller: _nameController,
-                                decoration: const InputDecoration(labelText: 'Driver Full Name', prefixIcon: Icon(Icons.person_outline)),
+                                decoration: const InputDecoration(labelText: 'Driver Full Name', hintText: 'e.g. Harpreet Singh', prefixIcon: Icon(Icons.person_outline)),
                               ),
                               const SizedBox(height: 12),
                               TextField(
                                 controller: _phoneController,
                                 keyboardType: TextInputType.phone,
-                                decoration: const InputDecoration(labelText: 'Mobile Phone Number', prefixIcon: Icon(Icons.phone_outlined)),
+                                decoration: const InputDecoration(labelText: 'Mobile Phone Number', hintText: '+91 98765 43210', prefixIcon: Icon(Icons.phone_outlined)),
                               ),
                               const SizedBox(height: 16),
                               Text('HOME BASE CITY', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.inkMuted)),
@@ -136,9 +136,14 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                               RedoButton(
                                 title: 'Save & Continue to Truck',
                                 isLoading: onboardingVM.isLoading,
-                                onPressed: () {
+                                onPressed: () async {
                                   onboardingVM.setDriverInfo(_nameController.text, _phoneController.text, _selectedCity);
-                                  onboardingVM.saveDriverStep();
+                                  final ok = await onboardingVM.saveDriverStep();
+                                  if (!ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(onboardingVM.errorMessage ?? 'Could not save driver details')),
+                                    );
+                                  }
                                 },
                               ),
                             ],
@@ -218,7 +223,7 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                               RedoButton(
                                 title: 'Save & Continue to Docs',
                                 isLoading: onboardingVM.isLoading,
-                                onPressed: () {
+                                onPressed: () async {
                                   onboardingVM.setTruckInfo(
                                     reg: _regController.text,
                                     type: _selectedTruckType,
@@ -226,7 +231,12 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                                     capacity: double.tryParse(_capacityController.text) ?? 9.0,
                                     returnFrom: _returnFromCity,
                                   );
-                                  onboardingVM.saveTruckStep();
+                                  final ok = await onboardingVM.saveTruckStep();
+                                  if (!ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(onboardingVM.errorMessage ?? 'Could not save truck details')),
+                                    );
+                                  }
                                 },
                               ),
                               const SizedBox(height: 8),

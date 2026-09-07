@@ -88,15 +88,21 @@ class SupabaseService {
     required String city,
   }) async {
     final uid = currentUser?.id;
-    if (uid == null) return;
-    await client.from('profiles').upsert({
+    if (uid == null) throw Exception('Not signed in. Please log in first.');
+    final data = <String, dynamic>{
       'id': uid,
       'full_name': fullName,
-      'phone': phone,
       'company_name': city,
       'role': 'truck_owner',
       'onboarding_complete': false,
-    });
+    };
+    // Only set phone if user actually entered one — avoids UNIQUE constraint
+    // violations from blank strings or duplicates across drivers.
+    final trimmedPhone = phone.trim();
+    if (trimmedPhone.isNotEmpty) {
+      data['phone'] = trimmedPhone;
+    }
+    await client.from('profiles').upsert(data);
   }
 
   /// Truck + the empty RETURN TRIP — the trip is what shippers get matched

@@ -105,6 +105,7 @@ class AuthViewModel extends ChangeNotifier {
     String? phone,
   }) async {
     _status = AuthStatus.loading;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -117,7 +118,14 @@ class AuthViewModel extends ChangeNotifier {
       _profile = await SupabaseService.getProfile();
       _status = AuthStatus.authenticated;
     } catch (e) {
-      _errorMessage = e.toString();
+      final msg = e.toString();
+      if (msg.contains('23505') || msg.contains('unique') || msg.contains('duplicate')) {
+        _errorMessage = 'This phone number is already registered with another account.';
+      } else if (msg.contains('23502') || msg.contains('not-null')) {
+        _errorMessage = 'Please fill in all required fields.';
+      } else {
+        _errorMessage = msg.replaceAll('Exception: ', '');
+      }
       _status = AuthStatus.onboardingRequired;
     }
     notifyListeners();

@@ -85,7 +85,14 @@ class DriverOnboardingViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      final msg = e.toString();
+      if (msg.contains('23505') || msg.contains('unique') || msg.contains('duplicate')) {
+        _errorMessage = 'This phone number is already registered with another account.';
+      } else if (msg.contains('23502') || msg.contains('not-null')) {
+        _errorMessage = 'Please fill in all required fields.';
+      } else {
+        _errorMessage = msg.replaceAll('Exception: ', '');
+      }
       _isLoading = false;
       notifyListeners();
       return false;
@@ -123,7 +130,12 @@ class DriverOnboardingViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      final msg = e.toString();
+      if (msg.contains('NETWORK') || msg.contains('waking up')) {
+        _errorMessage = 'Server is starting up — please try again in a few seconds.';
+      } else {
+        _errorMessage = msg.replaceAll('Exception: ', '');
+      }
       _isLoading = false;
       notifyListeners();
       return false;
