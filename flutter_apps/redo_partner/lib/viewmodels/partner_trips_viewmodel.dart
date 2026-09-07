@@ -16,7 +16,35 @@ class PartnerTripsViewModel extends ChangeNotifier {
   StreamSubscription<Position>? _gps;
   String? _gpsBookingId;
 
-  List<AvailableLoad> get availableLoads => _availableLoads;
+  // Route / Corridor Search & Filter State
+  String _searchFilter = '';
+  bool _myCorridorOnly = false;
+
+  String get searchFilter => _searchFilter;
+  bool get myCorridorOnly => _myCorridorOnly;
+
+  List<AvailableLoad> get allAvailableLoads => _availableLoads;
+
+  List<AvailableLoad> get availableLoads {
+    var list = _availableLoads;
+    if (_myCorridorOnly && _myTrucks.isNotEmpty) {
+      final truck = _myTrucks.first;
+      final home = truck.homeOrigin.toLowerCase();
+      list = list.where((l) =>
+        l.origin.toLowerCase().contains(home) || l.destination.toLowerCase().contains(home)
+      ).toList();
+    }
+    if (_searchFilter.trim().isNotEmpty) {
+      final q = _searchFilter.toLowerCase().trim();
+      list = list.where((l) =>
+        l.origin.toLowerCase().contains(q) ||
+        l.destination.toLowerCase().contains(q) ||
+        l.cargoType.toLowerCase().contains(q)
+      ).toList();
+    }
+    return list;
+  }
+
   List<ActiveTrip> get activeTrips => _activeTrips;
   List<TruckModel> get myTrucks => _myTrucks;
   bool get isLoading => _isLoading;
@@ -25,10 +53,24 @@ class PartnerTripsViewModel extends ChangeNotifier {
   String? get gpsSharingForBooking => _gpsBookingId;
 
   PartnerTripsViewModel() {
-    // LIVE wiring: new shipper cargo (web or customer app) pops in instantly;
-    // shipper confirming/completing a booking updates trips instantly.
     _cargoCh = SupabaseService.subscribeCargo(() => _refreshLoads());
     _bookingsCh = SupabaseService.subscribeBookings(() => _refreshTrips());
+  }
+
+  void setSearchFilter(String query) {
+    _searchFilter = query;
+    notifyListeners();
+  }
+
+  void toggleMyCorridorOnly() {
+    _myCorridorOnly = !_myCorridorOnly;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _searchFilter = '';
+    _myCorridorOnly = false;
+    notifyListeners();
   }
 
   @override
@@ -48,7 +90,6 @@ class PartnerTripsViewModel extends ChangeNotifier {
       _activeTrips = await SupabaseService.getActiveTrips();
       _errorMessage = null;
     } catch (e) {
-      // Honest error - no fake sample loads/trips.
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     }
     _isLoading = false;

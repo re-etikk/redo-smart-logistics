@@ -116,18 +116,45 @@ class SupabaseService {
     required String destination,
     required String cargoType,
     required double weightTons,
+    double? distanceKm,
   }) async {
     final pickup = DateTime.now().add(const Duration(days: 1));
     final at = DateTime(pickup.year, pickup.month, pickup.day, 10);
-    final res = await ApiService.post('/cargo', {
-      'origin': origin,
-      'destination': destination,
-      'cargo_type': cargoType,
-      'cargo_weight_tons': weightTons,
-      'pickup_at': at.toUtc().toIso8601String(),
-      'urgency': 'normal',
-    });
-    return CargoRequest.fromJson(Map<String, dynamic>.from(res));
+    final dist = distanceKm ?? 500.0;
+
+    // 1. Try Express backend
+    try {
+      final res = await ApiService.post('/cargo', {
+        'origin': origin,
+        'destination': destination,
+        'distance_km': dist,
+        'cargo_type': cargoType,
+        'cargo_weight_tons': weightTons,
+        'pickup_at': at.toUtc().toIso8601String(),
+        'urgency': 'normal',
+      });
+      return CargoRequest.fromJson(Map<String, dynamic>.from(res));
+    } catch (e) {
+      // 2. Resilient direct Supabase insert fallback (Zero data loss)
+      final uid = currentUser?.id;
+      if (uid == null) rethrow;
+
+      final cargoId = 'C${DateTime.now().millisecondsSinceEpoch.toRadixString(36).toUpperCase()}';
+      final row = {
+        'cargo_id': cargoId,
+        'sme_id': uid,
+        'origin': origin,
+        'destination': destination,
+        'distance_km': dist,
+        'cargo_type': cargoType,
+        'cargo_weight_tons': weightTons,
+        'pickup_at': at.toUtc().toIso8601String(),
+        'urgency': 'normal',
+        'status': 'open',
+      };
+      await client.from('cargo_requests').insert(row);
+      return CargoRequest.fromJson(row);
+    }
   }
 
   /// ML-ranked matches for a posted cargo. Honest by design:
