@@ -20,6 +20,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
   String _searchFilter = '';
   bool _myCorridorOnly = false;
   String _categoryFilter = 'all'; // 'all', 'instant', 'scheduled', 'best_match'
+  String _tonnageFilter = 'all'; // 'all', 'mini', 'medium', 'heavy'
 
   // Instant Load Dispatch Alert (Rapido style)
   AvailableLoad? _instantAlertLoad;
@@ -30,6 +31,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
   String get searchFilter => _searchFilter;
   bool get myCorridorOnly => _myCorridorOnly;
   String get categoryFilter => _categoryFilter;
+  String get tonnageFilter => _tonnageFilter;
   AvailableLoad? get instantAlertLoad => _instantAlertLoad;
   int get instantSecondsLeft => _instantSecondsLeft;
 
@@ -58,6 +60,14 @@ class PartnerTripsViewModel extends ChangeNotifier {
                 l.cargoType.toLowerCase().contains(q),
           )
           .toList();
+    }
+
+    if (_tonnageFilter == 'mini') {
+      list = list.where((l) => l.weightTons < 3.0).toList();
+    } else if (_tonnageFilter == 'medium') {
+      list = list.where((l) => l.weightTons >= 3.0 && l.weightTons <= 10.0).toList();
+    } else if (_tonnageFilter == 'heavy') {
+      list = list.where((l) => l.weightTons > 10.0).toList();
     }
 
     if (_categoryFilter == 'instant') {
@@ -93,6 +103,11 @@ class PartnerTripsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setTonnageFilter(String filter) {
+    _tonnageFilter = filter;
+    notifyListeners();
+  }
+
   void toggleMyCorridorOnly() {
     _myCorridorOnly = !_myCorridorOnly;
     notifyListeners();
@@ -102,6 +117,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
     _searchFilter = '';
     _myCorridorOnly = false;
     _categoryFilter = 'all';
+    _tonnageFilter = 'all';
     notifyListeners();
   }
 

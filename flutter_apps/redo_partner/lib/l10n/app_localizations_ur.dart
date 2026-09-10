@@ -27,34 +27,68 @@ class AppLocalizationsUr extends AppLocalizations {
   String get searchLoads => 'لوڈ تلاش کریں';
 
   @override
+  String get searchReturnLoads => 'ریٹرن لوڈ تلاش کریں';
+
+  @override
   String get fromCity => 'شہر سے';
 
   @override
-  String get toCity => 'شہر تک';
+  String get toCity => 'منزل شہر تک';
 
   @override
   String get allLoads => 'تمام لوڈ';
 
   @override
-  String get instantOnly => '⚡ فوری';
+  String get instantOnly => '⚡ صرف فوری';
 
   @override
   String get scheduled => '📅 طے شدہ';
 
   @override
-  String get bestMatch => '★ بہترین میل';
+  String get bestMatch => '★ بہترین میچ';
 
   @override
-  String get availableLoads => 'دستیاب لوڈ';
+  String get availableLoads => 'دستیاب ریٹرن لوڈز';
 
   @override
-  String get acceptLoad => 'لوڈ قبول کریں';
+  String get acceptLoad => 'یہ لوڈ قبول کریں';
 
   @override
   String get partnerProfile => 'پارٹنر پروفائل';
 
   @override
-  String get registerTruck => 'ٹرک رجسٹر کریں';
+  String get registerTruck => 'کمرشل ٹرک رجسٹر کریں';
+
+  @override
+  String get registerTruckSubtitle =>
+      'تمام درکار کمرشل ٹرانسپورٹ کی تفصیلات درج کریں۔';
+
+  @override
+  String get vehicleRcNumber => 'گاڑی کا آر سی نمبر *';
+
+  @override
+  String get drivingLicense => 'کمرشل ڈرائیونگ لائسنس *';
+
+  @override
+  String get vehicleSizeClass => 'گاڑی کا سائز / کلاس';
+
+  @override
+  String get bodyType => 'باڈی کی قسم';
+
+  @override
+  String get grossPayload => 'کل پيلوڈ گنجائش (میٹرک ٹن) *';
+
+  @override
+  String get baseDepotCity => 'بیس ڈپو شہر';
+
+  @override
+  String get returnCorridor => 'ریٹرن کوریڈور';
+
+  @override
+  String get nationalPermit => 'آل انڈیا نیشنل پرمٹ (NP)';
+
+  @override
+  String get insurancePolicy => 'کمرشل انشورنس پالیسی';
 
   @override
   String get themeSettings => 'تھیم ترتیبات';
@@ -66,7 +100,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get lightMode => 'لائٹ';
 
   @override
-  String get systemMode => 'سسٹم';
+  String get systemMode => 'ਸਿਸਟਮ';
 
   @override
   String get language => 'زبان';
@@ -81,66 +115,65 @@ class AppLocalizationsUr extends AppLocalizations {
   String get tapToSpeak => 'بولنے کے لیے ٹیپ کریں';
 
   @override
+  String get stopListening => 'سننا بند کریں';
+
+  @override
+  String get aiChat => 'AI چیٹ اسسٹنٹ';
+
+  @override
+  String get askAnything => 'لوڈز، کمائی یا راستوں کے بارے میں پوچھیں...';
+
+  @override
+  String get typeMessage => 'اپنا پیغام ٹائپ کریں...';
+
+  @override
   String get completeProfile => 'لوڈ قبول کرنے کے لیے پروفائل مکمل کریں';
 
   @override
-  String get profileComplete => 'پروفائل مکمل';
+  String get profileComplete => 'پروفائل مکمل ہے';
 
   @override
-  String get saveTruck => 'محفوظ کریں اور رجسٹر کریں';
+  String get saveTruck => 'ٹرک محفوظ اور رجسٹر کریں';
 
   @override
   String get typeLocation => 'مقام ٹائپ کریں...';
 
   @override
-  String get noLoadsFound => 'کوئی لوڈ نہیں ملا';
+  String get noLoadsFound => 'کوئی ریٹرن لوڈ نہیں ملا';
 
   @override
-  String get estimatedPayout => 'تخمینہ ادائیگی';
+  String get estimatedPayout => 'تخمینہ شدہ ادائیگی';
 
   @override
   String get viewAndAccept => 'دیکھیں اور قبول کریں';
 
   @override
-  String get clear => 'صاف';
+  String get clear => 'صاف کریں';
 
   @override
   String get swap => 'تبادلہ';
 
   @override
-  String get appSettings => 'App Settings';
+  String get bankAccount => 'بینک اکاؤنٹ اور ادائیگیاں';
 
   @override
-  String get theme => 'Theme';
+  String get bankName => 'بینک کا نام';
 
   @override
-  String get logOut => 'Log Out';
+  String get branchName => 'برانچ کا نام';
 
   @override
-  String get logOutSubtitle => 'Sign out from this device';
+  String get ifscCode => 'IFSC کوڈ';
 
   @override
-  String get notifications => 'Notifications';
+  String get accountHolder => 'اکاؤنٹ ہولڈر کا نام';
 
   @override
-  String get notificationsSubtitle =>
-      'Load requests, route matches and updates';
+  String get withdrawNow => 'ابھی رقم نکالیں';
 
   @override
-  String get helpSupport => 'Help & Support';
+  String get revenueBreakdown => 'آمدنی کی تفصیل';
 
   @override
-  String get helpSupportSubtitle => '24/7 dedicated fleet and trip assistance';
-
-  @override
-  String get documents => 'KYC Documents';
-
-  @override
-  String get documentsSubtitle => 'RC, Driving License, Fitness Certificate';
-
-  @override
-  String get myFleet => 'My Trucks & Fleet';
-
-  @override
-  String get myFleetSubtitle => 'Manage registered commercial vehicles';
+  String get weeklyEarnings => 'ہفتہ وار کمائی کا رجحان';
 }

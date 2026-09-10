@@ -527,6 +527,84 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     ),
                   ),
 
+                const SizedBox(height: 10),
+
+                // Search Return Loads Button (prominent & engaging)
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brandYellow,
+                      foregroundColor: AppColors.slateDark,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.search, size: 18),
+                    label: Text(
+                      l10n?.searchReturnLoads ?? 'Search Return Loads',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                    onPressed: () {
+                      final from = _fromController.text.trim();
+                      final to = _toController.text.trim();
+                      if (from.isNotEmpty || to.isNotEmpty) {
+                        final q = from.isNotEmpty ? from : to;
+                        tripsVM.setSearchFilter(q);
+                        final p1 = _fromLatLng ?? _posFor(from.isNotEmpty ? from : 'Delhi');
+                        final p2 = _toLatLng ?? _posFor(to.isNotEmpty ? to : 'Mumbai');
+                        _fromLatLng = p1;
+                        _toLatLng = p2;
+                        _fromName = from.isNotEmpty ? from : 'Delhi';
+                        _toName = to.isNotEmpty ? to : 'Mumbai';
+                        _calculateAndDrawRoute(p1, p2, _fromName!, _toName!);
+                      } else {
+                        tripsVM.clearFilters();
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Tonnage Filter Chips (All, Mini <3T, Medium 3-10T, Heavy >10T)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ChoiceChip(
+                        label: Text('All Weight', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+                        selected: tripsVM.tonnageFilter == 'all',
+                        selectedColor: AppColors.brandYellow,
+                        backgroundColor: isDark ? AppColors.darkCanvas : AppColors.canvas,
+                        onSelected: (_) => tripsVM.setTonnageFilter('all'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: Text('Mini (<3T)', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+                        selected: tripsVM.tonnageFilter == 'mini',
+                        selectedColor: AppColors.brandYellow,
+                        backgroundColor: isDark ? AppColors.darkCanvas : AppColors.canvas,
+                        onSelected: (_) => tripsVM.setTonnageFilter('mini'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: Text('Medium (3-10T)', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+                        selected: tripsVM.tonnageFilter == 'medium',
+                        selectedColor: AppColors.brandYellow,
+                        backgroundColor: isDark ? AppColors.darkCanvas : AppColors.canvas,
+                        onSelected: (_) => tripsVM.setTonnageFilter('medium'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: Text('Heavy (>10T)', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+                        selected: tripsVM.tonnageFilter == 'heavy',
+                        selectedColor: AppColors.brandYellow,
+                        backgroundColor: isDark ? AppColors.darkCanvas : AppColors.canvas,
+                        onSelected: (_) => tripsVM.setTonnageFilter('heavy'),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 8),
 
                 // Corridor Filter Chips
@@ -805,32 +883,58 @@ class _LoadsBody extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return tripsVM.isLoading
-        ? const Center(child: CircularProgressIndicator())
+    return (tripsVM.isLoading && loads.isEmpty)
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(color: AppColors.brandYellow),
+            ),
+          )
         : loads.isEmpty
             ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.explore_off, size: 48, color: isDark ? AppColors.darkInkMuted : AppColors.inkMuted),
-                    const SizedBox(height: 12),
-                    Text(
-                      l10n?.noLoadsFound ?? 'No loads found on this search filter.',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: isDark ? AppColors.darkInk : AppColors.ink,
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.explore_off, size: 48, color: isDark ? AppColors.darkInkMuted : AppColors.inkMuted),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n?.noLoadsFound ?? 'No return loads found on this filter.',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: isDark ? AppColors.darkInk : AppColors.ink,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Try searching a different corridor or clearing your filter.',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: isDark ? AppColors.darkInkMuted : AppColors.inkMuted,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Try clearing your search filter or selecting a major freight corridor.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? AppColors.darkInkMuted : AppColors.inkMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.brandYellow,
+                          foregroundColor: AppColors.slateDark,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.clear_all, size: 16),
+                        label: Text(
+                          l10n?.clear ?? 'Show All Return Loads',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                        ),
+                        onPressed: () {
+                          tripsVM.clearFilters();
+                          tripsVM.fetchAll();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               )
             : ListView.separated(

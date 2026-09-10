@@ -3,9 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../data/services/voice_assistant_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// A floating voice assistant button that overlays all screens.
-/// Tap to start/stop listening. Shows animated mic and transcript.
+/// Supports continuous multi-turn listening and an AI text chat interface.
 class VoiceAssistantFab extends StatelessWidget {
   final Function(VoiceAssistantAction)? onAction;
   const VoiceAssistantFab({super.key, this.onAction});
@@ -14,42 +15,102 @@ class VoiceAssistantFab extends StatelessWidget {
   Widget build(BuildContext context) {
     final va = context.watch<VoiceAssistantService>();
     final isActive = va.state != VoiceAssistantState.idle && va.state != VoiceAssistantState.error;
+    final l10n = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        // Floating Active State Dialog Bubble
         if (isActive || va.transcribedText.isNotEmpty || va.lastResponse.isNotEmpty)
           Container(
-            constraints: const BoxConstraints(maxWidth: 260),
+            constraints: const BoxConstraints(maxWidth: 290),
             margin: const EdgeInsets.only(bottom: 10, right: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppColors.slateDark,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
                 ),
               ],
+              border: Border.all(color: AppColors.brandYellow.withValues(alpha: 0.5), width: 1.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Top header: Continuous listening badge + Stop button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: va.state == VoiceAssistantState.listening
+                                ? AppColors.danger
+                                : AppColors.brandYellow,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          va.continuousMode ? 'Multi-turn Active' : 'REDO Voice AI',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.brandYellow,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () => va.stopContinuousConversation(),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.stop, size: 12, color: AppColors.danger),
+                            const SizedBox(width: 2),
+                            Text(
+                              l10n?.stopListening ?? 'Stop',
+                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.danger),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
                 if (va.transcribedText.isNotEmpty) ...[
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.mic, size: 12, color: AppColors.brandYellow),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.mic, size: 14, color: AppColors.brandYellow),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          va.transcribedText,
+                          '"${va.transcribedText}"',
                           style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: Colors.white70,
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
                             fontStyle: FontStyle.italic,
                           ),
                           maxLines: 2,
@@ -58,8 +119,9 @@ class VoiceAssistantFab extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                 ],
+
                 if (va.lastResponse.isNotEmpty)
                   Text(
                     va.lastResponse,
@@ -72,43 +134,93 @@ class VoiceAssistantFab extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   )
                 else if (va.state == VoiceAssistantState.listening)
-                  _buildListeningIndicator()
+                  _buildListeningIndicator(l10n)
                 else if (va.state == VoiceAssistantState.processing)
-                  Text('Thinking...', style: GoogleFonts.inter(fontSize: 12, color: AppColors.brandYellow))
+                  Row(
+                    children: [
+                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brandYellow)),
+                      const SizedBox(width: 8),
+                      Text('Auto-detecting language & processing...', style: GoogleFonts.inter(fontSize: 11, color: AppColors.brandYellow)),
+                    ],
+                  )
                 else if (va.state == VoiceAssistantState.speaking)
-                  Text('Speaking...', style: GoogleFonts.inter(fontSize: 12, color: AppColors.success)),
+                  Row(
+                    children: [
+                      const Icon(Icons.volume_up, size: 14, color: AppColors.success),
+                      const SizedBox(width: 6),
+                      Text('Speaking response...', style: GoogleFonts.inter(fontSize: 11, color: AppColors.success)),
+                    ],
+                  ),
+
+                const SizedBox(height: 8),
+                // Open full text-to-text chat button
+                InkWell(
+                  onTap: () => _openAiChatSheet(context),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      const Icon(Icons.chat_bubble_outline, size: 13, color: AppColors.brandYellow),
+                      const SizedBox(width: 4),
+                      Text(
+                        l10n?.aiChat ?? 'Open AI Chat',
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.brandYellow),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-        FloatingActionButton(
-          heroTag: 'voice_assistant_fab',
-          backgroundColor: va.state == VoiceAssistantState.listening
-              ? AppColors.danger
-              : AppColors.brandYellow,
-          onPressed: () => _handleTap(context, va),
-          elevation: 6,
-          child: va.state == VoiceAssistantState.processing
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: AppColors.slateDark,
-                  ),
-                )
-              : AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    va.state == VoiceAssistantState.listening
-                        ? Icons.mic_off
-                        : va.state == VoiceAssistantState.speaking
-                            ? Icons.volume_up
-                            : Icons.mic,
-                    key: ValueKey(va.state),
-                    color: AppColors.slateDark,
-                    size: 26,
-                  ),
-                ),
+
+        // FAB row with Chat Button and Mic FAB
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Quick Chat Button
+            Material(
+              color: isDark ? AppColors.darkCard : Colors.white,
+              elevation: 4,
+              shape: const CircleBorder(),
+              child: IconButton(
+                icon: const Icon(Icons.chat_outlined, color: AppColors.slateDark, size: 20),
+                tooltip: l10n?.aiChat ?? 'AI Chat',
+                onPressed: () => _openAiChatSheet(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Main Voice Assistant FAB
+            FloatingActionButton(
+              heroTag: 'partner_voice_fab',
+              backgroundColor: va.state == VoiceAssistantState.listening
+                  ? AppColors.danger
+                  : AppColors.brandYellow,
+              onPressed: () => _handleTap(context, va),
+              elevation: 6,
+              child: va.state == VoiceAssistantState.processing
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.slateDark,
+                      ),
+                    )
+                  : AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        va.state == VoiceAssistantState.listening
+                            ? Icons.mic_off
+                            : va.state == VoiceAssistantState.speaking
+                                ? Icons.volume_up
+                                : Icons.mic,
+                        key: ValueKey(va.state),
+                        color: AppColors.slateDark,
+                        size: 26,
+                      ),
+                    ),
+            ),
+          ],
         ),
       ],
     );
@@ -116,11 +228,11 @@ class VoiceAssistantFab extends StatelessWidget {
 
   void _handleTap(BuildContext context, VoiceAssistantService va) {
     if (va.state == VoiceAssistantState.listening) {
-      va.stopListening();
+      va.stopContinuousConversation();
     } else if (va.state == VoiceAssistantState.speaking) {
       va.cancelSpeaking();
     } else {
-      va.startListening().then((_) {
+      va.startListening(continuous: true).then((_) {
         if (va.lastAction != null && onAction != null) {
           onAction!(va.lastAction!);
         }
@@ -128,21 +240,297 @@ class VoiceAssistantFab extends StatelessWidget {
     }
   }
 
-  Widget _buildListeningIndicator() {
+  void _openAiChatSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AiChatBottomSheet(),
+    );
+  }
+
+  Widget _buildListeningIndicator(AppLocalizations? l10n) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(Icons.graphic_eq, color: AppColors.brandYellow, size: 16),
         const SizedBox(width: 6),
         Text(
-          'Listening...',
+          l10n?.listening ?? 'Listening... (Speak in any language)',
           style: GoogleFonts.inter(
             fontSize: 12,
-            color: AppColors.brandYellow,
-            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Dedicated Text-to-Text AI Assistant Bottom Sheet
+class AiChatBottomSheet extends StatefulWidget {
+  const AiChatBottomSheet({super.key});
+
+  @override
+  State<AiChatBottomSheet> createState() => _AiChatBottomSheetState();
+}
+
+class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
+  final _inputCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
+  final _quickPrompts = [
+    'Delhi se Mumbai ke return loads',
+    'Meri total earnings kitni hui?',
+    'Truck RC kaise register karein?',
+    'Active trips ka status kya hai?',
+    'Show high-paying freight loads',
+  ];
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage(VoiceAssistantService va) {
+    final text = _inputCtrl.text.trim();
+    if (text.isEmpty) return;
+    _inputCtrl.clear();
+    va.sendTextMessage(text);
+    _scrollToBottom();
+  }
+
+  void _sendPrompt(String prompt, VoiceAssistantService va) {
+    va.sendTextMessage(prompt);
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final va = context.watch<VoiceAssistantService>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
+    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
+    final l10n = AppLocalizations.of(context);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(top: 10, bottom: 6),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkBorder : AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: AppColors.brandYellow,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.psychology, size: 18, color: AppColors.slateDark),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n?.aiChat ?? 'REDO AI Assistant',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 16, color: textPrimary),
+                        ),
+                        Text(
+                          '12 Languages • Voice & Text • Instant Dispatch',
+                          style: GoogleFonts.inter(fontSize: 10, color: textMuted),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, color: textPrimary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.border),
+
+          // Quick Prompts Chips
+          SizedBox(
+            height: 42,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              itemCount: _quickPrompts.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (ctx, i) {
+                return ActionChip(
+                  backgroundColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
+                  label: Text(_quickPrompts[i], style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: textPrimary)),
+                  onPressed: () => _sendPrompt(_quickPrompts[i], va),
+                );
+              },
+            ),
+          ),
+          Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.border),
+
+          // Chat Messages List
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.all(16),
+              itemCount: va.chatHistory.length,
+              itemBuilder: (ctx, i) {
+                final m = va.chatHistory[i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    mainAxisAlignment: m.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!m.isUser) ...[
+                        const CircleAvatar(
+                          radius: 14,
+                          backgroundColor: AppColors.brandYellow,
+                          child: Icon(Icons.local_shipping, size: 14, color: AppColors.slateDark),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: m.isUser
+                                ? AppColors.brandYellow
+                                : (isDark ? const Color(0xFF0F172A) : AppColors.canvas),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: m.isUser
+                                  ? AppColors.brandYellow
+                                  : (isDark ? AppColors.darkBorder : AppColors.border),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                m.text,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: m.isUser ? FontWeight.w700 : FontWeight.w500,
+                                  color: m.isUser ? AppColors.slateDark : textPrimary,
+                                ),
+                              ),
+                              if (!m.isUser) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    InkWell(
+                                      onTap: () => va.speakMessage(m.text),
+                                      child: const Icon(Icons.volume_up, size: 16, color: AppColors.brandYellowDark),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (m.isUser) ...[
+                        const SizedBox(width: 8),
+                        const CircleAvatar(
+                          radius: 14,
+                          backgroundColor: AppColors.slateDark,
+                          child: Icon(Icons.person, size: 14, color: Colors.white),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Message Input Field
+          Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+              top: 8,
+              left: 14,
+              right: 14,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : Colors.white,
+              border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _inputCtrl,
+                    style: GoogleFonts.inter(fontSize: 13, color: textPrimary),
+                    decoration: InputDecoration(
+                      hintText: l10n?.typeMessage ?? 'Ask in Hindi, English, Tamil, Telugu…',
+                      hintStyle: GoogleFonts.inter(fontSize: 12, color: textMuted),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                      ),
+                    ),
+                    onSubmitted: (_) => _sendMessage(va),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: AppColors.brandYellow,
+                  radius: 20,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, size: 18, color: AppColors.slateDark),
+                    onPressed: () => _sendMessage(va),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -24,6 +24,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile => 'Profile';
 
   @override
+  String get sendParcel => 'Send Parcel';
+
+  @override
+  String get support => 'Support';
+
+  @override
+  String get recentBookings => 'Recent Bookings';
+
+  @override
+  String get viewAll => 'View all';
+
+  @override
+  String get noActiveBookings => 'No active bookings yet';
+
+  @override
+  String get noActiveBookingsDesc =>
+      'Enter pickup and drop locations above to find return trucks.';
+
+  @override
+  String get exactAddressesGstin => 'Exact Addresses & GSTIN';
+
+  @override
+  String get exactAddressesGstinDesc =>
+      'Add pickup/drop landmarks & GST (optional)';
+
+  @override
+  String get findTrucks => 'Find Trucks';
+
+  @override
+  String get registerLoad => 'Register Load';
+
+  @override
   String get bookShipment => 'Book Shipment';
 
   @override
@@ -37,12 +69,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduleLater => '📅 Ship Later';
-
-  @override
-  String get findTrucks => 'Find Trucks';
-
-  @override
-  String get registerLoad => 'Register Load';
 
   @override
   String get themeSettings => 'Theme Settings';
@@ -67,6 +93,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tapToSpeak => 'Tap to speak';
+
+  @override
+  String get stopListening => 'Stop Listening';
+
+  @override
+  String get aiChat => 'AI Chat Assistant';
+
+  @override
+  String get askAnything => 'Ask about freight, rates, trucks, or routes...';
+
+  @override
+  String get typeMessage => 'Type your message...';
 
   @override
   String get completeProfile => 'Complete your profile';
@@ -200,11 +238,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileCompletionVerifiedDesc =>
-      'Your business profile and tax credentials are fully verified. You have access to priority driver matching and GST e-invoices.';
+      'Your business profile and tax credentials are fully verified.';
 
   @override
   String get profileCompletionPendingDesc =>
-      'Complete remaining business details (GSTIN & Address) to reach 100% and unlock instant credit limits and priority corridor matches.';
+      'Complete remaining business details to unlock instant matching.';
 
   @override
   String get completeProfileNow => 'Complete Profile Now →';

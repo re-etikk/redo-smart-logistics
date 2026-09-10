@@ -24,37 +24,71 @@ class AppLocalizationsMl extends AppLocalizations {
   String get profile => 'പ്രൊഫൈൽ';
 
   @override
-  String get searchLoads => 'ലോഡ് തിരയുക';
+  String get searchLoads => 'ലോഡുകൾ തിരയുക';
+
+  @override
+  String get searchReturnLoads => 'തിരിച്ചുള്ള ലോഡുകൾ തിരയുക';
 
   @override
   String get fromCity => 'നഗരത്തിൽ നിന്ന്';
 
   @override
-  String get toCity => 'നഗരത്തിലേക്ക്';
+  String get toCity => 'ലക്ഷ്യസ്ഥാന നഗരത്തിലേക്ക്';
 
   @override
   String get allLoads => 'എല്ലാ ലോഡുകളും';
 
   @override
-  String get instantOnly => '⚡ ഉടൻ';
+  String get instantOnly => '⚡ തൽക്ഷണം മാത്രം';
 
   @override
-  String get scheduled => '📅 ഷെഡ്യൂൾ';
+  String get scheduled => '📅 ഷെഡ്യൂൾ ചെയ്തത്';
 
   @override
   String get bestMatch => '★ മികച്ച പൊരുത്തം';
 
   @override
-  String get availableLoads => 'ലഭ്യമായ ലോഡുകൾ';
+  String get availableLoads => 'ലഭ്യമായ റിട്ടേൺ ലോഡുകൾ';
 
   @override
-  String get acceptLoad => 'ലോഡ് സ്വീകരിക്കുക';
+  String get acceptLoad => 'ഈ ലോഡ് സ്വീകരിക്കുക';
 
   @override
   String get partnerProfile => 'പാർട്ണർ പ്രൊഫൈൽ';
 
   @override
-  String get registerTruck => 'ട്രക്ക് രജിസ്റ്റർ ചെയ്യുക';
+  String get registerTruck => 'വാണിജ്യ ട്രക്ക് രജിസ്റ്റർ ചെയ്യുക';
+
+  @override
+  String get registerTruckSubtitle =>
+      'ആവശ്യമായ എല്ലാ വാണിജ്യ ഗതാഗത വിവരങ്ങളും നൽകുക.';
+
+  @override
+  String get vehicleRcNumber => 'വാഹന ആർസി നമ്പർ (RC) *';
+
+  @override
+  String get drivingLicense => 'വാണിജ്യ ഡ്രൈവിംഗ് ലൈസൻസ് *';
+
+  @override
+  String get vehicleSizeClass => 'വാഹനത്തിന്റെ വലിപ്പം / തരം';
+
+  @override
+  String get bodyType => 'ബോഡി തരം';
+
+  @override
+  String get grossPayload => 'മൊത്തം പേലോഡ് ശേഷി (മെട്രിക് ടൺ) *';
+
+  @override
+  String get baseDepotCity => 'ബേസ് ഡിപ്പോ നഗരം';
+
+  @override
+  String get returnCorridor => 'റിട്ടേൺ കോറിഡോർ';
+
+  @override
+  String get nationalPermit => 'ഓൾ ഇന്ത്യ നാഷണൽ പെർമിറ്റ് (NP)';
+
+  @override
+  String get insurancePolicy => 'വാണിജ്യ ഇൻഷുറൻസ് പോളിസി';
 
   @override
   String get themeSettings => 'തീം ക്രമീകരണങ്ങൾ';
@@ -72,7 +106,7 @@ class AppLocalizationsMl extends AppLocalizations {
   String get language => 'ഭാഷ';
 
   @override
-  String get voiceAssistant => 'വോയ്സ് അസിസ്റ്റന്റ്';
+  String get voiceAssistant => 'വോയ്‌സ് അസിസ്റ്റന്റ്';
 
   @override
   String get listening => 'കേൾക്കുന്നു...';
@@ -81,66 +115,66 @@ class AppLocalizationsMl extends AppLocalizations {
   String get tapToSpeak => 'സംസാരിക്കാൻ ടാപ്പ് ചെയ്യുക';
 
   @override
-  String get completeProfile => 'ലോഡ് സ്വീകരിക്കാൻ പ്രൊഫൈൽ പൂർത്തിയാക്കുക';
+  String get stopListening => 'കേൾക്കുന്നത് നിർത്തുക';
 
   @override
-  String get profileComplete => 'പ്രൊഫൈൽ പൂർണ്ണം';
+  String get aiChat => 'AI ചാറ്റ് അസിസ്റ്റന്റ്';
 
   @override
-  String get saveTruck => 'സേവ് ചെയ്ത് രജിസ്റ്റർ ചെയ്യുക';
+  String get askAnything =>
+      'ലോഡുകൾ, വരുമാനം അല്ലെങ്കിൽ റൂട്ടുകളെ കുറിച്ച് ചോദിക്കുക...';
+
+  @override
+  String get typeMessage => 'സന്ദേശം ടൈപ്പ് ചെയ്യുക...';
+
+  @override
+  String get completeProfile => 'ലോഡുകൾ സ്വീകരിക്കാൻ പ്രൊഫൈൽ പൂർത്തിയാക്കുക';
+
+  @override
+  String get profileComplete => 'പ്രൊഫൈൽ പൂർത്തിയായി';
+
+  @override
+  String get saveTruck => 'ട്രക്ക് സംരക്ഷിച്ച് രജിസ്റ്റർ ചെയ്യുക';
 
   @override
   String get typeLocation => 'സ്ഥലം ടൈപ്പ് ചെയ്യുക...';
 
   @override
-  String get noLoadsFound => 'ലോഡുകൾ കണ്ടെത്തിയില്ല';
+  String get noLoadsFound => 'റിട്ടേൺ ലോഡുകളൊന്നും കണ്ടെത്തിയില്ല';
 
   @override
-  String get estimatedPayout => 'കണക്കാക്കിയ പേയ്മെന്റ്';
+  String get estimatedPayout => 'കണക്കാക്കിയ തുക';
 
   @override
-  String get viewAndAccept => 'കാണുക & സ്വീകരിക്കുക';
+  String get viewAndAccept => 'കണ്ട് സ്വീകരിക്കുക';
 
   @override
-  String get clear => 'മായ്ക്കുക';
+  String get clear => 'മായ୍ക്കുക';
 
   @override
   String get swap => 'മാറ്റുക';
 
   @override
-  String get appSettings => 'App Settings';
+  String get bankAccount => 'ബാങ്ക് അക്കൗണ്ടും പേഔട്ടുകളും';
 
   @override
-  String get theme => 'Theme';
+  String get bankName => 'ബാങ്കിന്റെ പേര്';
 
   @override
-  String get logOut => 'Log Out';
+  String get branchName => 'ബ്രാഞ്ച് പേര്';
 
   @override
-  String get logOutSubtitle => 'Sign out from this device';
+  String get ifscCode => 'IFSC കോഡ്';
 
   @override
-  String get notifications => 'Notifications';
+  String get accountHolder => 'അക്കൗണ്ട് ഉടമയുടെ പേര്';
 
   @override
-  String get notificationsSubtitle =>
-      'Load requests, route matches and updates';
+  String get withdrawNow => 'ഇപ്പോൾ പിൻവലിക്കുക';
 
   @override
-  String get helpSupport => 'Help & Support';
+  String get revenueBreakdown => 'വരുമാന വിശകലനം';
 
   @override
-  String get helpSupportSubtitle => '24/7 dedicated fleet and trip assistance';
-
-  @override
-  String get documents => 'KYC Documents';
-
-  @override
-  String get documentsSubtitle => 'RC, Driving License, Fitness Certificate';
-
-  @override
-  String get myFleet => 'My Trucks & Fleet';
-
-  @override
-  String get myFleetSubtitle => 'Manage registered commercial vehicles';
+  String get weeklyEarnings => 'പ്രതിവാര വരുമാന ട്രെൻഡ്';
 }

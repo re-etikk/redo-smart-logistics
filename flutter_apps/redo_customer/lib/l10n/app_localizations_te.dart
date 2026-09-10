@@ -15,28 +15,39 @@ class AppLocalizationsTe extends AppLocalizations {
   String get home => 'హోమ్';
 
   @override
-  String get bookings => 'బుకింగ్స్';
+  String get bookings => 'బుకింగ్‌లు';
 
   @override
-  String get track => 'ట్రాక్';
+  String get track => 'ట్రాక్ చేయండి';
 
   @override
   String get profile => 'ప్రొఫైల్';
 
   @override
-  String get bookShipment => 'షిప్మెంట్ బుక్ చేయండి';
+  String get sendParcel => 'పార్శిల్ పంపండి';
 
   @override
-  String get pickupLocation => 'పికప్ స్థానం';
+  String get support => 'మద్దతు';
 
   @override
-  String get dropLocation => 'డ్రాప్ స్థానం';
+  String get recentBookings => 'ఇటీవలి బుకింగ్‌లు';
 
   @override
-  String get instantDispatch => '⚡ ఇప్పుడే పంపండి';
+  String get viewAll => 'అన్నీ చూడండి';
 
   @override
-  String get scheduleLater => '📅 తరువాత పంపండి';
+  String get noActiveBookings => 'ఇంకా యాక్టివ్ బుకింగ్‌లు లేవు';
+
+  @override
+  String get noActiveBookingsDesc =>
+      'రిటర్న్ ట్రక్కులను కనుగొనడానికి పైన పికప్ మరియు డ్రాప్ స్థానాలను నమోదు చేయండి.';
+
+  @override
+  String get exactAddressesGstin => 'ఖచ్చితమైన చిరునామా & జీఎస్టీ';
+
+  @override
+  String get exactAddressesGstinDesc =>
+      'పికప్/డ్రాప్ ల్యాండ్‌మార్క్‌లు & జీఎస్టీ జోడించండి';
 
   @override
   String get findTrucks => 'ట్రక్కులను కనుగొనండి';
@@ -45,7 +56,22 @@ class AppLocalizationsTe extends AppLocalizations {
   String get registerLoad => 'లోడ్ నమోదు చేయండి';
 
   @override
-  String get themeSettings => 'థీమ్ సెట్టింగులు';
+  String get bookShipment => 'రవాణాను బుక్ చేయండి';
+
+  @override
+  String get pickupLocation => 'పికప్ స్థానం';
+
+  @override
+  String get dropLocation => 'డ్రాప్ స్థానం';
+
+  @override
+  String get instantDispatch => '⚡ ఇప్పుడే రవాణా చేయండి';
+
+  @override
+  String get scheduleLater => '📅 తర్వాత పంపండి';
+
+  @override
+  String get themeSettings => 'థీమ్ సెట్టింగ్‌లు';
 
   @override
   String get darkMode => 'డార్క్';
@@ -63,162 +89,174 @@ class AppLocalizationsTe extends AppLocalizations {
   String get voiceAssistant => 'వాయిస్ అసిస్టెంట్';
 
   @override
-  String get listening => 'వింటుంది...';
+  String get listening => 'వింటోంది...';
 
   @override
   String get tapToSpeak => 'మాట్లాడటానికి నొక్కండి';
 
   @override
-  String get completeProfile => 'ప్రొఫైల్ పూర్తి చేయండి';
+  String get stopListening => 'వినడం ఆపండి';
 
   @override
-  String get typeLocation => 'స్థానం టైప్ చేయండి...';
+  String get aiChat => 'AI చాట్ అసిస్టెంట్';
 
   @override
-  String get myShipments => 'నా షిప్‌మెంట్‌లు';
+  String get askAnything =>
+      'సరుకు రవాణా, ఛార్జీలు లేదా రూట్ల గురించి అడగండి...';
 
   @override
-  String get trackShipment => 'షిప్మెంట్ ట్రాక్ చేయండి';
+  String get typeMessage => 'మీ సందేశాన్ని టైప్ చేయండి...';
+
+  @override
+  String get completeProfile => 'మీ ప్రొఫైల్‌ను పూర్తి చేయండి';
+
+  @override
+  String get typeLocation => 'స్థానాన్ని టైప్ చేయండి...';
+
+  @override
+  String get myShipments => 'నా రవాణాలు';
+
+  @override
+  String get trackShipment => 'రవాణాను ట్రాక్ చేయండి';
 
   @override
   String get clear => 'క్లియర్';
 
   @override
-  String get swap => 'Swap';
+  String get swap => 'మార్చండి';
 
   @override
   String get customerProfile => 'కస్టమర్ ప్రొఫైల్';
 
   @override
   String get customerProfileSubtitle =>
-      'Manage your registered enterprise account and tax compliance.';
+      'మీ నమోదిత ఖాతా మరియు పన్ను సమ్మతిని నిర్వహించండి.';
 
   @override
-  String get enterpriseShipper => 'ENTERPRISE SHIPPER';
+  String get enterpriseShipper => 'ఎంటర్‌ప్రైజ్ షిప్పర్';
 
   @override
-  String get registerYourBusiness => 'Register Your Business';
+  String get registerYourBusiness => 'మీ వ్యాపారాన్ని నమోదు చేయండి';
 
   @override
-  String get profileCompletion => 'Profile Completion';
+  String get profileCompletion => 'ప్రొఫైల్ పూర్తిస్థాయి';
 
   @override
-  String get verificationLegalKyc => 'Verification & Legal KYC';
+  String get verificationLegalKyc => 'ధృవీకరణ & చట్టపరమైన KYC';
 
   @override
-  String get fullyVerified => 'Fully Verified';
+  String get fullyVerified => 'పూర్తిగా ధృవీకరించబడింది';
 
   @override
-  String get mobileVerification => 'Mobile Verification';
+  String get mobileVerification => 'మొబైల్ ధృవీకరణ';
 
   @override
-  String get emailAuthentication => 'Email Authentication';
+  String get emailAuthentication => 'ఇమెయిల్ ప్రమాణీకరణ';
 
   @override
-  String get companyRegistration => 'Company Registration';
+  String get companyRegistration => 'కంపెనీ రిజిస్ట్రేషన్';
 
   @override
-  String get gstinTaxCompliance => 'GSTIN / Tax Compliance';
+  String get gstinTaxCompliance => 'జీఎస్టీ / పన్ను సమ్మతి';
 
   @override
-  String get registeredAddress => 'Registered Warehouse Address';
+  String get registeredAddress => 'నమోదిత గిడ్డంగి చిరునామా';
 
   @override
-  String get businessTaxInfo => 'Business & Tax Information';
+  String get businessTaxInfo => 'వ్యాపారం & పన్ను సమాచారం';
 
   @override
-  String get edit => 'Edit';
+  String get edit => 'సవరించండి';
 
   @override
-  String get companyName => 'Company Name';
+  String get companyName => 'కంపెనీ పేరు';
 
   @override
-  String get contactPerson => 'Contact Person';
+  String get contactPerson => 'సంప్రదింపు వ్యక్తి';
 
   @override
-  String get phone => 'Phone';
+  String get phone => 'ఫోన్';
 
   @override
-  String get email => 'Email';
+  String get email => 'ఇమెయిల్';
 
   @override
-  String get gstin => 'GSTIN';
+  String get gstin => 'జీఎస్టీ';
 
   @override
-  String get panNumber => 'PAN Number';
+  String get panNumber => 'పాన్ నంబర్';
 
   @override
-  String get invoicesBilling => 'Invoices & Billing';
+  String get invoicesBilling => 'ఇన్‌వాయిస్‌లు & బిల్లింగ్';
 
   @override
-  String get invoicesSubtitle => 'View GST tax invoices and payment receipts';
+  String get invoicesSubtitle =>
+      'పన్ను ఇన్‌వాయిస్‌లు మరియు రసీదులను వీక్షించండి';
 
   @override
-  String get notifications => 'Notifications';
+  String get notifications => 'నోటిఫికేషన్‌లు';
 
   @override
-  String get notificationsSubtitle =>
-      'Shipment alerts, status pings and announcements';
+  String get notificationsSubtitle => 'రవాణా హెచ్చరికలు మరియు స్థితి నవీకరణలు';
 
   @override
-  String get helpSupport => 'Help & Support';
+  String get helpSupport => 'సహాయం & మద్దతు';
 
   @override
-  String get helpSupportSubtitle =>
-      '24/7 dedicated freight and booking assistance';
+  String get helpSupportSubtitle => '24/7 అంకితమైన సరుకు రవాణా సహాయం';
 
   @override
-  String get appSettings => 'App Settings';
+  String get appSettings => 'యాప్ సెట్టింగ్‌లు';
 
   @override
-  String get theme => 'Theme';
+  String get theme => 'థీమ్';
 
   @override
-  String get logOut => 'Log Out';
+  String get logOut => 'లాగ్ అవుట్';
 
   @override
-  String get logOutSubtitle => 'Sign out from this device';
+  String get logOutSubtitle => 'ఈ పరికరం నుండి నిష్క్రమించండి';
 
   @override
-  String get editProfileTitle => 'Edit Business Profile & KYC';
+  String get editProfileTitle => 'వ్యాపార ప్రొఫైల్ & KYCని సవరించండి';
 
   @override
   String get editProfileSubtitle =>
-      'Update your company and tax details for verified freight shipping.';
+      'ధృవీకరించబడిన రవాణా కోసం కంపెనీ వివరాలను నవీకరించండి.';
 
   @override
-  String get saveProfileKyc => 'Save Profile & KYC';
+  String get saveProfileKyc => 'ప్రొఫైల్ & KYCని సేవ్ చేయండి';
 
   @override
-  String get selectVehicle => 'Select Commercial Vehicle';
+  String get selectVehicle => 'వాణిజ్య వాహనాన్ని ఎంచుకోండి';
 
   @override
-  String get vehicleRecommendation => 'Recommended for your cargo load';
+  String get vehicleRecommendation => 'మీ సరుకు కోసం సిఫార్సు చేయబడింది';
 
   @override
-  String get payloadTonnage => 'Payload Tonnage';
+  String get payloadTonnage => 'పేలోడ్ టన్నేజ్';
 
   @override
   String get profileCompletionVerifiedDesc =>
-      'Your business profile and tax credentials are fully verified. You have access to priority driver matching and GST e-invoices.';
+      'మీ వ్యాపార ప్రొఫైల్ మరియు పన్ను ఆధారాలు పూర్తిగా ధృవీకరించబడ్డాయి.';
 
   @override
   String get profileCompletionPendingDesc =>
-      'Complete remaining business details (GSTIN & Address) to reach 100% and unlock instant credit limits and priority corridor matches.';
+      'తక్షణ సరిపోలికను పొందడానికి మిగిలిన వివరాలను పూర్తి చేయండి.';
 
   @override
-  String get completeProfileNow => 'Complete Profile Now →';
+  String get completeProfileNow => 'ఇప్పుడే ప్రొఫైల్ పూర్తి చేయండి →';
 
   @override
-  String get notProvided => 'Not provided';
+  String get notProvided => 'అందించలేదు';
 
   @override
-  String get pendingRegistration => 'Pending registration';
+  String get pendingRegistration => 'రిజిస్ట్రేషన్ పెండింగ్‌లో ఉంది';
 
   @override
   String get logOutConfirmMessage =>
-      'Are you sure you want to log out from this device?';
+      'మీరు ఖచ్చితంగా లాగ్ అవుట్ చేయాలనుకుంటున్నారా?';
 
   @override
-  String get cancel => 'Cancel';
+  String get cancel => 'రద్దు చేయండి';
 }

@@ -15,34 +15,60 @@ class AppLocalizationsBn extends AppLocalizations {
   String get home => 'হোম';
 
   @override
-  String get bookings => 'বুকিং';
+  String get bookings => 'বুকিংস';
 
   @override
-  String get track => 'ট্র্যাক';
+  String get track => 'ট্র্যাক করুন';
 
   @override
   String get profile => 'প্রোফাইল';
 
   @override
-  String get bookShipment => 'শিপমেন্ট বুক করুন';
+  String get sendParcel => 'পার্সেল পাঠান';
 
   @override
-  String get pickupLocation => 'পিকআপ স্থান';
+  String get support => 'সহায়তা';
 
   @override
-  String get dropLocation => 'ড্রপ স্থান';
+  String get recentBookings => 'সাম্প্রতিক বুকিংস';
 
   @override
-  String get instantDispatch => '⚡ এখন পাঠান';
+  String get viewAll => 'সব দেখুন';
 
   @override
-  String get scheduleLater => '📅 পরে পাঠান';
+  String get noActiveBookings => 'এখনও কোনো সক্রিয় বুকিং নেই';
+
+  @override
+  String get noActiveBookingsDesc =>
+      'রিটার্ন ট্রাক খুঁজতে উপরে পিকআপ এবং ড্রপ অবস্থান লিখুন।';
+
+  @override
+  String get exactAddressesGstin => 'সঠিক ঠিকানা ও জিএসটি';
+
+  @override
+  String get exactAddressesGstinDesc =>
+      'পিকআপ/ড্রপ ল্যান্ডমার্ক এবং জিএসটি যোগ করুন';
 
   @override
   String get findTrucks => 'ট্রাক খুঁজুন';
 
   @override
   String get registerLoad => 'লোড নিবন্ধন করুন';
+
+  @override
+  String get bookShipment => 'চালান বুক করুন';
+
+  @override
+  String get pickupLocation => 'পিকআপের অবস্থান';
+
+  @override
+  String get dropLocation => 'ড্রপ অবস্থান';
+
+  @override
+  String get instantDispatch => '⚡ এখনই পাঠান';
+
+  @override
+  String get scheduleLater => '📅 পরে পাঠান';
 
   @override
   String get themeSettings => 'থিম সেটিংস';
@@ -60,165 +86,174 @@ class AppLocalizationsBn extends AppLocalizations {
   String get language => 'ভাষা';
 
   @override
-  String get voiceAssistant => 'ভয়েস অ্যাসিস্ট্যান্ট';
+  String get voiceAssistant => 'ভয়েস সহকারী';
 
   @override
-  String get listening => 'শুনছে...';
+  String get listening => 'শুনছি...';
 
   @override
-  String get tapToSpeak => 'কথা বলতে ট্যাপ করুন';
+  String get tapToSpeak => 'বলতে ট্যাপ করুন';
 
   @override
-  String get completeProfile => 'প্রোফাইল সম্পূর্ণ করুন';
+  String get stopListening => 'শোনা বন্ধ করুন';
 
   @override
-  String get typeLocation => 'স্থান টাইপ করুন...';
+  String get aiChat => 'AI চ্যাট সহকারী';
 
   @override
-  String get myShipments => 'আমার শিপমেন্ট';
+  String get askAnything => 'ভাড়া, হার বা রুট সম্পর্কে জিজ্ঞাসা করুন...';
 
   @override
-  String get trackShipment => 'শিপমেন্ট ট্র্যাক করুন';
+  String get typeMessage => 'আপনার বার্তা টাইপ করুন...';
 
   @override
-  String get clear => 'সাফ করুন';
+  String get completeProfile => 'আপনার প্রোফাইল সম্পূর্ণ করুন';
 
   @override
-  String get swap => 'Swap';
+  String get typeLocation => 'অবস্থান টাইপ করুন...';
+
+  @override
+  String get myShipments => 'আমার চালান';
+
+  @override
+  String get trackShipment => 'চালান ট্র্যাক করুন';
+
+  @override
+  String get clear => 'মুছুন';
+
+  @override
+  String get swap => 'অদলবদল';
 
   @override
   String get customerProfile => 'গ্রাহক প্রোফাইল';
 
   @override
   String get customerProfileSubtitle =>
-      'Manage your registered enterprise account and tax compliance.';
+      'আপনার নিবন্ধিত অ্যাকাউন্ট এবং কর সম্মতি পরিচালনা করুন।';
 
   @override
-  String get enterpriseShipper => 'ENTERPRISE SHIPPER';
+  String get enterpriseShipper => 'এন্টারপ্রাইজ শিপার';
 
   @override
-  String get registerYourBusiness => 'Register Your Business';
+  String get registerYourBusiness => 'ব্যবসা নিবন্ধন করুন';
 
   @override
-  String get profileCompletion => 'Profile Completion';
+  String get profileCompletion => 'প্রোফাইল সমাপ্তি';
 
   @override
-  String get verificationLegalKyc => 'Verification & Legal KYC';
+  String get verificationLegalKyc => 'যাচাইকরণ এবং আইনি কেওয়াইসি';
 
   @override
-  String get fullyVerified => 'Fully Verified';
+  String get fullyVerified => 'সম্পূর্ণ যাচাইকৃত';
 
   @override
-  String get mobileVerification => 'Mobile Verification';
+  String get mobileVerification => 'মোবাইল যাচাইকরণ';
 
   @override
-  String get emailAuthentication => 'Email Authentication';
+  String get emailAuthentication => 'ইমেল প্রমাণীকরণ';
 
   @override
-  String get companyRegistration => 'Company Registration';
+  String get companyRegistration => 'কোম্পানি নিবন্ধন';
 
   @override
-  String get gstinTaxCompliance => 'GSTIN / Tax Compliance';
+  String get gstinTaxCompliance => 'জিএসটি / কর সম্মতি';
 
   @override
-  String get registeredAddress => 'Registered Warehouse Address';
+  String get registeredAddress => 'নিবন্ধিত গুদামের ঠিকানা';
 
   @override
-  String get businessTaxInfo => 'Business & Tax Information';
+  String get businessTaxInfo => 'ব্যবসা এবং কর তথ্য';
 
   @override
-  String get edit => 'Edit';
+  String get edit => 'সম্পাদনা করুন';
 
   @override
-  String get companyName => 'Company Name';
+  String get companyName => 'কোম্পানির নাম';
 
   @override
-  String get contactPerson => 'Contact Person';
+  String get contactPerson => 'যোগাযোগের ব্যক্তি';
 
   @override
-  String get phone => 'Phone';
+  String get phone => 'ফোন';
 
   @override
-  String get email => 'Email';
+  String get email => 'ইমেল';
 
   @override
-  String get gstin => 'GSTIN';
+  String get gstin => 'জিএসটি';
 
   @override
-  String get panNumber => 'PAN Number';
+  String get panNumber => 'প্যান নম্বর';
 
   @override
-  String get invoicesBilling => 'Invoices & Billing';
+  String get invoicesBilling => 'চালান ও বিলিং';
 
   @override
-  String get invoicesSubtitle => 'View GST tax invoices and payment receipts';
+  String get invoicesSubtitle => 'ট্যাক্স চালান এবং রসিদ দেখুন';
 
   @override
-  String get notifications => 'Notifications';
+  String get notifications => 'বিজ্ঞপ্তি';
 
   @override
-  String get notificationsSubtitle =>
-      'Shipment alerts, status pings and announcements';
+  String get notificationsSubtitle => 'চালান সতর্কতা এবং স্থিতি আপডেট';
 
   @override
-  String get helpSupport => 'Help & Support';
+  String get helpSupport => 'সাহায্য ও সহায়তা';
 
   @override
-  String get helpSupportSubtitle =>
-      '24/7 dedicated freight and booking assistance';
+  String get helpSupportSubtitle => '24/7 নিবেদিত মালবাহী সহায়তা';
 
   @override
-  String get appSettings => 'App Settings';
+  String get appSettings => 'অ্যাপ সেটিংস';
 
   @override
-  String get theme => 'Theme';
+  String get theme => 'থিম';
 
   @override
-  String get logOut => 'Log Out';
+  String get logOut => 'লগ আউট';
 
   @override
-  String get logOutSubtitle => 'Sign out from this device';
+  String get logOutSubtitle => 'এই ডিভাইস থেকে সাইন আউট করুন';
 
   @override
-  String get editProfileTitle => 'Edit Business Profile & KYC';
+  String get editProfileTitle => 'ব্যবসা প্রোফাইল এবং কেওয়াইসি সম্পাদনা করুন';
 
   @override
   String get editProfileSubtitle =>
-      'Update your company and tax details for verified freight shipping.';
+      'যাচাইকৃত মালবাহী শিপিংয়ের জন্য কোম্পানির বিবরণ আপডেট করুন।';
 
   @override
-  String get saveProfileKyc => 'Save Profile & KYC';
+  String get saveProfileKyc => 'প্রোফাইল এবং কেওয়াইসি সংরক্ষণ করুন';
 
   @override
-  String get selectVehicle => 'Select Commercial Vehicle';
+  String get selectVehicle => 'বাণিজ্যিক যানবাহন নির্বাচন করুন';
 
   @override
-  String get vehicleRecommendation => 'Recommended for your cargo load';
+  String get vehicleRecommendation => 'আপনার কার্গোর জন্য প্রস্তাবিত';
 
   @override
-  String get payloadTonnage => 'Payload Tonnage';
+  String get payloadTonnage => 'পেলোড ক্ষমতা (টন)';
 
   @override
   String get profileCompletionVerifiedDesc =>
-      'Your business profile and tax credentials are fully verified. You have access to priority driver matching and GST e-invoices.';
+      'আপনার ব্যবসায়িক প্রোফাইল সম্পূর্ণভাবে যাচাইকৃত হয়েছে।';
 
   @override
   String get profileCompletionPendingDesc =>
-      'Complete remaining business details (GSTIN & Address) to reach 100% and unlock instant credit limits and priority corridor matches.';
+      'তাত্ক্ষণিক মিল আনলক করতে বাকি বিবরণ সম্পূর্ণ করুন।';
 
   @override
-  String get completeProfileNow => 'Complete Profile Now →';
+  String get completeProfileNow => 'এখনই প্রোফাইল সম্পূর্ণ করুন →';
 
   @override
-  String get notProvided => 'Not provided';
+  String get notProvided => 'প্রদান করা হয়নি';
 
   @override
-  String get pendingRegistration => 'Pending registration';
+  String get pendingRegistration => 'নিবন্ধন মুলতুবি';
 
   @override
-  String get logOutConfirmMessage =>
-      'Are you sure you want to log out from this device?';
+  String get logOutConfirmMessage => 'আপনি কি নিশ্চিত যে আপনি লগ আউট করতে চান?';
 
   @override
-  String get cancel => 'Cancel';
+  String get cancel => 'বাতিল করুন';
 }

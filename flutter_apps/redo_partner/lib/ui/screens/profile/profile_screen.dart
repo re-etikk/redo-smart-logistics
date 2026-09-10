@@ -12,6 +12,7 @@ import '../misc/documents_screen.dart';
 import '../misc/notifications_screen.dart';
 import '../misc/support_screen.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../data/services/bank_lookup_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -378,7 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuTile(
                     icon: Icons.local_shipping_outlined,
                     iconColor: Colors.amber.shade800,
-                    title: AppLocalizations.of(context)?.myFleet ?? 'Register & Manage Trucks',
+                    title: AppLocalizations.of(context)?.registerTruck ?? 'Register & Manage Trucks',
                     subtitle: truck != null
                         ? '${truck.registrationNumber} · ${truck.truckType} (${truck.defaultCapacityTons.toStringAsFixed(0)}T)'
                         : 'Register commercial truck and return corridor',
@@ -394,7 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuTile(
                     icon: Icons.description_outlined,
                     iconColor: Colors.purple,
-                    title: AppLocalizations.of(context)?.documents ?? 'Legal Documents & Permits',
+                    title: 'Legal Documents & Permits',
                     subtitle: 'RC book, insurance, fitness, permit and PUC',
                     onTap: () => Navigator.push(
                       context,
@@ -404,14 +405,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuTile(
                     icon: Icons.account_balance_outlined,
                     iconColor: Colors.teal,
-                    title: 'Bank Account & Instant Payouts',
+                    title: AppLocalizations.of(context)?.bankAccount ?? 'Bank Account & Instant Payouts',
                     subtitle: 'Linked bank account for fast withdrawal settlements',
                     onTap: () => _bankDetailsDialog(context),
                   ),
                   _buildMenuTile(
                     icon: Icons.notifications_outlined,
                     iconColor: Colors.orange,
-                    title: AppLocalizations.of(context)?.notifications ?? 'Notifications & Alerts',
+                    title: 'Notifications & Alerts',
                     subtitle: 'Trip alerts, load broadcasts and price updates',
                     onTap: () => Navigator.push(
                       context,
@@ -421,7 +422,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuTile(
                     icon: Icons.headset_mic_outlined,
                     iconColor: Colors.indigo,
-                    title: AppLocalizations.of(context)?.helpSupport ?? 'Help & 24/7 Driver Support',
+                    title: 'Help & 24/7 Driver Support',
                     subtitle: 'On-road breakdown assistance and freight queries',
                     onTap: () => Navigator.push(
                       context,
@@ -434,8 +435,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuTile(
                     icon: Icons.logout,
                     iconColor: AppColors.danger,
-                    title: AppLocalizations.of(context)?.logOut ?? 'Sign Out',
-                    subtitle: AppLocalizations.of(context)?.logOutSubtitle ?? 'Log out of driver account on this device',
+                    title: 'Sign Out',
+                    subtitle: 'Log out of driver account on this device',
                     isDanger: true,
                     onTap: () => _confirmSignOut(context, auth),
                   ),
@@ -474,9 +475,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppLocalizations.of(context)?.appSettings ?? 'App Settings', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900)),
+          Text(AppLocalizations.of(context)?.themeSettings ?? 'App Settings', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900)),
           const SizedBox(height: 16),
-          Text(AppLocalizations.of(context)?.theme ?? 'Theme', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkMuted)),
+          Text('Theme', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkMuted)),
           const SizedBox(height: 8),
           SegmentedButton<ThemeMode>(
             segments: const [
@@ -559,6 +560,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     AuthViewModel auth,
     PartnerTripsViewModel partnerVM,
   ) {
+    final l10n = AppLocalizations.of(context);
     if (truck == null) {
       return Container(
         padding: const EdgeInsets.all(18),
@@ -569,7 +571,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Column(
           children: [
-            Icon(Icons.local_shipping_outlined, size: 36, color: AppColors.inkMuted),
+            const Icon(Icons.local_shipping_outlined, size: 36, color: AppColors.inkMuted),
             const SizedBox(height: 8),
             Text(
               'No Truck Registered Yet',
@@ -577,7 +579,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Register your commercial truck, RC number, and return corridor to receive high-paying loads.',
+              l10n?.registerTruckSubtitle ?? 'Register your commercial truck, RC number, and return corridor to receive high-paying loads.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
             ),
@@ -590,7 +592,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               icon: const Icon(Icons.add, size: 16),
-              label: Text('Register Commercial Truck', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+              label: Text(l10n?.registerTruck ?? 'Register Commercial Truck', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
             ),
           ],
         ),
@@ -768,6 +770,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bodyTypeOptions = ['Closed container', 'Open body', 'Refrigerated', 'Flatbed'];
     final cityOptions = ['Delhi NCR', 'Mumbai', 'Pune', 'Jaipur', 'Surat', 'Ahmedabad', 'Lucknow', 'Kanpur'];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
+    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
+    final cardBg = isDark ? AppColors.darkCard : Colors.white;
+    final l10n = AppLocalizations.of(context);
+
     final save = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -780,9 +788,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             left: 20,
             right: 20,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -793,18 +801,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Register Commercial Truck',
-                      style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900),
+                      l10n?.registerTruck ?? 'Register Commercial Truck',
+                      style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900, color: textPrimary),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Icon(Icons.close, color: textPrimary),
                       onPressed: () => Navigator.pop(ctx, false),
                     ),
                   ],
                 ),
                 Text(
-                  'Enter all legally required Indian commercial transport credentials.',
-                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+                  l10n?.registerTruckSubtitle ?? 'Enter all legally required Indian commercial transport credentials.',
+                  style: GoogleFonts.inter(fontSize: 12, color: textMuted),
                 ),
                 const SizedBox(height: 16),
 
@@ -812,11 +820,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 TextField(
                   controller: regCtrl,
                   textCapitalization: TextCapitalization.characters,
+                  style: GoogleFonts.inter(color: textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'Vehicle RC Number (MoRTH) *',
+                    labelText: l10n?.vehicleRcNumber ?? 'Vehicle RC Number (MoRTH) *',
+                    labelStyle: GoogleFonts.inter(color: textMuted),
                     hintText: 'e.g. DL 01 AB 1234',
-                    prefixIcon: const Icon(Icons.pin_outlined, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintStyle: GoogleFonts.inter(color: textMuted.withValues(alpha: 0.6)),
+                    prefixIcon: const Icon(Icons.pin_outlined, size: 20, color: AppColors.brandYellow),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -825,17 +845,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 TextField(
                   controller: dlCtrl,
                   textCapitalization: TextCapitalization.characters,
+                  style: GoogleFonts.inter(color: textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'Commercial Driving License (Sarathi) *',
+                    labelText: l10n?.drivingLicense ?? 'Commercial Driving License (Sarathi) *',
+                    labelStyle: GoogleFonts.inter(color: textMuted),
                     hintText: 'e.g. DL-1420110012345',
-                    prefixIcon: const Icon(Icons.badge_outlined, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintStyle: GoogleFonts.inter(color: textMuted.withValues(alpha: 0.6)),
+                    prefixIcon: const Icon(Icons.badge_outlined, size: 20, color: AppColors.brandYellow),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
                 // Vehicle Category / Size
-                Text('VEHICLE SIZE / CLASS', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.inkMuted)),
+                Text(
+                  l10n?.vehicleSizeClass ?? 'VEHICLE SIZE / CLASS',
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: textMuted),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -843,9 +878,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: truckTypeOptions.map((type) {
                     final sel = selectedTruckType == type;
                     return ChoiceChip(
-                      label: Text(type, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+                      label: Text(
+                        type,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: sel ? AppColors.slateDark : textPrimary,
+                        ),
+                      ),
                       selected: sel,
                       selectedColor: AppColors.brandYellow,
+                      backgroundColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
                       onSelected: (_) => setModalState(() => selectedTruckType = type),
                     );
                   }).toList(),
@@ -853,7 +896,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 12),
 
                 // Body Type
-                Text('BODY TYPE', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.inkMuted)),
+                Text(
+                  l10n?.bodyType ?? 'BODY TYPE',
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: textMuted),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -861,9 +907,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: bodyTypeOptions.map((b) {
                     final sel = selectedBodyType == b;
                     return ChoiceChip(
-                      label: Text(b, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+                      label: Text(
+                        b,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: sel ? AppColors.slateDark : textPrimary,
+                        ),
+                      ),
                       selected: sel,
                       selectedColor: AppColors.brandYellow,
+                      backgroundColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
                       onSelected: (_) => setModalState(() => selectedBodyType = b),
                     );
                   }).toList(),
@@ -874,11 +928,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 TextField(
                   controller: capCtrl,
                   keyboardType: TextInputType.number,
+                  style: GoogleFonts.inter(color: textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'Gross Payload Capacity (Metric Tons) *',
+                    labelText: l10n?.grossPayload ?? 'Gross Payload Capacity (Metric Tons) *',
+                    labelStyle: GoogleFonts.inter(color: textMuted),
                     hintText: 'e.g. 16.5',
-                    prefixIcon: const Icon(Icons.scale_outlined, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintStyle: GoogleFonts.inter(color: textMuted.withValues(alpha: 0.6)),
+                    prefixIcon: const Icon(Icons.scale_outlined, size: 20, color: AppColors.brandYellow),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -889,12 +955,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: selectedHomeCity,
+                        dropdownColor: cardBg,
+                        style: GoogleFonts.inter(color: textPrimary, fontSize: 13),
                         decoration: InputDecoration(
-                          labelText: 'Base Depot City',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          labelText: l10n?.baseDepotCity ?? 'Base Depot City',
+                          labelStyle: GoogleFonts.inter(color: textMuted),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                          ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                         ),
-                        items: cityOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 12)))).toList(),
+                        items: cityOptions
+                            .map((c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(c, style: GoogleFonts.inter(fontSize: 12, color: textPrimary)),
+                                ))
+                            .toList(),
                         onChanged: (val) {
                           if (val != null) setModalState(() => selectedHomeCity = val);
                         },
@@ -904,12 +987,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: selectedReturnCity,
+                        dropdownColor: cardBg,
+                        style: GoogleFonts.inter(color: textPrimary, fontSize: 13),
                         decoration: InputDecoration(
-                          labelText: 'Return Corridor',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          labelText: l10n?.returnCorridor ?? 'Return Corridor',
+                          labelStyle: GoogleFonts.inter(color: textMuted),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                          ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                         ),
-                        items: cityOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 12)))).toList(),
+                        items: cityOptions
+                            .map((c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(c, style: GoogleFonts.inter(fontSize: 12, color: textPrimary)),
+                                ))
+                            .toList(),
                         onChanged: (val) {
                           if (val != null) setModalState(() => selectedReturnCity = val);
                         },
@@ -922,21 +1022,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // National Permit & Insurance
                 TextField(
                   controller: npCtrl,
+                  style: GoogleFonts.inter(color: textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'All India National Permit (NP Number)',
+                    labelText: l10n?.nationalPermit ?? 'All India National Permit (NP Number)',
+                    labelStyle: GoogleFonts.inter(color: textMuted),
                     hintText: 'e.g. NP-IND-2026-9812',
-                    prefixIcon: const Icon(Icons.verified_outlined, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintStyle: GoogleFonts.inter(color: textMuted.withValues(alpha: 0.6)),
+                    prefixIcon: const Icon(Icons.verified_outlined, size: 20, color: AppColors.brandYellow),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: insCtrl,
+                  style: GoogleFonts.inter(color: textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'Commercial Insurance Policy',
+                    labelText: l10n?.insurancePolicy ?? 'Commercial Insurance Policy',
+                    labelStyle: GoogleFonts.inter(color: textMuted),
                     hintText: 'e.g. BAJAJ-ALLIANZ-COMM-8712',
-                    prefixIcon: const Icon(Icons.health_and_safety_outlined, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintStyle: GoogleFonts.inter(color: textMuted.withValues(alpha: 0.6)),
+                    prefixIcon: const Icon(Icons.health_and_safety_outlined, size: 20, color: AppColors.brandYellow),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -953,7 +1077,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     onPressed: () => Navigator.pop(ctx, true),
                     child: Text(
-                      'Save Truck & Corridor',
+                      l10n?.saveTruck ?? 'Save Truck & Corridor',
                       style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                   ),
@@ -1265,44 +1389,190 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final accCtrl = TextEditingController(text: _savedBankAccount);
     final ifscCtrl = TextEditingController(text: _savedIfsc);
     final nameCtrl = TextEditingController(text: context.read<AuthViewModel>().profile?.fullName ?? '');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
+    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
+    final l10n = AppLocalizations.of(context);
+
+    BankInfo? detectedBank;
+    bool isDetecting = false;
+
+    // Initial lookup if existing IFSC is 11 chars
+    if (_savedIfsc.trim().length == 11) {
+      BankLookupService.lookupIfsc(_savedIfsc).then((info) {
+        detectedBank = info;
+      });
+    }
 
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Bank Account & Payouts', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Enter bank details to receive fast trip payouts after delivery confirmation.',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-              ),
-              const SizedBox(height: 12),
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Account Holder Name')),
-              const SizedBox(height: 10),
-              TextField(controller: accCtrl, decoration: const InputDecoration(labelText: 'Bank Account Number')),
-              const SizedBox(height: 10),
-              TextField(controller: ifscCtrl, decoration: const InputDecoration(labelText: 'IFSC Code')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                _savedBankAccount = accCtrl.text.trim();
-                _savedIfsc = ifscCtrl.text.trim();
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          void onIfscChanged(String val) async {
+            final clean = val.trim().toUpperCase();
+            if (clean.length == 11) {
+              setDialogState(() => isDetecting = true);
+              final info = await BankLookupService.lookupIfsc(clean);
+              setDialogState(() {
+                detectedBank = info;
+                isDetecting = false;
               });
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Bank account saved for instant IMPS settlements.')),
-              );
-            },
-            child: const Text('Save Details'),
-          ),
-        ],
+            } else if (detectedBank != null) {
+              setDialogState(() => detectedBank = null);
+            }
+          }
+
+          return AlertDialog(
+            backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              l10n?.bankAccount ?? 'Bank Account & Payouts',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18, color: textPrimary),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enter bank account & IFSC to receive instant IMPS trip settlements.',
+                    style: GoogleFonts.inter(fontSize: 12, color: textMuted),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: nameCtrl,
+                    style: GoogleFonts.inter(color: textPrimary),
+                    decoration: InputDecoration(
+                      labelText: l10n?.accountHolder ?? 'Account Holder Name',
+                      labelStyle: GoogleFonts.inter(color: textMuted),
+                      prefixIcon: const Icon(Icons.person_outline, size: 20, color: AppColors.brandYellow),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: accCtrl,
+                    keyboardType: TextInputType.number,
+                    style: GoogleFonts.inter(color: textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'Bank Account Number',
+                      labelStyle: GoogleFonts.inter(color: textMuted),
+                      prefixIcon: const Icon(Icons.account_balance_outlined, size: 20, color: AppColors.brandYellow),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: ifscCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    style: GoogleFonts.inter(color: textPrimary, fontWeight: FontWeight.w700),
+                    decoration: InputDecoration(
+                      labelText: l10n?.ifscCode ?? 'IFSC Code (11 digits)',
+                      hintText: 'e.g. SBIN0001234, HDFC0001234',
+                      labelStyle: GoogleFonts.inter(color: textMuted),
+                      prefixIcon: const Icon(Icons.pin_outlined, size: 20, color: AppColors.brandYellow),
+                      suffixIcon: isDetecting
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                            )
+                          : detectedBank != null
+                              ? const Icon(Icons.check_circle, color: AppColors.success, size: 22)
+                              : null,
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onChanged: onIfscChanged,
+                  ),
+                  if (detectedBank != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.verified, size: 16, color: AppColors.success),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  detectedBank!.bank,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                    color: isDark ? Colors.white : const Color(0xFF065F46),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Branch: ${detectedBank!.branch}, ${detectedBank!.city} (${detectedBank!.state})',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: isDark ? Colors.white70 : const Color(0xFF047857),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '✓ IMPS & NEFT Instant Settlement Enabled',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Close', style: GoogleFonts.inter(color: textMuted)),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.brandYellow,
+                  foregroundColor: AppColors.slateDark,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _savedBankAccount = accCtrl.text.trim();
+                    _savedIfsc = ifscCtrl.text.trim().toUpperCase();
+                  });
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        detectedBank != null
+                            ? 'Bank account verified: ${detectedBank!.bank} (${detectedBank!.branch})'
+                            : 'Bank account saved for instant IMPS settlements.',
+                      ),
+                    ),
+                  );
+                },
+                child: Text('Save Bank Account', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

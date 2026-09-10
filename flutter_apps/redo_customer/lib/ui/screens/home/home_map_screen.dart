@@ -496,7 +496,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   }
 
   Widget _buildServiceSelector(Color cardBorder, Color textPrimary, Color textMuted) {
-    final services = ['Book Transport', 'Parcel Express', 'Heavy Freight'];
+    final l10n = AppLocalizations.of(context);
+    final services = [
+      l10n?.bookShipment ?? 'Book Transport',
+      l10n?.sendParcel ?? 'Parcel Express',
+      'Heavy Freight',
+    ];
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -1360,6 +1365,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     Color textMuted,
     Color cardBorder,
   ) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E293B) : AppColors.canvas,
@@ -1375,24 +1381,24 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           leading: const Icon(Icons.pin_drop_outlined, size: 18, color: AppColors.brandYellow),
           title: Text(
-            'Exact Addresses & GSTIN',
+            l10n?.exactAddressesGstin ?? 'Exact Addresses & GSTIN',
             style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: textPrimary),
           ),
           subtitle: Text(
             vm.pickupAddress.isNotEmpty || vm.dropAddress.isNotEmpty
                 ? 'Addresses specified'
-                : 'Add pickup/drop landmarks & GST (optional)',
+                : (l10n?.exactAddressesGstinDesc ?? 'Add pickup/drop landmarks & GST (optional)'),
             style: GoogleFonts.inter(fontSize: 10, color: textMuted),
           ),
           children: [
             TextField(
               controller: _pickupAddressCtrl,
               style: GoogleFonts.inter(color: textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Exact Pickup Street / Landmark',
+              decoration: InputDecoration(
+                labelText: l10n?.registeredAddress ?? 'Exact Pickup Street / Landmark',
                 hintText: 'e.g. Plot 42, Shalimar Industrial Area, Gate 2',
-                prefixIcon: Icon(Icons.storefront_outlined, size: 18),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                prefixIcon: const Icon(Icons.storefront_outlined, size: 18),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               onChanged: (val) {
                 vm.setPickupAddress(val);
@@ -1403,11 +1409,11 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             TextField(
               controller: _dropAddressCtrl,
               style: GoogleFonts.inter(color: textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Exact Drop Street / Warehouse',
+              decoration: InputDecoration(
+                labelText: l10n?.dropLocation ?? 'Exact Drop Street / Warehouse',
                 hintText: 'e.g. Warehouse 5, Transport Nagar, Lucknow',
-                prefixIcon: Icon(Icons.warehouse_outlined, size: 18),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                prefixIcon: const Icon(Icons.warehouse_outlined, size: 18),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               onChanged: (val) {
                 vm.setDropAddress(val);
@@ -1419,11 +1425,11 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
               controller: _gstinCtrl,
               textCapitalization: TextCapitalization.characters,
               style: GoogleFonts.inter(color: textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'GSTIN / E-Way Bill No. (Optional)',
+              decoration: InputDecoration(
+                labelText: '${l10n?.gstin ?? "GSTIN"} / E-Way Bill (Optional)',
                 hintText: 'e.g. 09ABCDE1234F1Z5',
-                prefixIcon: Icon(Icons.receipt_long_outlined, size: 18),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                prefixIcon: const Icon(Icons.receipt_long_outlined, size: 18),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               onChanged: vm.setGstin,
             ),
@@ -1434,12 +1440,13 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   }
 
   Widget _buildQuickActions(Color cardBorder, Color textPrimary) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
           child: _buildActionTile(
             Icons.local_shipping_outlined,
-            'Send Parcel',
+            l10n?.sendParcel ?? 'Send Parcel',
             () {
               _onServiceSelected(1);
               _pickPlace(true);
@@ -1452,7 +1459,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
         Expanded(
           child: _buildActionTile(
             Icons.location_searching,
-            'Track',
+            l10n?.track ?? 'Track',
             () => widget.onTabChangeRequested?.call(2),
             cardBorder,
             textPrimary,
@@ -1462,7 +1469,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
         Expanded(
           child: _buildActionTile(
             Icons.receipt_long_outlined,
-            'Bookings',
+            l10n?.bookings ?? 'Bookings',
             () => widget.onTabChangeRequested?.call(1),
             cardBorder,
             textPrimary,
@@ -1472,7 +1479,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
         Expanded(
           child: _buildActionTile(
             Icons.headset_mic_outlined,
-            'Support',
+            l10n?.support ?? 'Support',
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
             cardBorder,
             textPrimary,
@@ -1515,16 +1522,17 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   }
 
   Widget _buildRecentBookingsHeader(Color textPrimary) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'Recent Bookings',
+          l10n?.recentBookings ?? 'Recent Bookings',
           style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: textPrimary),
         ),
         TextButton(
           onPressed: () => widget.onTabChangeRequested?.call(1),
-          child: Text('View all', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brandYellowDark)),
+          child: Text(l10n?.viewAll ?? 'View all', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brandYellowDark)),
         ),
       ],
     );
@@ -1537,6 +1545,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     Color textPrimary,
     Color textMuted,
   ) {
+    final l10n = AppLocalizations.of(context);
     if (vm.isLoading) {
       return const Center(
         child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: AppColors.brandYellow)),
@@ -1555,12 +1564,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             Icon(Icons.inventory_2_outlined, size: 36, color: textMuted),
             const SizedBox(height: 8),
             Text(
-              'No active bookings yet',
+              l10n?.noActiveBookings ?? 'No active bookings yet',
               style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14, color: textPrimary),
             ),
             const SizedBox(height: 4),
             Text(
-              'Enter pickup and drop locations above to find return trucks.',
+              l10n?.noActiveBookingsDesc ?? 'Enter pickup and drop locations above to find return trucks.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(fontSize: 12, color: textMuted),
             ),

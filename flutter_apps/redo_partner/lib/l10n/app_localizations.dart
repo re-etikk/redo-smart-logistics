@@ -154,6 +154,12 @@ abstract class AppLocalizations {
   /// **'Search Loads'**
   String get searchLoads;
 
+  /// No description provided for @searchReturnLoads.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Return Loads'**
+  String get searchReturnLoads;
+
   /// No description provided for @fromCity.
   ///
   /// In en, this message translates to:
@@ -193,7 +199,7 @@ abstract class AppLocalizations {
   /// No description provided for @availableLoads.
   ///
   /// In en, this message translates to:
-  /// **'Available Loads'**
+  /// **'Available Return Loads'**
   String get availableLoads;
 
   /// No description provided for @acceptLoad.
@@ -213,6 +219,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Register Commercial Truck'**
   String get registerTruck;
+
+  /// No description provided for @registerTruckSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter all legally required Indian commercial transport credentials.'**
+  String get registerTruckSubtitle;
+
+  /// No description provided for @vehicleRcNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle RC Number (MoRTH) *'**
+  String get vehicleRcNumber;
+
+  /// No description provided for @drivingLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'Commercial Driving License (Sarathi) *'**
+  String get drivingLicense;
+
+  /// No description provided for @vehicleSizeClass.
+  ///
+  /// In en, this message translates to:
+  /// **'VEHICLE SIZE / CLASS'**
+  String get vehicleSizeClass;
+
+  /// No description provided for @bodyType.
+  ///
+  /// In en, this message translates to:
+  /// **'BODY TYPE'**
+  String get bodyType;
+
+  /// No description provided for @grossPayload.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross Payload Capacity (Metric Tons) *'**
+  String get grossPayload;
+
+  /// No description provided for @baseDepotCity.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Depot City'**
+  String get baseDepotCity;
+
+  /// No description provided for @returnCorridor.
+  ///
+  /// In en, this message translates to:
+  /// **'Return Corridor'**
+  String get returnCorridor;
+
+  /// No description provided for @nationalPermit.
+  ///
+  /// In en, this message translates to:
+  /// **'All India National Permit (NP Number)'**
+  String get nationalPermit;
+
+  /// No description provided for @insurancePolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Commercial Insurance Policy'**
+  String get insurancePolicy;
 
   /// No description provided for @themeSettings.
   ///
@@ -262,6 +328,30 @@ abstract class AppLocalizations {
   /// **'Tap to speak'**
   String get tapToSpeak;
 
+  /// No description provided for @stopListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Listening'**
+  String get stopListening;
+
+  /// No description provided for @aiChat.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Chat Assistant'**
+  String get aiChat;
+
+  /// No description provided for @askAnything.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about loads, earnings, routes, or payouts...'**
+  String get askAnything;
+
+  /// No description provided for @typeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your message...'**
+  String get typeMessage;
+
   /// No description provided for @completeProfile.
   ///
   /// In en, this message translates to:
@@ -289,7 +379,7 @@ abstract class AppLocalizations {
   /// No description provided for @noLoadsFound.
   ///
   /// In en, this message translates to:
-  /// **'No loads found'**
+  /// **'No return loads found'**
   String get noLoadsFound;
 
   /// No description provided for @estimatedPayout.
@@ -316,77 +406,53 @@ abstract class AppLocalizations {
   /// **'Swap'**
   String get swap;
 
-  /// No description provided for @appSettings.
+  /// No description provided for @bankAccount.
   ///
   /// In en, this message translates to:
-  /// **'App Settings'**
-  String get appSettings;
+  /// **'Bank Account & Payouts'**
+  String get bankAccount;
 
-  /// No description provided for @theme.
+  /// No description provided for @bankName.
   ///
   /// In en, this message translates to:
-  /// **'Theme'**
-  String get theme;
+  /// **'Bank Name'**
+  String get bankName;
 
-  /// No description provided for @logOut.
+  /// No description provided for @branchName.
   ///
   /// In en, this message translates to:
-  /// **'Log Out'**
-  String get logOut;
+  /// **'Branch Name'**
+  String get branchName;
 
-  /// No description provided for @logOutSubtitle.
+  /// No description provided for @ifscCode.
   ///
   /// In en, this message translates to:
-  /// **'Sign out from this device'**
-  String get logOutSubtitle;
+  /// **'IFSC Code'**
+  String get ifscCode;
 
-  /// No description provided for @notifications.
+  /// No description provided for @accountHolder.
   ///
   /// In en, this message translates to:
-  /// **'Notifications'**
-  String get notifications;
+  /// **'Account Holder Name'**
+  String get accountHolder;
 
-  /// No description provided for @notificationsSubtitle.
+  /// No description provided for @withdrawNow.
   ///
   /// In en, this message translates to:
-  /// **'Load requests, route matches and updates'**
-  String get notificationsSubtitle;
+  /// **'Withdraw Now'**
+  String get withdrawNow;
 
-  /// No description provided for @helpSupport.
+  /// No description provided for @revenueBreakdown.
   ///
   /// In en, this message translates to:
-  /// **'Help & Support'**
-  String get helpSupport;
+  /// **'Revenue Breakdown'**
+  String get revenueBreakdown;
 
-  /// No description provided for @helpSupportSubtitle.
+  /// No description provided for @weeklyEarnings.
   ///
   /// In en, this message translates to:
-  /// **'24/7 dedicated fleet and trip assistance'**
-  String get helpSupportSubtitle;
-
-  /// No description provided for @documents.
-  ///
-  /// In en, this message translates to:
-  /// **'KYC Documents'**
-  String get documents;
-
-  /// No description provided for @documentsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'RC, Driving License, Fitness Certificate'**
-  String get documentsSubtitle;
-
-  /// No description provided for @myFleet.
-  ///
-  /// In en, this message translates to:
-  /// **'My Trucks & Fleet'**
-  String get myFleet;
-
-  /// No description provided for @myFleetSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage registered commercial vehicles'**
-  String get myFleetSubtitle;
+  /// **'Weekly Earnings Trend'**
+  String get weeklyEarnings;
 }
 
 class _AppLocalizationsDelegate

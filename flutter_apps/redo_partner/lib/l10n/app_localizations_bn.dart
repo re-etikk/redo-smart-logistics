@@ -27,16 +27,19 @@ class AppLocalizationsBn extends AppLocalizations {
   String get searchLoads => 'লোড খুঁজুন';
 
   @override
+  String get searchReturnLoads => 'রিটার্ন লোড খুঁজুন';
+
+  @override
   String get fromCity => 'শহর থেকে';
 
   @override
-  String get toCity => 'শহর পর্যন্ত';
+  String get toCity => 'গন্তব্য শহর পর্যন্ত';
 
   @override
   String get allLoads => 'সব লোড';
 
   @override
-  String get instantOnly => '⚡ তাৎক্ষণিক';
+  String get instantOnly => '⚡ শুধু তাৎক্ষণিক';
 
   @override
   String get scheduled => '📅 নির্ধারিত';
@@ -45,16 +48,47 @@ class AppLocalizationsBn extends AppLocalizations {
   String get bestMatch => '★ সেরা মিল';
 
   @override
-  String get availableLoads => 'উপলব্ধ লোড';
+  String get availableLoads => 'উপলব্ধ রিটার্ন লোড';
 
   @override
-  String get acceptLoad => 'লোড গ্রহণ করুন';
+  String get acceptLoad => 'এই লোড গ্রহণ করুন';
 
   @override
   String get partnerProfile => 'পার্টনার প্রোফাইল';
 
   @override
-  String get registerTruck => 'ট্রাক নিবন্ধন করুন';
+  String get registerTruck => 'বাণিজ্যিক ট্রাক নিবন্ধন করুন';
+
+  @override
+  String get registerTruckSubtitle =>
+      'প্রয়োজনীয় সমস্ত বাণিজ্যিক পরিবহন বিবরণ লিখুন।';
+
+  @override
+  String get vehicleRcNumber => 'গাড়ির আরসি নম্বর (RC) *';
+
+  @override
+  String get drivingLicense => 'বাণিজ্যিক ড্রাইভিং লাইসেন্স (সারথি) *';
+
+  @override
+  String get vehicleSizeClass => 'গাড়ির আকার / শ্রেণী';
+
+  @override
+  String get bodyType => 'বডি টাইপ';
+
+  @override
+  String get grossPayload => 'মোট পেলোড ক্ষমতা (মেট্রিক টন) *';
+
+  @override
+  String get baseDepotCity => 'মূল ডিপো শহর';
+
+  @override
+  String get returnCorridor => 'রিটার্ন করিডোর';
+
+  @override
+  String get nationalPermit => 'সর্বভারতীয় জাতীয় পারমিট (NP)';
+
+  @override
+  String get insurancePolicy => 'বাণিজ্যিক বীমা পলিসি';
 
   @override
   String get themeSettings => 'থিম সেটিংস';
@@ -72,13 +106,25 @@ class AppLocalizationsBn extends AppLocalizations {
   String get language => 'ভাষা';
 
   @override
-  String get voiceAssistant => 'ভয়েস অ্যাসিস্ট্যান্ট';
+  String get voiceAssistant => 'ভয়েস সহকারী';
 
   @override
-  String get listening => 'শুনছে...';
+  String get listening => 'শুনছি...';
 
   @override
-  String get tapToSpeak => 'কথা বলতে ট্যাপ করুন';
+  String get tapToSpeak => 'বলতে ট্যাপ করুন';
+
+  @override
+  String get stopListening => 'শোনা বন্ধ করুন';
+
+  @override
+  String get aiChat => 'AI চ্যাট সহকারী';
+
+  @override
+  String get askAnything => 'লোড, আয় বা রুট সম্পর্কে জিজ্ঞাসা করুন...';
+
+  @override
+  String get typeMessage => 'আপনার বার্তা টাইপ করুন...';
 
   @override
   String get completeProfile => 'লোড গ্রহণ করতে প্রোফাইল সম্পূর্ণ করুন';
@@ -87,60 +133,47 @@ class AppLocalizationsBn extends AppLocalizations {
   String get profileComplete => 'প্রোফাইল সম্পূর্ণ';
 
   @override
-  String get saveTruck => 'সংরক্ষণ করুন এবং নিবন্ধন করুন';
+  String get saveTruck => 'ট্রাক সংরক্ষণ এবং নিবন্ধন করুন';
 
   @override
   String get typeLocation => 'অবস্থান টাইপ করুন...';
 
   @override
-  String get noLoadsFound => 'কোন লোড পাওয়া যায়নি';
+  String get noLoadsFound => 'কোনো রিটার্ন লোড পাওয়া যায়নি';
 
   @override
-  String get estimatedPayout => 'আনুমানিক পেমেন্ট';
+  String get estimatedPayout => 'আনুমানিক অর্থপ্রদান';
 
   @override
   String get viewAndAccept => 'দেখুন এবং গ্রহণ করুন';
 
   @override
-  String get clear => 'পরিষ্কার';
+  String get clear => 'মুছুন';
 
   @override
   String get swap => 'অদলবদল';
 
   @override
-  String get appSettings => 'App Settings';
+  String get bankAccount => 'ব্যাংক অ্যাকাউন্ট এবং অর্থপ্রদান';
 
   @override
-  String get theme => 'Theme';
+  String get bankName => 'ব্যাংকের নাম';
 
   @override
-  String get logOut => 'Log Out';
+  String get branchName => 'শাখার নাম';
 
   @override
-  String get logOutSubtitle => 'Sign out from this device';
+  String get ifscCode => 'IFSC কোড';
 
   @override
-  String get notifications => 'Notifications';
+  String get accountHolder => 'অ্যাকাউন্টধারীর নাম';
 
   @override
-  String get notificationsSubtitle =>
-      'Load requests, route matches and updates';
+  String get withdrawNow => 'এখনই প্রত্যাহার করুন';
 
   @override
-  String get helpSupport => 'Help & Support';
+  String get revenueBreakdown => 'রাজস্ব বিশ্লেষণ';
 
   @override
-  String get helpSupportSubtitle => '24/7 dedicated fleet and trip assistance';
-
-  @override
-  String get documents => 'KYC Documents';
-
-  @override
-  String get documentsSubtitle => 'RC, Driving License, Fitness Certificate';
-
-  @override
-  String get myFleet => 'My Trucks & Fleet';
-
-  @override
-  String get myFleetSubtitle => 'Manage registered commercial vehicles';
+  String get weeklyEarnings => 'সাপ্তাহিক আয়ের প্রবণতা';
 }

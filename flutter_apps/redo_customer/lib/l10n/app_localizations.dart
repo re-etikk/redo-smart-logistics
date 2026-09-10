@@ -148,6 +148,66 @@ abstract class AppLocalizations {
   /// **'Profile'**
   String get profile;
 
+  /// No description provided for @sendParcel.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Parcel'**
+  String get sendParcel;
+
+  /// No description provided for @support.
+  ///
+  /// In en, this message translates to:
+  /// **'Support'**
+  String get support;
+
+  /// No description provided for @recentBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Bookings'**
+  String get recentBookings;
+
+  /// No description provided for @viewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all'**
+  String get viewAll;
+
+  /// No description provided for @noActiveBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'No active bookings yet'**
+  String get noActiveBookings;
+
+  /// No description provided for @noActiveBookingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter pickup and drop locations above to find return trucks.'**
+  String get noActiveBookingsDesc;
+
+  /// No description provided for @exactAddressesGstin.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact Addresses & GSTIN'**
+  String get exactAddressesGstin;
+
+  /// No description provided for @exactAddressesGstinDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Add pickup/drop landmarks & GST (optional)'**
+  String get exactAddressesGstinDesc;
+
+  /// No description provided for @findTrucks.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Trucks'**
+  String get findTrucks;
+
+  /// No description provided for @registerLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Register Load'**
+  String get registerLoad;
+
   /// No description provided for @bookShipment.
   ///
   /// In en, this message translates to:
@@ -177,18 +237,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'📅 Ship Later'**
   String get scheduleLater;
-
-  /// No description provided for @findTrucks.
-  ///
-  /// In en, this message translates to:
-  /// **'Find Trucks'**
-  String get findTrucks;
-
-  /// No description provided for @registerLoad.
-  ///
-  /// In en, this message translates to:
-  /// **'Register Load'**
-  String get registerLoad;
 
   /// No description provided for @themeSettings.
   ///
@@ -237,6 +285,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap to speak'**
   String get tapToSpeak;
+
+  /// No description provided for @stopListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Listening'**
+  String get stopListening;
+
+  /// No description provided for @aiChat.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Chat Assistant'**
+  String get aiChat;
+
+  /// No description provided for @askAnything.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about freight, rates, trucks, or routes...'**
+  String get askAnything;
+
+  /// No description provided for @typeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your message...'**
+  String get typeMessage;
 
   /// No description provided for @completeProfile.
   ///
@@ -493,13 +565,13 @@ abstract class AppLocalizations {
   /// No description provided for @profileCompletionVerifiedDesc.
   ///
   /// In en, this message translates to:
-  /// **'Your business profile and tax credentials are fully verified. You have access to priority driver matching and GST e-invoices.'**
+  /// **'Your business profile and tax credentials are fully verified.'**
   String get profileCompletionVerifiedDesc;
 
   /// No description provided for @profileCompletionPendingDesc.
   ///
   /// In en, this message translates to:
-  /// **'Complete remaining business details (GSTIN & Address) to reach 100% and unlock instant credit limits and priority corridor matches.'**
+  /// **'Complete remaining business details to unlock instant matching.'**
   String get profileCompletionPendingDesc;
 
   /// No description provided for @completeProfileNow.

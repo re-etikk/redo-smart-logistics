@@ -15,16 +15,48 @@ class AppLocalizationsUr extends AppLocalizations {
   String get home => 'ہوم';
 
   @override
-  String get bookings => 'بکنگ';
+  String get bookings => 'بکنگز';
 
   @override
-  String get track => 'ٹریک';
+  String get track => 'ٹریک کریں';
 
   @override
   String get profile => 'پروفائل';
 
   @override
-  String get bookShipment => 'شپمنٹ بک کریں';
+  String get sendParcel => 'پارسل بھیجیں';
+
+  @override
+  String get support => 'سپورٹ';
+
+  @override
+  String get recentBookings => 'حالیہ بکنگز';
+
+  @override
+  String get viewAll => 'سب دیکھیں';
+
+  @override
+  String get noActiveBookings => 'ابھی کوئی فعال بکنگ نہیں ہے';
+
+  @override
+  String get noActiveBookingsDesc =>
+      'ریٹرن ٹرک تلاش کرنے کے لیے اوپر پک اپ اور ڈراپ مقامات درج کریں۔';
+
+  @override
+  String get exactAddressesGstin => 'درست پتہ اور جی ایس ٹی';
+
+  @override
+  String get exactAddressesGstinDesc =>
+      'پک اپ/ڈراپ مقامات اور جی ایس ٹی شامل کریں';
+
+  @override
+  String get findTrucks => 'ٹرک تلاش کریں';
+
+  @override
+  String get registerLoad => 'لوڈ رجسٹر کریں';
+
+  @override
+  String get bookShipment => 'کھیپ بک کریں';
 
   @override
   String get pickupLocation => 'پک اپ کا مقام';
@@ -39,13 +71,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get scheduleLater => '📅 بعد میں بھیجیں';
 
   @override
-  String get findTrucks => 'ٹرک تلاش کریں';
-
-  @override
-  String get registerLoad => 'لوڈ رجسٹر کریں';
-
-  @override
-  String get themeSettings => 'تھیم کی ترتیبات';
+  String get themeSettings => 'تھیم ترتیبات';
 
   @override
   String get darkMode => 'ڈارک';
@@ -54,7 +80,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get lightMode => 'لائٹ';
 
   @override
-  String get systemMode => 'سسٹم';
+  String get systemMode => 'ਸਿਸਟਮ';
 
   @override
   String get language => 'زبان';
@@ -69,156 +95,167 @@ class AppLocalizationsUr extends AppLocalizations {
   String get tapToSpeak => 'بولنے کے لیے ٹیپ کریں';
 
   @override
+  String get stopListening => 'سننا بند کریں';
+
+  @override
+  String get aiChat => 'AI چیٹ اسسٹنٹ';
+
+  @override
+  String get askAnything =>
+      'مال برداری، کرایوں یا راستوں کے بارے میں پوچھیں...';
+
+  @override
+  String get typeMessage => 'اپنا پیغام ٹائپ کریں...';
+
+  @override
   String get completeProfile => 'پروفائل مکمل کریں';
 
   @override
   String get typeLocation => 'مقام ٹائپ کریں...';
 
   @override
-  String get myShipments => 'میری شپمنٹس';
+  String get myShipments => 'میری کھیپیں';
 
   @override
-  String get trackShipment => 'شپمنٹ ٹریک کریں';
+  String get trackShipment => 'کھیپ ٹریک کریں';
 
   @override
   String get clear => 'صاف کریں';
 
   @override
-  String get swap => 'Swap';
+  String get swap => 'تبادلہ';
 
   @override
   String get customerProfile => 'کسٹمر پروفائل';
 
   @override
   String get customerProfileSubtitle =>
-      'Manage your registered enterprise account and tax compliance.';
+      'اپنے رجسٹرڈ اکاؤنٹ اور ٹیکس تعمیل کا انتظام کریں۔';
 
   @override
-  String get enterpriseShipper => 'ENTERPRISE SHIPPER';
+  String get enterpriseShipper => 'انٹرپرائز شپنگ';
 
   @override
-  String get registerYourBusiness => 'Register Your Business';
+  String get registerYourBusiness => 'اپنا کاروبار رجسٹر کریں';
 
   @override
-  String get profileCompletion => 'Profile Completion';
+  String get profileCompletion => 'پروفائل تکمیل';
 
   @override
-  String get verificationLegalKyc => 'Verification & Legal KYC';
+  String get verificationLegalKyc => 'تصدیق اور قانونی کے وائی سی';
 
   @override
-  String get fullyVerified => 'Fully Verified';
+  String get fullyVerified => 'مکمل طور پر تصدیق شدہ';
 
   @override
-  String get mobileVerification => 'Mobile Verification';
+  String get mobileVerification => 'موبائل تصدیق';
 
   @override
-  String get emailAuthentication => 'Email Authentication';
+  String get emailAuthentication => 'ای میل تصدیق';
 
   @override
-  String get companyRegistration => 'Company Registration';
+  String get companyRegistration => 'کمپنی رجسٹریشن';
 
   @override
-  String get gstinTaxCompliance => 'GSTIN / Tax Compliance';
+  String get gstinTaxCompliance => 'جی ایس ٹی / ٹیکس تعمیل';
 
   @override
-  String get registeredAddress => 'Registered Warehouse Address';
+  String get registeredAddress => 'رجسٹرڈ گودام کا پتہ';
 
   @override
-  String get businessTaxInfo => 'Business & Tax Information';
+  String get businessTaxInfo => 'کاروبار اور ٹیکس کی معلومات';
 
   @override
-  String get edit => 'Edit';
+  String get edit => 'ترمیم کریں';
 
   @override
-  String get companyName => 'Company Name';
+  String get companyName => 'کمپنی کا نام';
 
   @override
-  String get contactPerson => 'Contact Person';
+  String get contactPerson => 'رابطہ کار';
 
   @override
-  String get phone => 'Phone';
+  String get phone => 'فون';
 
   @override
-  String get email => 'Email';
+  String get email => 'ای میل';
 
   @override
-  String get gstin => 'GSTIN';
+  String get gstin => 'جی ایس ٹی';
 
   @override
-  String get panNumber => 'PAN Number';
+  String get panNumber => 'پین نمبر';
 
   @override
-  String get invoicesBilling => 'Invoices & Billing';
+  String get invoicesBilling => 'انوائسز اور بلنگ';
 
   @override
-  String get invoicesSubtitle => 'View GST tax invoices and payment receipts';
+  String get invoicesSubtitle => 'ٹیکس انوائسز اور رسیدیں دیکھیں';
 
   @override
-  String get notifications => 'Notifications';
+  String get notifications => 'اطلاعات';
 
   @override
-  String get notificationsSubtitle =>
-      'Shipment alerts, status pings and announcements';
+  String get notificationsSubtitle => 'کھیپ کے الرٹس اور صورتحال اپڈیٹس';
 
   @override
-  String get helpSupport => 'Help & Support';
+  String get helpSupport => 'مدد اور معاونت';
 
   @override
-  String get helpSupportSubtitle =>
-      '24/7 dedicated freight and booking assistance';
+  String get helpSupportSubtitle => '24/7 وقف فریٹ مدد';
 
   @override
-  String get appSettings => 'App Settings';
+  String get appSettings => 'ایپ ترتیبات';
 
   @override
-  String get theme => 'Theme';
+  String get theme => 'تھیم';
 
   @override
-  String get logOut => 'Log Out';
+  String get logOut => 'لاگ آؤٹ';
 
   @override
-  String get logOutSubtitle => 'Sign out from this device';
+  String get logOutSubtitle => 'اس ڈیوائس سے لاگ آؤٹ کریں';
 
   @override
-  String get editProfileTitle => 'Edit Business Profile & KYC';
+  String get editProfileTitle =>
+      'کاروباری پروفائل اور کے وائی سی میں ترمیم کریں';
 
   @override
   String get editProfileSubtitle =>
-      'Update your company and tax details for verified freight shipping.';
+      'تصدیق شدہ مال برداری کے لیے کمپنی کی تفصیلات اپ ڈیٹ کریں۔';
 
   @override
-  String get saveProfileKyc => 'Save Profile & KYC';
+  String get saveProfileKyc => 'پروفائل اور کے وائی سی محفوظ کریں';
 
   @override
-  String get selectVehicle => 'Select Commercial Vehicle';
+  String get selectVehicle => 'کمرشل گاڑی منتخب کریں';
 
   @override
-  String get vehicleRecommendation => 'Recommended for your cargo load';
+  String get vehicleRecommendation => 'آپ کے مال کے لیے تجویز کردہ';
 
   @override
-  String get payloadTonnage => 'Payload Tonnage';
+  String get payloadTonnage => 'پيلوڈ گنجائش (ٹن)';
 
   @override
   String get profileCompletionVerifiedDesc =>
-      'Your business profile and tax credentials are fully verified. You have access to priority driver matching and GST e-invoices.';
+      'آپ کا کاروباری پروفائل اور ٹیکس مکمل تصدیق شدہ ہے۔';
 
   @override
   String get profileCompletionPendingDesc =>
-      'Complete remaining business details (GSTIN & Address) to reach 100% and unlock instant credit limits and priority corridor matches.';
+      'فوری میچنگ کے لیے باقی تفصیلات مکمل کریں۔';
 
   @override
-  String get completeProfileNow => 'Complete Profile Now →';
+  String get completeProfileNow => 'ابھی پروفائل مکمل کریں ←';
 
   @override
-  String get notProvided => 'Not provided';
+  String get notProvided => 'فراہم نہیں کیا گیا';
 
   @override
-  String get pendingRegistration => 'Pending registration';
+  String get pendingRegistration => 'رجسٹریشن زیر التوا';
 
   @override
-  String get logOutConfirmMessage =>
-      'Are you sure you want to log out from this device?';
+  String get logOutConfirmMessage => 'کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟';
 
   @override
-  String get cancel => 'Cancel';
+  String get cancel => 'منسوخ کریں';
 }

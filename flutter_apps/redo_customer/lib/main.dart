@@ -132,12 +132,12 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
           NavigationDestination(
             icon: const Icon(Icons.article_outlined),
             selectedIcon: const Icon(Icons.article, color: AppColors.slateDark),
-            label: 'Bookings',
+            label: l10n?.bookings ?? 'Bookings',
           ),
           NavigationDestination(
             icon: const Icon(Icons.location_on_outlined),
             selectedIcon: const Icon(Icons.location_on, color: AppColors.slateDark),
-            label: 'Track',
+            label: l10n?.track ?? 'Track',
           ),
           NavigationDestination(
             icon: const Icon(Icons.person_outline),
