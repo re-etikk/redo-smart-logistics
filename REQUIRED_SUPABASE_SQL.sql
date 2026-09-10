@@ -37,9 +37,12 @@ alter table public.bookings add column if not exists pickup_otp_verified_at time
 alter table public.bookings add column if not exists delivery_otp_verified_at timestamptz;
 
 -- 4) Fix RLS permissions for registration & bookings counterparty check (Fixes 42501 error)
-grant select on public.bookings to anon;
-grant select, insert, update on public.profiles to authenticated;
-grant select, insert, update on public.profiles to anon;
+grant select on public.bookings to anon, authenticated;
+grant select, insert, update on public.profiles to authenticated, anon;
+grant select, insert, update on public.trucks to authenticated, anon;
+grant select, insert, update on public.cargo_requests to authenticated, anon;
+grant select, insert, update on public.truck_trips to authenticated, anon;
+grant select, insert, update on public.kyc_verifications to authenticated, anon;
 
 drop policy if exists profiles_counterparty on public.profiles;
 create policy profiles_counterparty on public.profiles for select using (

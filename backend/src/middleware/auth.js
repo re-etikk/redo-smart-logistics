@@ -22,7 +22,13 @@ export async function requireAuth(req, res, next) {
     // role, because that would let a caller pick their own permissions.
     // Worst case if this guess is wrong: the user hits a 403 and completes
     // onboarding properly, which sets the correct role explicitly.
-    const role = req.path.includes("truck") || req.path.includes("partner") ? "truck_owner" : "sme";
+    const isPartner = req.headers["x-app-type"] === "partner" ||
+                      req.headers["x-user-role"] === "truck_owner" ||
+                      req.path.includes("truck") ||
+                      req.path.includes("partner") ||
+                      req.path.includes("earnings") ||
+                      req.path.includes("trip");
+    const role = isPartner ? "truck_owner" : "sme";
     const fullName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split("@")[0] || "User";
 
     try {

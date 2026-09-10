@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../../viewmodels/auth_viewmodel.dart';
@@ -165,21 +168,34 @@ class ProfileScreen extends StatelessWidget {
                             children: [
                               Stack(
                                 children: [
-                                  CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor: AppColors.brandYellow,
-                                    child: const Icon(Icons.person, color: AppColors.slateDark, size: 32),
+                                  GestureDetector(
+                                    onTap: () => _chooseProfilePhoto(context, auth),
+                                    child: CircleAvatar(
+                                      radius: 28,
+                                      backgroundColor: AppColors.brandYellow,
+                                      backgroundImage: (profile?.avatarUrl != null && profile!.avatarUrl!.isNotEmpty)
+                                          ? (profile.avatarUrl!.startsWith('http')
+                                              ? NetworkImage(profile.avatarUrl!)
+                                              : FileImage(File(profile.avatarUrl!)) as ImageProvider)
+                                          : null,
+                                      child: (profile?.avatarUrl == null || profile!.avatarUrl!.isEmpty)
+                                          ? const Icon(Icons.person, color: AppColors.slateDark, size: 32)
+                                          : null,
+                                    ),
                                   ),
                                   Positioned(
                                     bottom: 0,
                                     right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.slateDark,
-                                        shape: BoxShape.circle,
+                                    child: GestureDetector(
+                                      onTap: () => _chooseProfilePhoto(context, auth),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.slateDark,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.camera_alt, color: AppColors.brandYellow, size: 11),
                                       ),
-                                      child: const Icon(Icons.verified, color: AppColors.brandYellow, size: 12),
                                     ),
                                   ),
                                 ],
@@ -607,13 +623,25 @@ class ProfileScreen extends StatelessWidget {
 
   Future<void> _editProfileDialog(BuildContext context, AuthViewModel auth) async {
     final l10n = AppLocalizations.of(context);
-    final nameCtrl = TextEditingController(text: auth.profile?.fullName ?? '');
-    final compCtrl = TextEditingController(text: auth.profile?.companyName ?? '');
-    final phoneCtrl = TextEditingController(text: auth.profile?.phone ?? '');
-    final gstinCtrl = TextEditingController(text: auth.profile?.gstin ?? '');
-    final panCtrl = TextEditingController(text: auth.profile?.panNumber ?? '');
-    final addrCtrl = TextEditingController(text: auth.profile?.businessAddress ?? '');
+    final prefs = await SharedPreferences.getInstance();
+    final uid = SupabaseService.currentUser?.id ?? '';
+    final pPrefix = 'customer_profile_${uid}_';
 
+    final cachedFullName = prefs.getString('${pPrefix}full_name') ?? prefs.getString('customer_saved_name') ?? '';
+    final cachedCompany = prefs.getString('${pPrefix}company_name') ?? prefs.getString('customer_saved_company') ?? '';
+    final cachedPhone = prefs.getString('${pPrefix}phone') ?? prefs.getString('customer_saved_phone') ?? '';
+    final cachedGstin = prefs.getString('${pPrefix}gstin') ?? prefs.getString('customer_saved_gstin') ?? '';
+    final cachedPan = prefs.getString('${pPrefix}pan_number') ?? prefs.getString('customer_saved_pan') ?? '';
+    final cachedAddress = prefs.getString('${pPrefix}business_address') ?? prefs.getString('customer_saved_address') ?? '';
+
+    final nameCtrl = TextEditingController(text: (auth.profile?.fullName.isNotEmpty == true) ? auth.profile!.fullName : cachedFullName);
+    final compCtrl = TextEditingController(text: (auth.profile?.companyName?.isNotEmpty == true) ? auth.profile!.companyName! : cachedCompany);
+    final phoneCtrl = TextEditingController(text: (auth.profile?.phone?.isNotEmpty == true) ? auth.profile!.phone! : cachedPhone);
+    final gstinCtrl = TextEditingController(text: (auth.profile?.gstin?.isNotEmpty == true) ? auth.profile!.gstin! : cachedGstin);
+    final panCtrl = TextEditingController(text: (auth.profile?.panNumber?.isNotEmpty == true) ? auth.profile!.panNumber! : cachedPan);
+    final addrCtrl = TextEditingController(text: (auth.profile?.businessAddress?.isNotEmpty == true) ? auth.profile!.businessAddress! : cachedAddress);
+
+    if (!context.mounted) return;
     final save = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -802,8 +830,113 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _chooseProfilePhoto(BuildContext context, AuthViewModel auth) async {
+    final picker = ImagePicker();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              Text('Profile Photo', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: AppColors.brandYellow.withValues(alpha: 0.2), shape: BoxShape.circle),
+                  child: const Icon(Icons.camera_alt_outlined, color: AppColors.slateDark),
+                ),
+                title: Text('Take Photo (Camera)', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.2), shape: BoxShape.circle),
+                  child: const Icon(Icons.photo_library_outlined, color: Colors.blue),
+                ),
+                title: Text('Choose from Gallery', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (source == null) return;
+    final picked = await picker.pickImage(source: source, imageQuality: 85);
+    if (picked == null || !context.mounted) return;
+
+    // Show circular framing and crop confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Framing & Crop Preview', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Your photo will be framed circular on your verified enterprise profile and receipts.',
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted)),
+            const SizedBox(height: 16),
+            Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.brandYellow, width: 3),
+                image: DecorationImage(
+                  image: FileImage(File(picked.path)),
+                  fit: BoxFit.cover,
+                ),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandYellow,
+              foregroundColor: AppColors.slateDark,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Set as Profile Photo'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await auth.updateAvatar(picked.path);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Profile photo updated and saved successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildSettingsSection(BuildContext context, AppLocalizations? l10n, Color textPrimary, Color textMuted, Color cardBorder) {
     final themeVM = context.watch<ThemeViewModel>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final supportedLanguages = [
       {'code': 'en', 'name': '🇮🇳 English'},
       {'code': 'hi', 'name': '🇮🇳 हिंदी'},
@@ -834,19 +967,19 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Text(l10n?.theme ?? 'Theme', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: textMuted)),
           const SizedBox(height: 8),
-          SegmentedButton<ThemeMode>(
-            segments: const [
-              ButtonSegment(value: ThemeMode.light, label: Text('☀️ Light'), icon: Icon(Icons.light_mode, size: 16)),
-              ButtonSegment(value: ThemeMode.system, label: Text('📱 System'), icon: Icon(Icons.phone_android, size: 16)),
-              ButtonSegment(value: ThemeMode.dark, label: Text('🌙 Dark'), icon: Icon(Icons.dark_mode, size: 16)),
-            ],
-            selected: {themeVM.themeMode},
-            onSelectionChanged: (s) => themeVM.setThemeMode(s.first),
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
-                if (states.contains(WidgetState.selected)) return AppColors.brandYellow;
-                return null;
-              }),
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+            ),
+            child: Row(
+              children: [
+                _buildThemePill(context, themeVM, ThemeMode.light, 'Light', Icons.light_mode_outlined, isDark),
+                _buildThemePill(context, themeVM, ThemeMode.system, 'System', Icons.phone_android_outlined, isDark),
+                _buildThemePill(context, themeVM, ThemeMode.dark, 'Dark', Icons.dark_mode_outlined, isDark),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -871,6 +1004,59 @@ class ProfileScreen extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildThemePill(
+    BuildContext context,
+    ThemeViewModel themeVM,
+    ThemeMode mode,
+    String label,
+    IconData icon,
+    bool isDark,
+  ) {
+    final isSelected = themeVM.themeMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => themeVM.setThemeMode(mode),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.brandYellow : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.brandYellow.withValues(alpha: 0.35),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? AppColors.slateDark : (isDark ? AppColors.darkInkMuted : AppColors.inkMuted),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                  color: isSelected ? AppColors.slateDark : (isDark ? AppColors.darkInk : AppColors.slateDark),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

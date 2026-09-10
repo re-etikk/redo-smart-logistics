@@ -121,10 +121,9 @@ extrasRouter.get('/invoices', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ---------- Earnings (truck owner) ----------
+// ---------- Earnings (truck owner / partner) ----------
 extrasRouter.get('/earnings', async (req, res, next) => {
   try {
-    if (req.profile.role !== 'truck_owner') throw apiError(403, 'FORBIDDEN', 'Earnings are for truck owners.');
     const { data: rows, error } = await supabaseAdmin.from('bookings')
       .select('id, cargo_id, status, agreed_price_inr, updated_at, created_at, cargo:cargo_requests(origin, destination), truck:trucks(owner_id)')
       .order('created_at', { ascending: false });

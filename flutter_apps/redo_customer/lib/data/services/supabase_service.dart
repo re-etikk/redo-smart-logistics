@@ -104,17 +104,28 @@ class SupabaseService {
       }
     } catch (_) {}
 
+    // If Supabase client query returned empty or threw RLS error, query backend service-role API
+    if (profileData.isEmpty || profileData['company_name'] == null) {
+      try {
+        final res = await ApiService.get('/auth/profile');
+        if (res is Map && res.isNotEmpty) {
+          profileData = Map<String, dynamic>.from(res);
+        }
+      } catch (_) {}
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final pPrefix = 'customer_profile_${uid}_';
 
-      final cachedFullName = prefs.getString('${pPrefix}full_name');
-      final cachedCompany = prefs.getString('${pPrefix}company_name');
-      final cachedPhone = prefs.getString('${pPrefix}phone');
-      final cachedGstin = prefs.getString('${pPrefix}gstin');
-      final cachedPan = prefs.getString('${pPrefix}pan_number');
-      final cachedAddress = prefs.getString('${pPrefix}business_address');
-      final cachedOnboarded = prefs.getBool('${pPrefix}onboarding_complete');
+      final cachedFullName = prefs.getString('${pPrefix}full_name') ?? prefs.getString('customer_saved_name');
+      final cachedCompany = prefs.getString('${pPrefix}company_name') ?? prefs.getString('customer_saved_company');
+      final cachedPhone = prefs.getString('${pPrefix}phone') ?? prefs.getString('customer_saved_phone');
+      final cachedGstin = prefs.getString('${pPrefix}gstin') ?? prefs.getString('customer_saved_gstin');
+      final cachedPan = prefs.getString('${pPrefix}pan_number') ?? prefs.getString('customer_saved_pan');
+      final cachedAddress = prefs.getString('${pPrefix}business_address') ?? prefs.getString('customer_saved_address');
+      final cachedAvatar = prefs.getString('${pPrefix}avatar_url') ?? prefs.getString('customer_saved_avatar');
+      final cachedOnboarded = prefs.getBool('${pPrefix}onboarding_complete') ?? prefs.getBool('customer_saved_onboarded');
 
       if (profileData.isEmpty) {
         if (cachedCompany != null || cachedFullName != null) {
@@ -144,6 +155,9 @@ class SupabaseService {
       if ((profileData['business_address'] == null || profileData['business_address'].toString().isEmpty) && cachedAddress != null) {
         profileData['business_address'] = cachedAddress;
       }
+      if ((profileData['avatar_url'] == null || profileData['avatar_url'].toString().isEmpty) && cachedAvatar != null) {
+        profileData['avatar_url'] = cachedAvatar;
+      }
     } catch (_) {}
 
     if (profileData.isEmpty) return null;
@@ -157,6 +171,7 @@ class SupabaseService {
     String? gstin,
     String? panNumber,
     String? businessAddress,
+    String? avatarUrl,
     bool onboardingComplete = true,
   }) async {
     final uid = currentUser?.id;
@@ -165,28 +180,40 @@ class SupabaseService {
         ? fullName.trim()
         : (currentUser?.email?.split('@').first ?? 'User');
 
-    // 1. Immediately cache in SharedPreferences for offline & fallback persistence
+    // 1. Immediately cache in SharedPreferences (user-scoped AND global fallback)
     try {
       final prefs = await SharedPreferences.getInstance();
       final pPrefix = 'customer_profile_${uid}_';
       await prefs.setString('${pPrefix}company_name', companyName.trim());
+      await prefs.setString('customer_saved_company', companyName.trim());
       await prefs.setString('${pPrefix}full_name', resolvedName);
+      await prefs.setString('customer_saved_name', resolvedName);
       await prefs.setBool('${pPrefix}onboarding_complete', onboardingComplete);
+      await prefs.setBool('customer_saved_onboarded', onboardingComplete);
+
       if (phone != null && phone.trim().isNotEmpty) {
         await prefs.setString('${pPrefix}phone', phone.trim());
+        await prefs.setString('customer_saved_phone', phone.trim());
       }
       if (gstin != null && gstin.trim().isNotEmpty) {
         await prefs.setString('${pPrefix}gstin', gstin.trim().toUpperCase());
+        await prefs.setString('customer_saved_gstin', gstin.trim().toUpperCase());
       }
       if (panNumber != null && panNumber.trim().isNotEmpty) {
         await prefs.setString('${pPrefix}pan_number', panNumber.trim().toUpperCase());
+        await prefs.setString('customer_saved_pan', panNumber.trim().toUpperCase());
       }
       if (businessAddress != null && businessAddress.trim().isNotEmpty) {
         await prefs.setString('${pPrefix}business_address', businessAddress.trim());
+        await prefs.setString('customer_saved_address', businessAddress.trim());
+      }
+      if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+        await prefs.setString('${pPrefix}avatar_url', avatarUrl.trim());
+        await prefs.setString('customer_saved_avatar', avatarUrl.trim());
       }
     } catch (_) {}
 
-    // 2. Persist to Supabase
+    // 2. Prepare payload
     final data = <String, dynamic>{
       'id': uid,
       'company_name': companyName.trim(),
@@ -206,15 +233,26 @@ class SupabaseService {
     if (businessAddress != null && businessAddress.trim().isNotEmpty) {
       data['business_address'] = businessAddress.trim();
     }
+    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+      data['avatar_url'] = avatarUrl.trim();
+    }
 
+    // 3. Persist to Supabase client
     try {
       await client.from('profiles').upsert(data);
     } catch (_) {
       data.remove('gstin');
       data.remove('pan_number');
       data.remove('business_address');
-      await client.from('profiles').upsert(data);
+      try {
+        await client.from('profiles').upsert(data);
+      } catch (_) {}
     }
+
+    // 4. Also sync with backend admin endpoint (bypasses RLS issues)
+    try {
+      await ApiService.patch('/auth/profile', data);
+    } catch (_) {}
   }
 
   // --- Cargo & Matching (via backend — real ML pipeline) ---

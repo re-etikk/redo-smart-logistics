@@ -139,6 +139,7 @@ class AuthViewModel extends ChangeNotifier {
     String? gstin,
     String? panNumber,
     String? businessAddress,
+    String? avatarUrl,
   }) async {
     final user = SupabaseService.currentUser;
     final uid = user?.id ?? _profile?.id ?? '';
@@ -153,7 +154,7 @@ class AuthViewModel extends ChangeNotifier {
       phone: (phone != null && phone.trim().isNotEmpty) ? phone.trim() : _profile?.phone,
       role: 'sme',
       companyName: companyName.trim(),
-      avatarUrl: _profile?.avatarUrl,
+      avatarUrl: (avatarUrl != null && avatarUrl.trim().isNotEmpty) ? avatarUrl.trim() : _profile?.avatarUrl,
       onboardingComplete: true,
       gstin: (gstin != null && gstin.trim().isNotEmpty) ? gstin.trim().toUpperCase() : _profile?.gstin,
       panNumber: (panNumber != null && panNumber.trim().isNotEmpty) ? panNumber.trim().toUpperCase() : _profile?.panNumber,
@@ -169,10 +170,24 @@ class AuthViewModel extends ChangeNotifier {
         gstin: gstin,
         panNumber: panNumber,
         businessAddress: businessAddress,
+        avatarUrl: avatarUrl,
         onboardingComplete: true,
       );
     } catch (_) {}
     notifyListeners();
+  }
+
+  Future<void> updateAvatar(String avatarUrl) async {
+    if (_profile == null) return;
+    await updateProfile(
+      companyName: _profile!.companyName ?? 'Shipper Business',
+      fullName: _profile!.fullName,
+      phone: _profile!.phone,
+      gstin: _profile!.gstin,
+      panNumber: _profile!.panNumber,
+      businessAddress: _profile!.businessAddress,
+      avatarUrl: avatarUrl,
+    );
   }
 
   Future<void> signOut() async {

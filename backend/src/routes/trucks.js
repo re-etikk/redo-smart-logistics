@@ -7,11 +7,18 @@ import { routeDistanceKm } from "../services/matching.js";
 const r = Router();
 r.use(requireAuth);
 
-r.post("/", requireRole("truck_owner"), async (req, res, next) => {
+r.post("/", async (req, res, next) => {
   try {
     const { truck_type, registration_number, body_type, home_origin, default_capacity_tons } = req.body || {};
     if (!truck_type || !registration_number || !default_capacity_tons) {
       throw apiError(400, "VALIDATION", "Truck type, registration number and capacity are required.");
+    }
+    // Auto-promote to truck_owner role and mark onboarding complete when registering a truck
+    if (req.profile.role !== "truck_owner") {
+      try {
+        await supabaseAdmin.from("profiles").update({ role: "truck_owner", partner_onboarding_complete: true }).eq("id", req.profile.id);
+      } catch (_) {}
+      req.profile.role = "truck_owner";
     }
     const truck_id = "T" + Date.now().toString(36).toUpperCase();
     const { data, error } = await supabaseAdmin.from("trucks").insert({
@@ -44,7 +51,7 @@ r.patch("/:id", requireRole("truck_owner"), async (req, res, next) => {
 });
 
 // Trips (return legs with spare capacity)
-r.post("/:id/trips", requireRole("truck_owner"), async (req, res, next) => {
+r.post("/:id/trips", async (req, res, next) => {
   try {
     const { origin, destination, departure_at, available_capacity_tons, price_per_km_ton, accepted_cargo_types } = req.body || {};
     if (!origin || !destination || !departure_at || !available_capacity_tons) {

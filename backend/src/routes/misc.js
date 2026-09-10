@@ -48,7 +48,10 @@ r.get("/auth/profile", async (req, res, next) => {
 
 r.patch("/auth/profile", async (req, res, next) => {
   try {
-    const allowed = ["full_name", "phone", "company_name", "avatar_url", "onboarding_complete", "role"];
+    const allowed = [
+      "full_name", "phone", "company_name", "avatar_url", "onboarding_complete",
+      "partner_onboarding_complete", "role", "gstin", "pan_number", "business_address", "verified_documents"
+    ];
     const patch = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
     const { data, error } = await supabaseAdmin.from("profiles").upsert({
       id: req.user.id,
