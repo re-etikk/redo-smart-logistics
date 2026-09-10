@@ -76,6 +76,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
+
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
@@ -84,3 +85,36 @@ create trigger on_auth_user_created
 -- 6) Verify
 select tablename from pg_publication_tables
  where pubname = 'supabase_realtime' order by tablename;
+
+-- 7) Separate partner onboarding flag (Fixes "profile complete hoti nahi / truck register issue")
+alter table public.profiles
+  add column if not exists partner_onboarding_complete boolean default false;
+
+update public.profiles p
+set partner_onboarding_complete = true
+where p.role = 'truck_owner'
+  and exists (select 1 from public.trucks t where t.owner_id = p.id)
+  and p.partner_onboarding_complete is distinct from true;
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, full_name, role, onboarding_complete, partner_onboarding_complete)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', split_part(coalesce(new.email, 'User'), '@', 1)),
+    coalesce(new.raw_user_meta_data->>'role', 'truck_owner'),
+    false,
+    false
+  )
+  on conflict (id) do update set
+    full_name = coalesce(excluded.full_name, profiles.full_name);
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- 8) Customer Business Verification & Legal KYC columns (GSTIN, PAN, Address)
+alter table public.profiles
+  add column if not exists gstin text,
+  add column if not exists pan_number text,
+  add column if not exists business_address text;

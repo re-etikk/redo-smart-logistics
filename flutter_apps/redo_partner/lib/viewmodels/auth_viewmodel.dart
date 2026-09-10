@@ -43,8 +43,9 @@ class AuthViewModel extends ChangeNotifier {
     }
 
     try {
+      await SupabaseService.ensurePartnerRole();
       _profile = await SupabaseService.getProfile();
-      if (_profile != null && _profile!.onboardingComplete) {
+      if (_profile != null && _profile!.partnerOnboardingComplete) {
         _status = AuthStatus.authenticated;
       } else {
         _status = AuthStatus.onboardingRequired;

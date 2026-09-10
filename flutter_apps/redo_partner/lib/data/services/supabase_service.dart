@@ -51,9 +51,18 @@ class SupabaseService {
           'id': user.id,
           'full_name': fullName,
           'role': 'truck_owner',
-          'onboarding_complete': false,
+          'partner_onboarding_complete': false,
         });
-      } catch (_) {}
+      } catch (_) {
+        try {
+          await client.from('profiles').upsert({
+            'id': user.id,
+            'full_name': fullName,
+            'role': 'truck_owner',
+            'onboarding_complete': false,
+          });
+        } catch (_) {}
+      }
     }
     return res;
   }
@@ -67,6 +76,26 @@ class SupabaseService {
 
   static Future<void> signOut() async {
     await client.auth.signOut();
+  }
+
+  /// Forces this profile's role to 'truck_owner'. The DB auto-creates a
+  /// profile row on signup (see 0007_auth_rls_fix.sql trigger); its role
+  /// default is only reliable for email/password signup — OAuth (Google)
+  /// signups carry no role metadata, so a user who happened to sign up via
+  /// Google on the CUSTOMER app first (and got role 'sme') would otherwise
+  /// be silently rejected from /trucks (FORBIDDEN_ROLE) here. Since this is
+  /// the PARTNER app, self-heal the role on every login.
+  static Future<void> ensurePartnerRole() async {
+    final uid = currentUser?.id;
+    if (uid == null) return;
+    try {
+      final res = await client.from('profiles').select('role').eq('id', uid).maybeSingle();
+      if (res != null && res['role'] != 'truck_owner') {
+        await client.from('profiles').update({'role': 'truck_owner'}).eq('id', uid);
+      }
+    } catch (_) {
+      // Non-fatal — worst case the next checkProfileStatus retries this.
+    }
   }
 
   // --- Profile / Onboarding ---
@@ -94,7 +123,7 @@ class SupabaseService {
       'full_name': fullName,
       'company_name': city,
       'role': 'truck_owner',
-      'onboarding_complete': false,
+      'partner_onboarding_complete': false,
     };
     // Only set phone if user actually entered one — avoids UNIQUE constraint
     // violations from blank strings or duplicates across drivers.
@@ -102,7 +131,19 @@ class SupabaseService {
     if (trimmedPhone.isNotEmpty) {
       data['phone'] = trimmedPhone;
     }
-    await client.from('profiles').upsert(data);
+    try {
+      await client.from('profiles').upsert(data);
+    } catch (e) {
+      final err = e.toString();
+      if (err.contains('partner_onboarding_complete') || err.contains('PGRST204')) {
+        // Fallback: DB migration 0008 hasn't been applied yet in Supabase
+        data.remove('partner_onboarding_complete');
+        data['onboarding_complete'] = false;
+        await client.from('profiles').upsert(data);
+      } else {
+        rethrow;
+      }
+    }
   }
 
   /// Truck + the empty RETURN TRIP — the trip is what shippers get matched
@@ -156,7 +197,11 @@ class SupabaseService {
   static Future<void> finishOnboarding() async {
     final uid = currentUser?.id;
     if (uid == null) return;
-    await client.from('profiles').update({'onboarding_complete': true}).eq('id', uid);
+    try {
+      await client.from('profiles').update({'partner_onboarding_complete': true}).eq('id', uid);
+    } catch (_) {
+      await client.from('profiles').update({'onboarding_complete': true}).eq('id', uid);
+    }
   }
 
   // --- My trucks (needed to accept loads) ---

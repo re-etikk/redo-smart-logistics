@@ -71,7 +71,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('KYC Documents')),
       body: ListView(
         padding: const EdgeInsets.all(16),

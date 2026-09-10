@@ -53,7 +53,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
     final authVM = context.watch<AuthViewModel>();
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

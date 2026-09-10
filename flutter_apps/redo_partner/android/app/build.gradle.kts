@@ -7,8 +7,8 @@ plugins {
 
 android {
     namespace = "app.redo.redo_partner"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -19,10 +19,17 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+        }
+    }
+
     defaultConfig {
         applicationId = "app.redo.redo_partner"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 24
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

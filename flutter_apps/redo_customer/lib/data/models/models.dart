@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class UserProfile {
   final String id;
   final String fullName;
@@ -6,6 +8,9 @@ class UserProfile {
   final String? companyName;
   final String? avatarUrl;
   final bool onboardingComplete;
+  final String? gstin;
+  final String? panNumber;
+  final String? businessAddress;
 
   UserProfile({
     required this.id,
@@ -15,17 +20,23 @@ class UserProfile {
     this.companyName,
     this.avatarUrl,
     required this.onboardingComplete,
+    this.gstin,
+    this.panNumber,
+    this.businessAddress,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as String,
-      fullName: json['full_name'] as String? ?? 'User',
+      fullName: json['full_name'] as String? ?? '',
       phone: json['phone'] as String?,
       role: json['role'] as String? ?? 'sme',
       companyName: json['company_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       onboardingComplete: json['onboarding_complete'] as bool? ?? false,
+      gstin: json['gstin'] as String?,
+      panNumber: json['pan_number'] as String?,
+      businessAddress: json['business_address'] as String?,
     );
   }
 
@@ -37,6 +48,9 @@ class UserProfile {
     'company_name': companyName,
     'avatar_url': avatarUrl,
     'onboarding_complete': onboardingComplete,
+    if (gstin != null) 'gstin': gstin,
+    if (panNumber != null) 'pan_number': panNumber,
+    if (businessAddress != null) 'business_address': businessAddress,
   };
 }
 
@@ -49,9 +63,13 @@ class CargoRequest {
   final String cargoType;
   final double cargoWeightTons;
   final String? pickupDate;
+  final String? pickupAt;
   final String urgency;
   final String status;
   final String createdAt;
+  final String? pickupAddress;
+  final String? dropAddress;
+  final String? gstin;
 
   CargoRequest({
     required this.cargoId,
@@ -62,24 +80,45 @@ class CargoRequest {
     required this.cargoType,
     required this.cargoWeightTons,
     this.pickupDate,
+    this.pickupAt,
     required this.urgency,
     required this.status,
     required this.createdAt,
+    this.pickupAddress,
+    this.dropAddress,
+    this.gstin,
   });
 
   factory CargoRequest.fromJson(Map<String, dynamic> json) {
+    String? pAddr;
+    String? dAddr;
+    String? gNum;
+    final sh = json['special_handling'] as String?;
+    if (sh != null && sh.trim().startsWith('{')) {
+      try {
+        final decoded = jsonDecode(sh) as Map<String, dynamic>;
+        pAddr = decoded['pickup_address'] as String?;
+        dAddr = decoded['drop_address'] as String?;
+        gNum = decoded['gstin'] as String?;
+      } catch (_) {}
+    }
+
     return CargoRequest(
       cargoId: json['cargo_id'] as String,
       smeId: json['sme_id'] as String? ?? '',
       origin: json['origin'] as String? ?? '',
       destination: json['destination'] as String? ?? '',
       distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0.0,
-      cargoType: json['cargo_type'] as String? ?? 'General Goods',
-      cargoWeightTons: (json['cargo_weight_tons'] as num?)?.toDouble() ?? 5.0,
+      cargoType: json['cargo_type'] as String? ?? '',
+      cargoWeightTons: (json['cargo_weight_tons'] as num?)?.toDouble() ?? 0,
       pickupDate: json['pickup_date'] as String?,
+      pickupAt: json['pickup_at'] as String?,
       urgency: json['urgency'] as String? ?? 'normal',
       status: json['status'] as String? ?? 'open',
       createdAt: json['created_at'] as String? ?? DateTime.now().toIso8601String(),
+      pickupAddress: pAddr ?? json['pickup_address'] as String?,
+      dropAddress: dAddr ?? json['drop_address'] as String?,
+      gstin: gNum ?? json['gstin'] as String?,
     );
   }
 }
@@ -121,18 +160,19 @@ class TruckMatch {
     return TruckMatch(
       truckId: json['truck_id'] as String,
       ownerId: json['owner_id'] as String? ?? '',
-      truckType: json['truck_type'] as String? ?? '22FT',
+      truckType: json['truck_type'] as String? ?? '',
       registrationNumber: json['registration_number'] as String?,
       origin: json['origin'] as String? ?? '',
       destination: json['destination'] as String? ?? '',
-      availableCapacityTons: (json['available_capacity_tons'] as num?)?.toDouble() ?? 9.0,
-      matchScore: (json['match_score'] as num?)?.toDouble() ?? 88.0,
-      basePriceInr: (json['base_price_inr'] as num?)?.toDouble() ?? 25000.0,
-      backhaulDiscountPercent: (json['discount_pct'] as num?)?.toDouble() ?? 28.0,
-      finalPriceInr: (json['final_price_inr'] as num?)?.toDouble() ?? 18000.0,
-      driverRating: (json['driver_rating'] as num?)?.toDouble() ?? 4.8,
-      onTimeRate: (json['on_time_rate'] as num?)?.toDouble() ?? 0.94,
-      departureAt: json['departure_at'] as String? ?? 'Today 6:00 PM',
+      availableCapacityTons:
+          (json['available_capacity_tons'] as num?)?.toDouble() ?? 0,
+      matchScore: (json['match_score'] as num?)?.toDouble() ?? 0,
+      basePriceInr: (json['base_price_inr'] as num?)?.toDouble() ?? 0,
+      backhaulDiscountPercent: (json['discount_pct'] as num?)?.toDouble() ?? 0,
+      finalPriceInr: (json['final_price_inr'] as num?)?.toDouble() ?? 0,
+      driverRating: (json['driver_rating'] as num?)?.toDouble() ?? 0,
+      onTimeRate: (json['on_time_rate'] as num?)?.toDouble() ?? 0,
+      departureAt: json['departure_at'] as String? ?? 'Not provided',
     );
   }
 }
@@ -185,20 +225,34 @@ class BookingItem {
       id: json['id'] as String,
       pickupOtp: json['pickup_otp'] as String?,
       deliveryOtp: json['delivery_otp'] as String?,
-      cargoId: json['cargo_id'] as String? ?? cargo?['cargo_id'] as String? ?? '',
-      truckId: json['truck_id'] as String? ?? truck?['truck_id'] as String? ?? '',
-      origin: cargo?['origin'] as String? ?? json['origin'] as String? ?? 'Mumbai',
-      destination: cargo?['destination'] as String? ?? json['destination'] as String? ?? 'Delhi',
-      cargoType: cargo?['cargo_type'] as String? ?? 'Industrial Cargo',
-      weightTons: (cargo?['cargo_weight_tons'] as num?)?.toDouble() ?? (json['weight_tons'] as num?)?.toDouble() ?? 5.0,
-      agreedPriceInr: (json['agreed_price_inr'] as num?)?.toDouble() ?? 18000.0,
+      cargoId:
+          json['cargo_id'] as String? ?? cargo?['cargo_id'] as String? ?? '',
+      truckId:
+          json['truck_id'] as String? ?? truck?['truck_id'] as String? ?? '',
+      origin:
+          cargo?['origin'] as String? ?? json['origin'] as String? ?? '',
+      destination:
+          cargo?['destination'] as String? ??
+          json['destination'] as String? ??
+          '',
+      cargoType: cargo?['cargo_type'] as String? ?? '',
+      weightTons:
+          (cargo?['cargo_weight_tons'] as num?)?.toDouble() ??
+          (json['weight_tons'] as num?)?.toDouble() ??
+          0,
+      agreedPriceInr: (json['agreed_price_inr'] as num?)?.toDouble() ?? 0,
       status: json['status'] as String? ?? 'pending',
-      currentLat: (truck?['current_lat'] as num?)?.toDouble() ?? (json['current_lat'] as num?)?.toDouble(),
-      currentLng: (truck?['current_lng'] as num?)?.toDouble() ?? (json['current_lng'] as num?)?.toDouble(),
-      driverName: owner?['full_name'] as String? ?? 'Driver',
+      currentLat:
+          (truck?['current_lat'] as num?)?.toDouble() ??
+          (json['current_lat'] as num?)?.toDouble(),
+      currentLng:
+          (truck?['current_lng'] as num?)?.toDouble() ??
+          (json['current_lng'] as num?)?.toDouble(),
+      driverName: owner?['full_name'] as String?,
       driverPhone: owner?['phone'] as String?,
       truckReg: truck?['registration_number'] as String?,
-      createdAt: json['created_at'] as String? ?? DateTime.now().toIso8601String(),
+      createdAt:
+          json['created_at'] as String? ?? DateTime.now().toIso8601String(),
     );
   }
 }

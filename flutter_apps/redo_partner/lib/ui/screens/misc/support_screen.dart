@@ -58,7 +58,7 @@ class _SupportScreenState extends State<SupportScreen> {
   Widget build(BuildContext context) {
     final tickets = _tickets ?? [];
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Help & Support')),
       body: ListView(
         padding: const EdgeInsets.all(16),

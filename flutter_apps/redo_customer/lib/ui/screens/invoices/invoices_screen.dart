@@ -38,7 +38,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     final invoices = _invoices ?? [];
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Tax Invoices & GST')),
       body: RefreshIndicator(
         onRefresh: _load,

@@ -24,6 +24,7 @@ class ApiService {
     final token = Supabase.instance.client.auth.currentSession?.accessToken;
     return {
       'Content-Type': 'application/json',
+      'x-user-role': 'sme',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -37,37 +38,58 @@ class ApiService {
           .get(Uri.parse('${AppConfig.apiBaseUrl}/health'))
           .timeout(const Duration(seconds: 70));
       _warmedUp = true;
-    } catch (_) {/* real calls will surface the error with context */}
+    } catch (_) {
+      /* real calls will surface the error with context */
+    }
   }
 
-  static Future<dynamic> _call(String method, String path, [Object? body]) async {
+  static Future<dynamic> _call(
+    String method,
+    String path, [
+    Object? body,
+  ]) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}$path');
     http.Response res;
     try {
       final req = http.Request(method, uri)..headers.addAll(_headers());
       if (body != null) req.body = jsonEncode(body);
-      res = await http.Response.fromStream(await _client
-          .send(req)
-          .timeout(Duration(seconds: _warmedUp ? 25 : 70)));
+      res = await http.Response.fromStream(
+        await _client.send(req).timeout(Duration(seconds: _warmedUp ? 25 : 70)),
+      );
       _warmedUp = true;
     } on TimeoutException {
-      throw ApiException('NETWORK',
-          'Server is waking up (free hosting) — please try again in a few seconds.');
+      throw ApiException(
+        'NETWORK',
+        'Server is waking up (free hosting) — please try again in a few seconds.',
+      );
     } catch (_) {
-      throw ApiException('NETWORK',
-          'Cannot reach the REDO server. Check your internet connection.');
+      throw ApiException(
+        'NETWORK',
+        'Cannot reach the REDO server. Check your internet connection.',
+      );
     }
-    final json = res.body.isEmpty ? <String, dynamic>{} : jsonDecode(res.body);
+    dynamic json;
+    try {
+      json = res.body.isEmpty ? <String, dynamic>{} : jsonDecode(res.body);
+    } catch (_) {
+      throw ApiException(
+        'SERVER_ERROR',
+        'REDO server returned an unreadable response. Please retry.',
+      );
+    }
     if (res.statusCode >= 400) {
       throw ApiException(
         (json is Map ? json['error'] : null)?.toString() ?? 'UNKNOWN',
-        (json is Map ? json['message'] : null)?.toString() ?? 'Something went wrong (${res.statusCode}).',
+        (json is Map ? json['message'] : null)?.toString() ??
+            'Something went wrong (${res.statusCode}).',
       );
     }
     return json;
   }
 
   static Future<dynamic> get(String p) => _call('GET', p);
-  static Future<dynamic> post(String p, [Object? b]) => _call('POST', p, b ?? {});
-  static Future<dynamic> patch(String p, [Object? b]) => _call('PATCH', p, b ?? {});
+  static Future<dynamic> post(String p, [Object? b]) =>
+      _call('POST', p, b ?? {});
+  static Future<dynamic> patch(String p, [Object? b]) =>
+      _call('PATCH', p, b ?? {});
 }

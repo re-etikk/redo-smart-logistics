@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final authVM = context.watch<AuthViewModel>();
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

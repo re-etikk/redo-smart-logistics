@@ -56,7 +56,7 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
     return ChangeNotifierProvider(
       create: (_) => DriverOnboardingViewModel(),
       child: Scaffold(
-        backgroundColor: AppColors.canvas,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SafeArea(
           child: Consumer<DriverOnboardingViewModel>(
             builder: (context, onboardingVM, _) {
@@ -127,7 +127,7 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                                     label: Text(c, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12)),
                                     selected: sel,
                                     selectedColor: AppColors.brandYellow,
-                                    backgroundColor: AppColors.cardBg,
+                                    backgroundColor: Theme.of(context).cardColor,
                                     onSelected: (_) => setState(() => _selectedCity = c),
                                   );
                                 }).toList(),
@@ -179,7 +179,7 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                                     label: Text(t, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12)),
                                     selected: sel,
                                     selectedColor: AppColors.brandYellow,
-                                    backgroundColor: AppColors.cardBg,
+                                    backgroundColor: Theme.of(context).cardColor,
                                     onSelected: (_) => setState(() => _selectedTruckType = t),
                                   );
                                 }).toList(),
@@ -195,7 +195,7 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                                     label: Text(b, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12)),
                                     selected: sel,
                                     selectedColor: AppColors.brandYellow,
-                                    backgroundColor: AppColors.cardBg,
+                                    backgroundColor: Theme.of(context).cardColor,
                                     onSelected: (_) => setState(() => _selectedBodyType = b),
                                   );
                                 }).toList(),
@@ -214,7 +214,7 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                                     label: Text('From $c', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12)),
                                     selected: sel,
                                     selectedColor: AppColors.brandYellow,
-                                    backgroundColor: AppColors.cardBg,
+                                    backgroundColor: Theme.of(context).cardColor,
                                     onSelected: (_) => setState(() => _returnFromCity = c),
                                   );
                                 }).toList(),

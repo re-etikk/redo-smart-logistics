@@ -122,7 +122,7 @@ class RoutingService {
           final km = (meters / 1000).roundToDouble();
           final hours = seconds ~/ 3600;
           final mins = (seconds % 3600) ~/ 60;
-          final durText = hours > 0 ? '$hours hr ${mins} min' : '$mins min';
+          final durText = hours > 0 ? '$hours hr $mins min' : '$mins min';
 
           return RouteInfo(
             points: pts,
@@ -157,10 +157,21 @@ class RoutingService {
   static Future<List<PlaceSuggestion>> searchPlaces(String query) async {
     if (query.trim().length < 2) return [];
 
-    // 1. Photon / OpenStreetMap search (Free, high coverage for Indian cities & hubs)
+    // 1. Google Places Autocomplete + Details — most reliable & best Indian
+    // address/landmark coverage, uses the same key as the map/routing calls.
+    try {
+      final googleResults = await _searchGooglePlaces(query);
+      if (googleResults.isNotEmpty) return googleResults;
+    } catch (e) {
+      debugPrint('Google Places search error: $e');
+    }
+
+    // 2. Photon / OpenStreetMap search (free fallback if Google Places
+    // billing/quota isn't enabled on the key)
     try {
       final uri = Uri.parse(
-        'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&limit=8',
+        'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}'
+        '&limit=8&lat=22.9734&lon=78.6569&location_bias_scale=0.9', // bias toward India
       );
       final res = await _client.get(uri).timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) {
@@ -197,7 +208,7 @@ class RoutingService {
       }
     } catch (_) {}
 
-    // 2. Hardcoded fallback list matching common freight hubs
+    // 3. Hardcoded fallback list matching common freight hubs
     final staticHubs = [
       PlaceSuggestion(name: 'Mumbai Hub', description: 'Bhiwandi / Kalamboli Freight Hub, MH', latLng: const LatLng(19.0760, 72.8777)),
       PlaceSuggestion(name: 'Delhi NCR Hub', description: 'Sanjay Gandhi Transport Nagar / Okhla, DL', latLng: const LatLng(28.6139, 77.2090)),
@@ -215,6 +226,57 @@ class RoutingService {
     return staticHubs.where((h) =>
       h.name.toLowerCase().contains(q) || h.description.toLowerCase().contains(q)
     ).toList();
+  }
+
+  /// Google Places Autocomplete + Details — resolves predictions to lat/lng.
+  static Future<List<PlaceSuggestion>> _searchGooglePlaces(String query) async {
+    final autoUri = Uri.parse(
+      'https://maps.googleapis.com/maps/api/place/autocomplete/json'
+      '?input=${Uri.encodeComponent(query)}'
+      '&components=country:in'
+      '&key=${AppConfig.googleMapsKey}',
+    );
+    final autoRes = await _client.get(autoUri).timeout(const Duration(seconds: 6));
+    if (autoRes.statusCode != 200) return [];
+    final autoData = jsonDecode(autoRes.body);
+    if (autoData['status'] != 'OK') {
+      debugPrint('Places Autocomplete status: ${autoData['status']} ${autoData['error_message'] ?? ''}');
+      return [];
+    }
+    final predictions = (autoData['predictions'] as List?) ?? [];
+    if (predictions.isEmpty) return [];
+
+    final top = predictions.take(8).toList();
+    final futures = top.map((p) async {
+      final placeId = p['place_id'] as String?;
+      final mainText = (p['structured_formatting']?['main_text'] as String?) ?? p['description'] as String? ?? query;
+      final secondaryText = (p['structured_formatting']?['secondary_text'] as String?) ?? '';
+      if (placeId == null) return null;
+      try {
+        final detailUri = Uri.parse(
+          'https://maps.googleapis.com/maps/api/place/details/json'
+          '?place_id=$placeId'
+          '&fields=geometry/location'
+          '&key=${AppConfig.googleMapsKey}',
+        );
+        final detailRes = await _client.get(detailUri).timeout(const Duration(seconds: 6));
+        if (detailRes.statusCode != 200) return null;
+        final detailData = jsonDecode(detailRes.body);
+        if (detailData['status'] != 'OK') return null;
+        final loc = detailData['result']?['geometry']?['location'];
+        if (loc == null) return null;
+        return PlaceSuggestion(
+          name: mainText,
+          description: secondaryText.isNotEmpty ? secondaryText : mainText,
+          latLng: LatLng((loc['lat'] as num).toDouble(), (loc['lng'] as num).toDouble()),
+        );
+      } catch (_) {
+        return null;
+      }
+    });
+
+    final resolved = await Future.wait(futures);
+    return resolved.whereType<PlaceSuggestion>().toList();
   }
 
   /// Auto-detects device GPS location and returns formatted address + LatLng

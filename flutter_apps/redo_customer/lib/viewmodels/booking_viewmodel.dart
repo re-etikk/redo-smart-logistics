@@ -22,15 +22,15 @@ const List<CityLocation> majorCities = [
 
 class BookingViewModel extends ChangeNotifier {
   PlaceSuggestion _originPlace = PlaceSuggestion(
-    name: 'Delhi NCR Hub',
-    description: 'Sanjay Gandhi Transport Nagar, Delhi',
-    latLng: const LatLng(28.6139, 77.2090),
+    name: '',
+    description: '',
+    latLng: const LatLng(22.9734, 78.6569),
   );
 
   PlaceSuggestion _destPlace = PlaceSuggestion(
-    name: 'Mumbai Hub',
-    description: 'Bhiwandi Freight Terminal, Mumbai',
-    latLng: const LatLng(19.0760, 72.8777),
+    name: '',
+    description: '',
+    latLng: const LatLng(22.9734, 78.6569),
   );
 
   String _cargoType = 'Industrial Goods';
@@ -42,6 +42,14 @@ class BookingViewModel extends ChangeNotifier {
   CargoRequest? _lastPostedCargo;
   BookingItem? _lastBooking;
   String? _errorMessage;
+
+  // Professional Scheduling & Load Details
+  bool _isInstant = false;
+  DateTime _scheduledDate = DateTime.now().add(const Duration(days: 1));
+  String _timeSlot = 'Morning (08:00 - 12:00)';
+  String _pickupAddress = '';
+  String _dropAddress = '';
+  String _gstin = '';
 
   PlaceSuggestion get originPlace => _originPlace;
   PlaceSuggestion get destPlace => _destPlace;
@@ -55,25 +63,71 @@ class BookingViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isRouting => _isRouting;
   RouteInfo? get currentRoute => _currentRoute;
-  List<LatLng> get routePoints => _currentRoute?.points ?? [_originPlace.latLng, _destPlace.latLng];
-  double get roadDistanceKm => _currentRoute?.distanceKm ?? 1344.0;
-  String get roadDistanceText => _currentRoute?.distanceText ?? '${roadDistanceKm.round()} km';
-  String get roadDurationText => _currentRoute?.durationText ?? '15 hrs';
+  List<LatLng> get routePoints =>
+      _currentRoute?.points ?? [_originPlace.latLng, _destPlace.latLng];
+  double get roadDistanceKm => _currentRoute?.distanceKm ?? 0;
+  String get roadDistanceText =>
+      _currentRoute?.distanceText ?? '${roadDistanceKm.round()} km';
+  String get roadDurationText => _currentRoute?.durationText ?? 'Route not calculated';
 
   List<TruckMatch> get matches => _matches;
   CargoRequest? get lastPostedCargo => _lastPostedCargo;
   BookingItem? get lastBooking => _lastBooking;
   String? get errorMessage => _errorMessage;
 
+  bool get isInstant => _isInstant;
+  DateTime get scheduledDate => _scheduledDate;
+  String get timeSlot => _timeSlot;
+  String get pickupAddress => _pickupAddress;
+  String get dropAddress => _dropAddress;
+  String get gstin => _gstin;
+
+  void setIsInstant(bool value) {
+    _isInstant = value;
+    _lastPostedCargo = null;
+    notifyListeners();
+  }
+
+  void setScheduledDate(DateTime date) {
+    _scheduledDate = date;
+    _lastPostedCargo = null;
+    notifyListeners();
+  }
+
+  void setTimeSlot(String slot) {
+    _timeSlot = slot;
+    _lastPostedCargo = null;
+    notifyListeners();
+  }
+
+  void setPickupAddress(String address) {
+    _pickupAddress = address;
+    notifyListeners();
+  }
+
+  void setDropAddress(String address) {
+    _dropAddress = address;
+    notifyListeners();
+  }
+
+  void setGstin(String gstin) {
+    _gstin = gstin;
+    notifyListeners();
+  }
+
   BookingViewModel() {
-    fetchRoute();
+    // A route is calculated only after the shipper selects both locations.
   }
 
   Future<void> fetchRoute() async {
+    if (_originPlace.name.isEmpty || _destPlace.name.isEmpty) return;
     _isRouting = true;
     notifyListeners();
     try {
-      final route = await RoutingService.getDrivingRoute(_originPlace.latLng, _destPlace.latLng);
+      final route = await RoutingService.getDrivingRoute(
+        _originPlace.latLng,
+        _destPlace.latLng,
+      );
       if (route != null) {
         _currentRoute = route;
       }
@@ -87,12 +141,16 @@ class BookingViewModel extends ChangeNotifier {
 
   void setOriginPlace(PlaceSuggestion place) {
     _originPlace = place;
+    _lastPostedCargo = null;
+    _matches = [];
     notifyListeners();
     fetchRoute();
   }
 
   void setDestinationPlace(PlaceSuggestion place) {
     _destPlace = place;
+    _lastPostedCargo = null;
+    _matches = [];
     notifyListeners();
     fetchRoute();
   }
@@ -103,6 +161,8 @@ class BookingViewModel extends ChangeNotifier {
       description: '$cityName Hub',
       latLng: _originPlace.latLng,
     );
+    _lastPostedCargo = null;
+    _matches = [];
     notifyListeners();
     fetchRoute();
   }
@@ -113,6 +173,8 @@ class BookingViewModel extends ChangeNotifier {
       description: '$cityName Hub',
       latLng: _destPlace.latLng,
     );
+    _lastPostedCargo = null;
+    _matches = [];
     notifyListeners();
     fetchRoute();
   }
@@ -121,6 +183,8 @@ class BookingViewModel extends ChangeNotifier {
     final temp = _originPlace;
     _originPlace = _destPlace;
     _destPlace = temp;
+    _lastPostedCargo = null;
+    _matches = [];
     notifyListeners();
     fetchRoute();
   }
@@ -143,15 +207,24 @@ class BookingViewModel extends ChangeNotifier {
 
   void setCargoType(String type) {
     _cargoType = type;
+    _lastPostedCargo = null;
+    _matches = [];
     notifyListeners();
   }
 
   void setWeightTons(double weight) {
     _weightTons = weight;
+    _lastPostedCargo = null;
+    _matches = [];
     notifyListeners();
   }
 
   Future<bool> searchMatchingTrucks() async {
+    if (_originPlace.name.trim().isEmpty || _destPlace.name.trim().isEmpty) {
+      _errorMessage = 'Choose both pickup and drop locations first.';
+      notifyListeners();
+      return false;
+    }
     if (_originPlace.name == _destPlace.name) {
       _errorMessage = 'Pickup and Drop locations cannot be the same.';
       notifyListeners();
@@ -163,71 +236,84 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Post cargo with real road distance
+      final pickup = _isInstant
+          ? DateTime.now().add(const Duration(hours: 1))
+          : _scheduledDate;
+      final pDate = '${pickup.year}-${pickup.month.toString().padLeft(2, '0')}-${pickup.day.toString().padLeft(2, '0')}';
+
+      _lastPostedCargo ??= await SupabaseService.postCargoRequest(
+        origin: _originPlace.name,
+        destination: _destPlace.name,
+        cargoType: _cargoType,
+        weightTons: _weightTons,
+        distanceKm: roadDistanceKm,
+        pickupAt: pickup,
+        pickupDate: pDate,
+        urgency: _isInstant ? 'instant' : 'scheduled',
+        pickupAddress: _pickupAddress,
+        dropAddress: _dropAddress,
+        gstin: _gstin,
+      );
+
+      _matches = await SupabaseService.getMatchesForCargo(
+        cargoId: _lastPostedCargo!.cargoId,
+        origin: _originPlace.name,
+        destination: _destPlace.name,
+        weightTons: _weightTons,
+      );
+
+      if (_matches.isEmpty) {
+        _errorMessage =
+            'No suitable return capacity found for this route yet. Try another pickup window.';
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Register scheduled load without immediately booking a truck (enters open pool on corridor)
+  Future<bool> registerScheduledLoad() async {
+    if (_originPlace.name.trim().isEmpty || _destPlace.name.trim().isEmpty) {
+      _errorMessage = 'Choose both pickup and drop locations first.';
+      notifyListeners();
+      return false;
+    }
+    if (_originPlace.name == _destPlace.name) {
+      _errorMessage = 'Pickup and Drop locations cannot be the same.';
+      notifyListeners();
+      return false;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final pickup = _isInstant
+          ? DateTime.now().add(const Duration(hours: 1))
+          : _scheduledDate;
+      final pDate = '${pickup.year}-${pickup.month.toString().padLeft(2, '0')}-${pickup.day.toString().padLeft(2, '0')}';
+
       _lastPostedCargo = await SupabaseService.postCargoRequest(
         origin: _originPlace.name,
         destination: _destPlace.name,
         cargoType: _cargoType,
         weightTons: _weightTons,
         distanceKm: roadDistanceKm,
+        pickupAt: pickup,
+        pickupDate: pDate,
+        urgency: _isInstant ? 'instant' : 'scheduled',
+        pickupAddress: _pickupAddress,
+        dropAddress: _dropAddress,
+        gstin: _gstin,
       );
-
-      // 2. Fetch ML matches for THIS cargo
-      try {
-        _matches = await SupabaseService.getMatchesForCargo(
-          cargoId: _lastPostedCargo!.cargoId,
-          origin: _originPlace.name,
-          destination: _destPlace.name,
-          weightTons: _weightTons,
-        );
-      } catch (e) {
-        _matches = [];
-      }
-
-      // 3. Resilient fallback matching: If backend ML matching returns 0
-      // (e.g. no open return trip registered yet for this corridor), provide
-      // guaranteed instant network backhauls priced directly from the road distance
-      // (₹1.05/km-ton standard corridor rate) so the customer can always book!
-      if (_matches.isEmpty) {
-        final dist = roadDistanceKm > 0 ? roadDistanceKm : 500.0;
-        final basePrice = (dist * _weightTons * 1.55).roundToDouble();
-        final discountedPrice = (dist * _weightTons * 1.05).roundToDouble();
-
-        _matches = [
-          TruckMatch(
-            truckId: 'TRK-REDO-01',
-            ownerId: '',
-            truckType: _weightTons > 12 ? '32FT Multi-Axle' : '22FT High Deck',
-            registrationNumber: 'DL 01 AB 8842',
-            origin: _originPlace.name,
-            destination: _destPlace.name,
-            availableCapacityTons: (_weightTons + 2.0).clamp(5.0, 40.0),
-            matchScore: 94.0,
-            basePriceInr: basePrice,
-            backhaulDiscountPercent: 32.0,
-            finalPriceInr: discountedPrice,
-            driverRating: 4.8,
-            onTimeRate: 0.96,
-            departureAt: 'Today 6:00 PM',
-          ),
-          TruckMatch(
-            truckId: 'TRK-REDO-02',
-            ownerId: '',
-            truckType: '17FT Closed Container',
-            registrationNumber: 'MH 04 CD 3912',
-            origin: _originPlace.name,
-            destination: _destPlace.name,
-            availableCapacityTons: (_weightTons + 1.0).clamp(4.0, 25.0),
-            matchScore: 89.0,
-            basePriceInr: (basePrice * 1.05).roundToDouble(),
-            backhaulDiscountPercent: 28.0,
-            finalPriceInr: (discountedPrice * 1.04).roundToDouble(),
-            driverRating: 4.7,
-            onTimeRate: 0.92,
-            departureAt: 'Tomorrow 9:00 AM',
-          ),
-        ];
-      }
 
       _isLoading = false;
       notifyListeners();

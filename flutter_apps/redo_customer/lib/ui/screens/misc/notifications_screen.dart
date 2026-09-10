@@ -44,7 +44,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final items = _items ?? [];
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Notifications')),
       body: RefreshIndicator(
         onRefresh: _load,

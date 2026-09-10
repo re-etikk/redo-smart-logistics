@@ -43,6 +43,7 @@ class AuthViewModel extends ChangeNotifier {
     }
 
     try {
+      await SupabaseService.ensureCustomerRole();
       _profile = await SupabaseService.getProfile();
       if (_profile != null && _profile!.onboardingComplete) {
         _status = AuthStatus.authenticated;
@@ -128,6 +129,49 @@ class AuthViewModel extends ChangeNotifier {
       }
       _status = AuthStatus.onboardingRequired;
     }
+    notifyListeners();
+  }
+
+  Future<void> updateProfile({
+    required String companyName,
+    String? fullName,
+    String? phone,
+    String? gstin,
+    String? panNumber,
+    String? businessAddress,
+  }) async {
+    final user = SupabaseService.currentUser;
+    final uid = user?.id ?? _profile?.id ?? '';
+    final resolvedName = (fullName != null && fullName.trim().isNotEmpty)
+        ? fullName.trim()
+        : (_profile?.fullName ?? user?.email?.split('@').first ?? 'User');
+
+    // Immediately update local in-memory profile and notify listeners
+    _profile = UserProfile(
+      id: uid,
+      fullName: resolvedName,
+      phone: (phone != null && phone.trim().isNotEmpty) ? phone.trim() : _profile?.phone,
+      role: 'sme',
+      companyName: companyName.trim(),
+      avatarUrl: _profile?.avatarUrl,
+      onboardingComplete: true,
+      gstin: (gstin != null && gstin.trim().isNotEmpty) ? gstin.trim().toUpperCase() : _profile?.gstin,
+      panNumber: (panNumber != null && panNumber.trim().isNotEmpty) ? panNumber.trim().toUpperCase() : _profile?.panNumber,
+      businessAddress: (businessAddress != null && businessAddress.trim().isNotEmpty) ? businessAddress.trim() : _profile?.businessAddress,
+    );
+    notifyListeners();
+
+    try {
+      await SupabaseService.saveProfile(
+        companyName: companyName,
+        fullName: fullName,
+        phone: phone,
+        gstin: gstin,
+        panNumber: panNumber,
+        businessAddress: businessAddress,
+        onboardingComplete: true,
+      );
+    } catch (_) {}
     notifyListeners();
   }
 

@@ -53,7 +53,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final authVM = context.watch<AuthViewModel>();
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Driver Registration'),
       ),

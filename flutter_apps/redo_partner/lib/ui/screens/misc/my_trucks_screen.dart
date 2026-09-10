@@ -90,7 +90,7 @@ class _MyTrucksScreenState extends State<MyTrucksScreen> {
   Widget build(BuildContext context) {
     final trucks = _trucks ?? [];
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('My Trucks & Return Trips')),
       body: RefreshIndicator(
         onRefresh: _load,
