@@ -19,6 +19,7 @@ Run: uvicorn api:app --host 0.0.0.0 --port 8001
 """
 
 from typing import Dict, List, Optional
+import os
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -122,8 +123,22 @@ def _pair(t: TruckReg, c: CargoReg) -> dict:
 
 @app.get("/health")
 def health():
-    _, _, backend = recommend.load_model()
-    return {"status": "ok", "model_backend": backend}
+    try:
+        _, _, backend = recommend.load_model()
+        return {"status": "ok", "model_backend": backend}
+    except Exception as e:
+        # Surface the real reason in the response instead of a bare 500 —
+        # this is the difference between "something's wrong" and knowing
+        # exactly what to fix (missing file, bad pickle, import error…).
+        import traceback
+        return {
+            "status": "error",
+            "error_type": type(e).__name__,
+            "error": str(e),
+            "model_path": recommend.MODEL_PATH,
+            "model_path_exists": os.path.exists(recommend.MODEL_PATH),
+            "traceback": traceback.format_exc(),
+        }
 
 
 @app.post("/register/truck")
