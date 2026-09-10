@@ -14,6 +14,13 @@ const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
 app.use(express.json({ limit: "1mb" }));
 
+// Public, unauthenticated health check — must be reachable by Render's own
+// health checks and external uptime pingers (UptimeRobot etc.) without a
+// login. Registered before any router that applies its own requireAuth
+// middleware globally (extras.js does `router.use(requireAuth)`, which
+// would otherwise swallow this same path and return 401 first).
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
 app.use("/trucks", trucks);
 app.use("/cargo", cargo);
 app.use("/recommendations", recommendations);

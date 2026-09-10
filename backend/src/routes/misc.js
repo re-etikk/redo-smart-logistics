@@ -8,7 +8,9 @@ import { mlHealth } from "../services/ml.js";
 const r = Router();
 
 // ---- health (public) + diagnostics (auth, dev page consumes it) ----
-r.get("/health", (_req, res) => res.json({ status: "ok" }));
+// Note: GET /health is registered directly in index.js (public, no auth) so
+// it isn't shadowed by extrasRouter's global requireAuth. Removed from here
+// to avoid a confusing duplicate route.
 r.get("/diagnostics", requireAuth, async (_req, res) => {
   const ml = await mlHealth();
   const { error } = await supabaseAdmin.from("profiles").select("id").limit(1);

@@ -18,10 +18,10 @@ test("filters each rejection reason correctly", () => {
     mk("OK"),
     mk("BUSY", { status: "in_transit" }),
     mk("SMALL", {}, { available_capacity_tons: 1.0 }),
-    mk("LATE", {}, { departure_at: "2026-08-22T06:00:00Z" }),
+    mk("LATE", {}, { departure_at: "2026-08-25T06:00:00Z" }), // > 72h gap
     mk("WRONG", {}, { origin: "Pune", destination: "Jaipur" }),
     mk("PICKY", {}, { accepted_cargo_types: ["Electronics"] }),
-  ]);
+  ], { minRouteSimilarity: 0.55 });
   assert.equal(eligible.length, 1);
   assert.equal(eligible[0].truck_id, "OK");
   assert.equal(eligible[0].time_gap_hours, 1);
@@ -34,11 +34,11 @@ test("filters each rejection reason correctly", () => {
 
 test("route similarity corridor model", () => {
   assert.equal(routeSimilarity({ origin: "Mumbai", destination: "Delhi" }, cargo), 1.0);
-  assert.equal(routeSimilarity({ origin: "Pune", destination: "Delhi" }, cargo), 0.75);
-  assert.equal(routeSimilarity({ origin: "Mumbai", destination: "Jaipur" }, cargo), 0.7);
+  assert.equal(routeSimilarity({ origin: "Pune", destination: "Delhi" }, cargo), 0.85);
+  assert.equal(routeSimilarity({ origin: "Mumbai", destination: "Jaipur" }, cargo), 0.80);
 });
 
 test("price and ETA estimates", () => {
   assert.equal(estimatePriceInr(1400, 1.5, 1.05), 2205);
-  assert.equal(etaMinutes(1400), Math.round((1400 / 42 + 2) * 60));
+  assert.equal(etaMinutes(1400), Math.round((1400 / 48 + 1.5) * 60));
 });

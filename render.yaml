@@ -4,9 +4,25 @@ services:
     runtime: python
     plan: free
     rootDir: ml-service
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python train_model.py
     startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+
+  - type: web
+    name: redo-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: ML_SERVICE_URL
+        value: https://redo-ml.onrender.com
+      - key: CORS_ORIGIN
+        value: "*"

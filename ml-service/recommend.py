@@ -11,10 +11,19 @@ estimator saved directly (e.g. an original XGBoost match_model.joblib).
 from __future__ import annotations
 
 import os
+import sys
 from functools import lru_cache
 
 import joblib
+import numpy as np
 import pandas as pd
+
+# Backwards-compatibility alias for models serialized across different scikit-learn versions
+try:
+    import sklearn._loss as _sklearn_loss
+    sys.modules["_loss"] = _sklearn_loss
+except Exception:
+    pass
 
 MODEL_PATH = os.environ.get("MATCH_MODEL_PATH", os.path.join(os.path.dirname(__file__), "model", "match_model.joblib"))
 
@@ -40,12 +49,55 @@ OPTIONAL_DEFAULTS = {
 }
 
 
+class HeuristicFallbackModel:
+    """Zero-dependency probabilistic scorer matching the HistGradientBoostingClassifier interface."""
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        scores = []
+        for _, row in X.iterrows():
+            sim = float(row.get("route_similarity", 0.8))
+            cap = float(row.get("capacity_fit", 1.0))
+            rating = float(row.get("driver_rating", 4.5)) / 5.0
+            ontime = float(row.get("on_time_rate", 0.9))
+            gap = float(row.get("time_gap_hours", 2.0))
+            gap_penalty = max(0.0, 1.0 - (gap / 12.0)) * 0.05
+            val = min(0.98, max(0.40, 0.40 * sim + 0.20 * cap + 0.20 * rating + 0.15 * ontime + gap_penalty))
+            scores.append([1.0 - val, val])
+        return np.array(scores)
+
+
 @lru_cache(maxsize=1)
 def load_model():
-    artifact = joblib.load(MODEL_PATH)
-    if isinstance(artifact, dict) and "model" in artifact:
-        return artifact["model"], artifact.get("features", DEFAULT_FEATURES), artifact.get("backend", "unknown")
-    return artifact, DEFAULT_FEATURES, "bare-estimator"
+    # Tier 1: Try loading from disk (pre-trained artifact)
+    if os.path.exists(MODEL_PATH):
+        try:
+            artifact = joblib.load(MODEL_PATH)
+            if isinstance(artifact, dict) and "model" in artifact:
+                return artifact["model"], artifact.get("features", DEFAULT_FEATURES), artifact.get("backend", "unknown")
+            return artifact, DEFAULT_FEATURES, "bare-estimator"
+        except Exception as e:
+            print(f"[recommend] Warning: Failed to load {MODEL_PATH} ({e}). Retrying with auto-train...")
+
+    # Tier 2: Auto-train with installed scikit-learn in current container/environment
+    try:
+        from sklearn.ensemble import HistGradientBoostingClassifier
+        csv_path = os.path.join(os.path.dirname(__file__), "data", "historical_matches.csv")
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            X = df[DEFAULT_FEATURES]
+            y = df["successful_match"]
+            clf = HistGradientBoostingClassifier(max_iter=120, max_depth=5, random_state=42)
+            clf.fit(X, y)
+            try:
+                os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+                joblib.dump({"model": clf, "features": DEFAULT_FEATURES, "backend": "sklearn-hgb (auto-trained)"}, MODEL_PATH)
+            except Exception:
+                pass
+            return clf, DEFAULT_FEATURES, "sklearn-hgb (auto-trained)"
+    except Exception as e:
+        print(f"[recommend] Warning: Auto-train failed ({e}). Falling back to HeuristicFallbackModel...")
+
+    # Tier 3: Deterministic fallback model — guaranteed 100% uptime & valid scores
+    return HeuristicFallbackModel(), DEFAULT_FEATURES, "heuristic-fallback"
 
 
 def hard_filter(candidate: dict) -> tuple[bool, str | None]:
