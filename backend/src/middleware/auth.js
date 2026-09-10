@@ -16,9 +16,13 @@ export async function requireAuth(req, res, next) {
     .from("profiles").select("*").eq("id", data.user.id).maybeSingle();
 
   if (!profile) {
-    // Auto-provision profile from auth metadata / client role header to prevent 403 blocks
-    const roleHeader = req.headers["x-user-role"] || (req.path.includes("truck") || req.path.includes("partner") ? "truck_owner" : "sme");
-    const role = (roleHeader === "truck_owner" || roleHeader === "driver") ? "truck_owner" : "sme";
+    // Defensive fallback only — this should rarely fire since both apps
+    // create/upsert their profile row during signup/onboarding. We do NOT
+    // trust any client-supplied header here (e.g. "x-user-role") to decide
+    // role, because that would let a caller pick their own permissions.
+    // Worst case if this guess is wrong: the user hits a 403 and completes
+    // onboarding properly, which sets the correct role explicitly.
+    const role = req.path.includes("truck") || req.path.includes("partner") ? "truck_owner" : "sme";
     const fullName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split("@")[0] || "User";
 
     try {
@@ -30,7 +34,6 @@ export async function requireAuth(req, res, next) {
           role: role,
           company_name: data.user.user_metadata?.company_name || null,
           phone: data.user.phone || data.user.user_metadata?.phone || null,
-          onboarding_complete: true,
         })
         .select("*")
         .maybeSingle();
@@ -44,7 +47,7 @@ export async function requireAuth(req, res, next) {
       id: data.user.id,
       full_name: fullName,
       role: role,
-      onboarding_complete: true,
+      onboarding_complete: false,
     };
   }
 
@@ -52,16 +55,15 @@ export async function requireAuth(req, res, next) {
   next();
 }
 
-export const requireRole = (role) => async (req, res, next) => {
+// Rejects the request if the caller's account role doesn't match. Role is
+// ALWAYS read from the DB profile (req.profile, set above) — never from a
+// client-supplied header — so a caller cannot grant themselves access by
+// simply claiming a different role. If someone's account genuinely has the
+// wrong role (e.g. legacy data), the fix is to correct it via onboarding /
+// an admin action, not to silently rewrite it on every mismatched request.
+export const requireRole = (role) => (req, res, next) => {
   if (req.profile.role !== role) {
-    // If user is operating in customer app, auto-update role to sme so they are not blocked
-    if (role === "sme" && req.headers["x-user-role"] === "sme") {
-      req.profile.role = "sme";
-      await supabaseAdmin.from("profiles").update({ role: "sme" }).eq("id", req.profile.id).catch(() => {});
-      return next();
-    }
     return res.status(403).json({ error: "FORBIDDEN_ROLE", message: "This action is not available for your account type." });
   }
   next();
 };
-

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../../core/config.dart';
@@ -21,6 +23,22 @@ class VoiceAssistantAction {
     required this.responseText,
     this.langCode,
   });
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'fromCity': fromCity,
+    'toCity': toCity,
+    'responseText': responseText,
+    'langCode': langCode,
+  };
+
+  factory VoiceAssistantAction.fromJson(Map<String, dynamic> j) => VoiceAssistantAction(
+    type: j['type'] as String? ?? 'unknown',
+    fromCity: j['fromCity'] as String?,
+    toCity: j['toCity'] as String?,
+    responseText: j['responseText'] as String? ?? '',
+    langCode: j['langCode'] as String?,
+  );
 }
 
 class ChatMessage {
@@ -28,18 +46,42 @@ class ChatMessage {
   final bool isUser;
   final DateTime timestamp;
   final VoiceAssistantAction? action;
+  // True only for the message just added in THIS app session — drives the
+  // one-time typewriter reveal animation in the chat UI. Never persisted as
+  // true, so messages restored from history render instantly (no re-typing
+  // effect every time you reopen the app).
+  bool isNew;
 
   ChatMessage({
     required this.text,
     required this.isUser,
     required this.timestamp,
     this.action,
+    this.isNew = false,
   });
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'isUser': isUser,
+    'timestamp': timestamp.toIso8601String(),
+    'action': action?.toJson(),
+  };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
+    text: j['text'] as String? ?? '',
+    isUser: j['isUser'] as bool? ?? false,
+    timestamp: DateTime.tryParse(j['timestamp'] as String? ?? '') ?? DateTime.now(),
+    action: j['action'] != null ? VoiceAssistantAction.fromJson(j['action'] as Map<String, dynamic>) : null,
+    isNew: false,
+  );
 }
 
 class VoiceAssistantService extends ChangeNotifier {
   final SpeechToText _stt = SpeechToText();
   final FlutterTts _tts = FlutterTts();
+
+  static const _prefsKey = 'redo_partner_chat_history_v1';
+  static const _maxStoredMessages = 60;
 
   VoiceAssistantState _state = VoiceAssistantState.idle;
   String _transcribedText = '';
@@ -50,14 +92,21 @@ class VoiceAssistantService extends ChangeNotifier {
   // Continuous multi-turn conversation mode: stays listening until user stops
   bool _continuousMode = false;
 
+  // Fired the moment an action is determined (from voice OR typed chat) so
+  // the UI can navigate / apply filters immediately — instead of the old
+  // approach of inspecting `lastAction` after `startListening()` resolved,
+  // which actually fired before processing had finished and so never
+  // produced a real navigation.
+  void Function(VoiceAssistantAction action)? onActionReady;
+
+  ChatMessage _welcomeMessage() => ChatMessage(
+    text: 'Namaste! I am your REDO AI Assistant. You can talk to me in Hindi, English, Tamil, Telugu, Marathi, Bengali, or any language. How can I help you today?',
+    isUser: false,
+    timestamp: DateTime.now(),
+  );
+
   // Chat message history for text-to-text chat
-  final List<ChatMessage> _chatHistory = [
-    ChatMessage(
-      text: 'Namaste! I am your REDO AI Assistant. You can talk to me in Hindi, English, Tamil, Telugu, Marathi, Bengali, or any language. How can I help you today?',
-      isUser: false,
-      timestamp: DateTime.now(),
-    ),
-  ];
+  late final List<ChatMessage> _chatHistory = [_welcomeMessage()];
 
   VoiceAssistantState get state => _state;
   String get transcribedText => _transcribedText;
@@ -71,6 +120,49 @@ class VoiceAssistantService extends ChangeNotifier {
   VoiceAssistantService() {
     _initTts();
     _initStt();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsKey);
+      if (raw == null || raw.isEmpty) return;
+      final list = jsonDecode(raw) as List;
+      final restored = list
+          .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+          .toList();
+      if (restored.isNotEmpty) {
+        _chatHistory
+          ..clear()
+          ..addAll(restored);
+      }
+    } catch (_) {
+      // Corrupt/old-format cache — just keep the fresh welcome message.
+    }
+    notifyListeners();
+  }
+
+  Future<void> _saveHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final toSave = _chatHistory.length > _maxStoredMessages
+          ? _chatHistory.sublist(_chatHistory.length - _maxStoredMessages)
+          : _chatHistory;
+      await prefs.setString(_prefsKey, jsonEncode(toSave.map((m) => m.toJson()).toList()));
+    } catch (_) {}
+  }
+
+  /// Clears saved + in-memory chat history (e.g. a "New chat" button).
+  Future<void> clearHistory() async {
+    _chatHistory
+      ..clear()
+      ..add(_welcomeMessage());
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsKey);
+    } catch (_) {}
   }
 
   Future<void> _initStt() async {
@@ -199,6 +291,7 @@ class VoiceAssistantService extends ChangeNotifier {
       isUser: true,
       timestamp: DateTime.now(),
     ));
+    unawaited(_saveHistory());
 
     try {
       final action = await _parseIntent(input);
@@ -210,7 +303,12 @@ class VoiceAssistantService extends ChangeNotifier {
         isUser: false,
         timestamp: DateTime.now(),
         action: action,
+        isNew: true,
       ));
+      unawaited(_saveHistory());
+
+      // Fire navigation/UI side-effects immediately — don't wait for TTS.
+      onActionReady?.call(action);
 
       _state = VoiceAssistantState.speaking;
       notifyListeners();
@@ -232,6 +330,7 @@ class VoiceAssistantService extends ChangeNotifier {
       isUser: true,
       timestamp: DateTime.now(),
     ));
+    unawaited(_saveHistory());
     _state = VoiceAssistantState.processing;
     notifyListeners();
 
@@ -245,7 +344,14 @@ class VoiceAssistantService extends ChangeNotifier {
         isUser: false,
         timestamp: DateTime.now(),
         action: action,
+        isNew: true,
       ));
+      unawaited(_saveHistory());
+
+      // Fire navigation/UI side-effects immediately (e.g. apply a searched
+      // route, open earnings, jump to truck registration) — this is what
+      // makes typed/spoken commands actually DO something, not just reply.
+      onActionReady?.call(action);
 
       _state = VoiceAssistantState.idle;
       notifyListeners();
@@ -255,6 +361,7 @@ class VoiceAssistantService extends ChangeNotifier {
         isUser: false,
         timestamp: DateTime.now(),
       ));
+      unawaited(_saveHistory());
       _state = VoiceAssistantState.idle;
       notifyListeners();
     }

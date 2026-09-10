@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -10,65 +12,189 @@ enum VoiceAssistantState { idle, listening, processing, speaking, error }
 
 class VoiceAssistantAction {
   final String type; // book_shipment, track_shipment, open_profile, open_bookings, chat, unknown
-  final String? from;
-  final String? to;
-  final String? responseText;
+  final String? fromCity;
+  final String? toCity;
+  final String responseText;
   final String? langCode;
 
-  VoiceAssistantAction({
+  const VoiceAssistantAction({
     required this.type,
-    this.from,
-    this.to,
-    this.responseText,
+    this.fromCity,
+    this.toCity,
+    required this.responseText,
     this.langCode,
   });
+
+  String? get from => fromCity;
+  String? get to => toCity;
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'fromCity': fromCity,
+    'toCity': toCity,
+    'responseText': responseText,
+    'langCode': langCode,
+  };
+
+  factory VoiceAssistantAction.fromJson(Map<String, dynamic> j) => VoiceAssistantAction(
+    type: j['type'] as String? ?? 'unknown',
+    fromCity: (j['fromCity'] ?? j['from']) as String?,
+    toCity: (j['toCity'] ?? j['to']) as String?,
+    responseText: j['responseText'] as String? ?? '',
+    langCode: j['langCode'] as String?,
+  );
 }
 
-class CustomerChatMessage {
+class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
   final VoiceAssistantAction? action;
+  // True only for the message just added in THIS app session — drives the
+  // one-time typewriter reveal animation in the chat UI.
+  bool isNew;
 
-  CustomerChatMessage({
+  ChatMessage({
     required this.text,
     required this.isUser,
     required this.timestamp,
     this.action,
+    this.isNew = false,
   });
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'isUser': isUser,
+    'timestamp': timestamp.toIso8601String(),
+    'action': action?.toJson(),
+  };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
+    text: j['text'] as String? ?? '',
+    isUser: j['isUser'] as bool? ?? false,
+    timestamp: DateTime.tryParse(j['timestamp'] as String? ?? '') ?? DateTime.now(),
+    action: j['action'] != null ? VoiceAssistantAction.fromJson(j['action'] as Map<String, dynamic>) : null,
+    isNew: false,
+  );
 }
+
+typedef CustomerChatMessage = ChatMessage;
 
 class VoiceAssistantService extends ChangeNotifier {
   final SpeechToText _stt = SpeechToText();
   final FlutterTts _tts = FlutterTts();
 
+  static const _prefsKey = 'redo_customer_chat_history_v1';
+  static const _maxStoredMessages = 60;
+
   VoiceAssistantState _state = VoiceAssistantState.idle;
-  String _currentText = '';
+  String _transcribedText = '';
   String _lastResponse = '';
   VoiceAssistantAction? _lastAction;
   bool _isAvailable = false;
   bool _continuousMode = false;
-  Function(VoiceAssistantAction)? _currentCallback;
 
-  final List<CustomerChatMessage> _chatHistory = [
-    CustomerChatMessage(
-      text: 'Namaste! How can I help you book freight or track shipments today? You can speak or write in any Indian language.',
-      isUser: false,
-      timestamp: DateTime.now(),
-    ),
-  ];
+  void Function(VoiceAssistantAction action)? onActionReady;
+
+  ChatMessage _welcomeMessage() => ChatMessage(
+    text: 'Namaste! How can I help you book freight or track shipments today? You can speak or write in Hindi, English, Tamil, Telugu, or any language.',
+    isUser: false,
+    timestamp: DateTime.now(),
+  );
+
+  late final List<ChatMessage> _chatHistory = [_welcomeMessage()];
 
   VoiceAssistantState get state => _state;
-  bool get isListening => _state == VoiceAssistantState.listening;
-  bool get isProcessing => _state == VoiceAssistantState.processing;
-  bool get continuousMode => _continuousMode;
-  String get currentText => _currentText;
-  String get transcribedText => _currentText;
+  String get transcribedText => _transcribedText;
+  String get currentText => _transcribedText;
   String get lastResponse => _lastResponse;
   VoiceAssistantAction? get lastAction => _lastAction;
-  List<CustomerChatMessage> get chatHistory => List.unmodifiable(_chatHistory);
+  bool get isListening => _state == VoiceAssistantState.listening;
+  bool get isProcessing => _state == VoiceAssistantState.processing;
+  bool get isAvailable => _isAvailable;
+  bool get continuousMode => _continuousMode;
+  List<ChatMessage> get chatHistory => List.unmodifiable(_chatHistory);
+
+  VoiceAssistantService() {
+    _initTts();
+    _initStt();
+    _loadHistory();
+  }
 
   Future<void> init() async {
+    // Kept for backward compatibility
+    _initTts();
+    _initStt();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsKey);
+      if (raw == null || raw.isEmpty) return;
+      final list = jsonDecode(raw) as List;
+      final restored = list
+          .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+          .toList();
+      if (restored.isNotEmpty) {
+        _chatHistory
+          ..clear()
+          ..addAll(restored);
+      }
+    } catch (_) {
+      // Corrupt cache — keep welcome message
+    }
+    notifyListeners();
+  }
+
+  Future<void> _saveHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final toSave = _chatHistory.length > _maxStoredMessages
+          ? _chatHistory.sublist(_chatHistory.length - _maxStoredMessages)
+          : _chatHistory;
+      await prefs.setString(_prefsKey, jsonEncode(toSave.map((m) => m.toJson()).toList()));
+    } catch (_) {}
+  }
+
+  /// Clears saved + in-memory chat history (e.g. a "New chat" button).
+  Future<void> clearHistory() async {
+    _chatHistory
+      ..clear()
+      ..add(_welcomeMessage());
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsKey);
+    } catch (_) {}
+  }
+
+  Future<void> _initStt() async {
+    _isAvailable = await _stt.initialize(
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          if (_state == VoiceAssistantState.listening) {
+            _stopAndProcess();
+          }
+        }
+      },
+      onError: (error) {
+        _state = VoiceAssistantState.error;
+        _lastResponse = 'Could not hear you. Please try again.';
+        notifyListeners();
+        if (_continuousMode) {
+          Future.delayed(const Duration(seconds: 2), () {
+            if (_continuousMode && _state == VoiceAssistantState.error) {
+              startListening(continuous: true);
+            }
+          });
+        }
+      },
+    );
+    notifyListeners();
+  }
+
+  Future<void> _initTts() async {
     await _tts.setLanguage('en-IN');
     await _tts.setSpeechRate(0.5);
     await _tts.setVolume(1.0);
@@ -77,35 +203,15 @@ class VoiceAssistantService extends ChangeNotifier {
       _state = VoiceAssistantState.idle;
       notifyListeners();
 
-      if (_continuousMode && _currentCallback != null) {
+      // In continuous mode, restart listening automatically after speaking!
+      if (_continuousMode) {
         Future.delayed(const Duration(milliseconds: 700), () {
-          if (_continuousMode && _currentCallback != null) {
-            startListening(onResult: _currentCallback, continuous: true);
+          if (_continuousMode) {
+            startListening(continuous: true);
           }
         });
       }
     });
-
-    _isAvailable = await _stt.initialize(
-      onStatus: (val) {
-        if (val == 'done' || val == 'notListening') {
-          if (_state == VoiceAssistantState.listening) {
-            _stopAndProcess();
-          }
-        }
-      },
-      onError: (val) {
-        _state = VoiceAssistantState.error;
-        notifyListeners();
-        if (_continuousMode) {
-          Future.delayed(const Duration(seconds: 2), () {
-            if (_continuousMode && _currentCallback != null) {
-              startListening(onResult: _currentCallback, continuous: true);
-            }
-          });
-        }
-      },
-    );
   }
 
   Future<void> startListening({Function(VoiceAssistantAction)? onResult, bool continuous = true}) async {
@@ -117,19 +223,23 @@ class VoiceAssistantService extends ChangeNotifier {
     }
 
     if (!_isAvailable) {
-      await init();
+      _isAvailable = await _stt.initialize();
+    }
+    if (!_isAvailable) {
+      _lastResponse = 'Microphone not available.';
+      notifyListeners();
+      return;
     }
 
     _continuousMode = continuous;
-    if (onResult != null) _currentCallback = onResult;
-
+    _transcribedText = '';
+    _lastAction = null;
     _state = VoiceAssistantState.listening;
-    _currentText = '';
     notifyListeners();
 
     await _stt.listen(
-      onResult: (val) {
-        _currentText = val.recognizedWords;
+      onResult: (result) {
+        _transcribedText = result.recognizedWords;
         notifyListeners();
       },
       localeId: 'en_IN',
@@ -139,30 +249,29 @@ class VoiceAssistantService extends ChangeNotifier {
     );
   }
 
-  void stopListening() {
-    _stt.stop();
-    _stopAndProcess();
+  Future<void> stopListening() async {
+    await _stt.stop();
+    await _stopAndProcess();
   }
 
-  void stopContinuousConversation() {
+  Future<void> stopContinuousConversation() async {
     _continuousMode = false;
-    _currentCallback = null;
-    _stt.stop();
-    _tts.stop();
+    await _stt.stop();
+    await _tts.stop();
     _state = VoiceAssistantState.idle;
-    _currentText = '';
+    _transcribedText = '';
     notifyListeners();
   }
 
   Future<void> _stopAndProcess() async {
-    _stt.stop();
-    if (_currentText.trim().isEmpty) {
+    await _stt.stop();
+    if (_transcribedText.trim().isEmpty) {
       _state = VoiceAssistantState.idle;
       notifyListeners();
       return;
     }
 
-    final input = _currentText.trim();
+    final input = _transcribedText.trim();
     final lower = input.toLowerCase();
 
     // Check if user spoke stop command
@@ -172,46 +281,48 @@ class VoiceAssistantService extends ChangeNotifier {
         lower.contains('stop listening') ||
         lower == 'close' ||
         lower == 'bye') {
-      stopContinuousConversation();
-      await speak('Assistant stopped.');
+      _continuousMode = false;
+      _state = VoiceAssistantState.idle;
+      _lastResponse = 'Assistant stopped. Tap microphone anytime to start again.';
+      notifyListeners();
+      await _speak('Assistant stopped.');
       return;
     }
 
     _state = VoiceAssistantState.processing;
     notifyListeners();
 
-    _chatHistory.add(CustomerChatMessage(
+    _chatHistory.add(ChatMessage(
       text: input,
       isUser: true,
       timestamp: DateTime.now(),
     ));
+    unawaited(_saveHistory());
 
     try {
       final action = await _processTextWithLLM(input);
       _lastAction = action;
-      _lastResponse = action.responseText ?? '';
+      _lastResponse = action.responseText;
 
-      _chatHistory.add(CustomerChatMessage(
-        text: action.responseText ?? 'Done',
+      _chatHistory.add(ChatMessage(
+        text: action.responseText,
         isUser: false,
         timestamp: DateTime.now(),
         action: action,
+        isNew: true,
       ));
+      unawaited(_saveHistory());
+
+      // Fire navigation/UI side-effects immediately — don't wait for TTS.
+      onActionReady?.call(action);
 
       _state = VoiceAssistantState.speaking;
       notifyListeners();
-
-      if (action.responseText != null) {
-        await speak(action.responseText!, langCode: action.langCode);
-      }
-      if (_currentCallback != null) {
-        _currentCallback!(action);
-      }
+      await _speak(action.responseText, langCode: action.langCode);
     } catch (e) {
-      _state = VoiceAssistantState.error;
       _lastResponse = 'Could not process that. Please try again.';
+      _state = VoiceAssistantState.error;
       notifyListeners();
-      await speak("Sorry, I could not process that.");
     }
   }
 
@@ -219,40 +330,41 @@ class VoiceAssistantService extends ChangeNotifier {
     final text = userText.trim();
     if (text.isEmpty) return;
 
-    _chatHistory.add(CustomerChatMessage(
+    _chatHistory.add(ChatMessage(
       text: text,
       isUser: true,
       timestamp: DateTime.now(),
     ));
+    unawaited(_saveHistory());
     _state = VoiceAssistantState.processing;
     notifyListeners();
 
     try {
       final action = await _processTextWithLLM(text);
       _lastAction = action;
-      _lastResponse = action.responseText ?? '';
+      _lastResponse = action.responseText;
 
-      _chatHistory.add(CustomerChatMessage(
-        text: action.responseText ?? 'Done',
+      _chatHistory.add(ChatMessage(
+        text: action.responseText,
         isUser: false,
         timestamp: DateTime.now(),
         action: action,
+        isNew: true,
       ));
+      unawaited(_saveHistory());
+
+      onActionReady?.call(action);
+      onResult?.call(action);
 
       _state = VoiceAssistantState.idle;
       notifyListeners();
-
-      if (onResult != null) {
-        onResult(action);
-      } else if (_currentCallback != null) {
-        _currentCallback!(action);
-      }
     } catch (_) {
-      _chatHistory.add(CustomerChatMessage(
+      _chatHistory.add(ChatMessage(
         text: 'Sorry, could not process that request. Please try again.',
         isUser: false,
         timestamp: DateTime.now(),
       ));
+      unawaited(_saveHistory());
       _state = VoiceAssistantState.idle;
       notifyListeners();
     }
@@ -261,14 +373,23 @@ class VoiceAssistantService extends ChangeNotifier {
   static String detectLanguageCode(String text) {
     for (int i = 0; i < text.length; i++) {
       final code = text.codeUnitAt(i);
+      // Devanagari (Hindi, Marathi)
       if (code >= 0x0900 && code <= 0x097F) return 'hi-IN';
+      // Bengali
       if (code >= 0x0980 && code <= 0x09FF) return 'bn-IN';
+      // Gurmukhi (Punjabi)
       if (code >= 0x0A00 && code <= 0x0A7F) return 'pa-IN';
+      // Gujarati
       if (code >= 0x0A80 && code <= 0x0AFF) return 'gu-IN';
+      // Tamil
       if (code >= 0x0B80 && code <= 0x0BFF) return 'ta-IN';
+      // Telugu
       if (code >= 0x0C00 && code <= 0x0C7F) return 'te-IN';
+      // Kannada
       if (code >= 0x0C80 && code <= 0x0CFF) return 'kn-IN';
+      // Malayalam
       if (code >= 0x0D00 && code <= 0x0D7F) return 'ml-IN';
+      // Arabic / Urdu
       if (code >= 0x0600 && code <= 0x06FF) return 'ur-IN';
     }
     return 'en-IN';
@@ -314,9 +435,9 @@ class VoiceAssistantService extends ChangeNotifier {
           final resp = result['response'] as String? ?? 'Showing results';
           final lang = (result['lang'] as String?) ?? detectLanguageCode(resp);
           return VoiceAssistantAction(
-            type: result['type'] ?? 'unknown',
-            from: result['from'],
-            to: result['to'],
+            type: result['type'] as String? ?? 'unknown',
+            fromCity: result['from'] as String?,
+            toCity: result['to'] as String?,
             responseText: resp,
             langCode: lang,
           );
@@ -366,8 +487,8 @@ class VoiceAssistantService extends ChangeNotifier {
     if (fCity != null) {
       return VoiceAssistantAction(
         type: 'book_shipment',
-        from: fCity,
-        to: tCity,
+        fromCity: fCity,
+        toCity: tCity,
         responseText: lang == 'hi-IN'
             ? '$fCity se ${tCity ?? ""} ke liye truck dhundh raha hoon.'
             : 'Finding trucks from $fCity to ${tCity ?? ""}.',
@@ -384,7 +505,7 @@ class VoiceAssistantService extends ChangeNotifier {
     );
   }
 
-  Future<void> speak(String text, {String? langCode}) async {
+  Future<void> _speak(String text, {String? langCode}) async {
     try {
       final code = langCode ?? detectLanguageCode(text);
       await _tts.setLanguage(code);
@@ -394,8 +515,12 @@ class VoiceAssistantService extends ChangeNotifier {
     }
   }
 
+  Future<void> speak(String text, {String? langCode}) async {
+    await _speak(text, langCode: langCode);
+  }
+
   Future<void> speakMessage(String text) async {
-    await speak(text);
+    await _speak(text);
   }
 
   Future<void> cancelSpeaking() async {
@@ -405,8 +530,7 @@ class VoiceAssistantService extends ChangeNotifier {
   }
 
   void clearChat() {
-    _chatHistory.clear();
-    notifyListeners();
+    clearHistory();
   }
 
   @override

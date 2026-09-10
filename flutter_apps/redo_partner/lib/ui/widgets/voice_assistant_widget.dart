@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -7,9 +8,11 @@ import '../../../l10n/app_localizations.dart';
 
 /// A floating voice assistant button that overlays all screens.
 /// Supports continuous multi-turn listening and an AI text chat interface.
+/// Navigation/side-effects for parsed actions are wired via
+/// `VoiceAssistantService.onActionReady`, set once by the screen that owns
+/// this FAB — this covers both the mic AND the text chat sheet identically.
 class VoiceAssistantFab extends StatelessWidget {
-  final Function(VoiceAssistantAction)? onAction;
-  const VoiceAssistantFab({super.key, this.onAction});
+  const VoiceAssistantFab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -232,11 +235,7 @@ class VoiceAssistantFab extends StatelessWidget {
     } else if (va.state == VoiceAssistantState.speaking) {
       va.cancelSpeaking();
     } else {
-      va.startListening(continuous: true).then((_) {
-        if (va.lastAction != null && onAction != null) {
-          onAction!(va.lastAction!);
-        }
-      });
+      va.startListening(continuous: true);
     }
   }
 
@@ -380,6 +379,11 @@ class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
                   ],
                 ),
                 IconButton(
+                  icon: Icon(Icons.add_comment_outlined, color: textMuted, size: 20),
+                  tooltip: 'New chat',
+                  onPressed: () => va.clearHistory(),
+                ),
+                IconButton(
                   icon: Icon(Icons.close, color: textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -395,7 +399,7 @@ class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               itemCount: _quickPrompts.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (ctx, i) {
                 return ActionChip(
                   backgroundColor: isDark ? const Color(0xFF0F172A) : AppColors.canvas,
@@ -446,14 +450,24 @@ class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                m.text,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: m.isUser ? FontWeight.w700 : FontWeight.w500,
-                                  color: m.isUser ? AppColors.slateDark : textPrimary,
-                                ),
-                              ),
+                              m.isNew && !m.isUser
+                                  ? _TypewriterText(
+                                      text: m.text,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: textPrimary,
+                                      ),
+                                      onDone: () => m.isNew = false,
+                                    )
+                                  : Text(
+                                      m.text,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: m.isUser ? FontWeight.w700 : FontWeight.w500,
+                                        color: m.isUser ? AppColors.slateDark : textPrimary,
+                                      ),
+                                    ),
                               if (!m.isUser) ...[
                                 const SizedBox(height: 6),
                                 Row(
@@ -532,5 +546,57 @@ class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
         ],
       ),
     );
+  }
+}
+
+/// Reveals [text] a few characters at a time, ChatGPT-style. The underlying
+/// network response isn't token-streamed (Sarvam's reply must be parsed as
+/// one JSON object before we know the type/route/etc.), so this simulates
+/// the streaming feel client-side once the full reply is in hand. Calls
+/// [onDone] exactly once when the reveal finishes, so the caller can flip
+/// the message's `isNew` flag back to false.
+class _TypewriterText extends StatefulWidget {
+  final String text;
+  final TextStyle? style;
+  final VoidCallback? onDone;
+
+  const _TypewriterText({required this.text, this.style, this.onDone});
+
+  @override
+  State<_TypewriterText> createState() => _TypewriterTextState();
+}
+
+class _TypewriterTextState extends State<_TypewriterText> {
+  int _visibleChars = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // A couple characters per tick keeps long replies from taking forever,
+    // while still reading as a live "typing" reveal rather than a jump-cut.
+    const charsPerTick = 2;
+    _timer = Timer.periodic(const Duration(milliseconds: 18), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _visibleChars = (_visibleChars + charsPerTick).clamp(0, widget.text.length));
+      if (_visibleChars >= widget.text.length) {
+        t.cancel();
+        widget.onDone?.call();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(widget.text.substring(0, _visibleChars), style: widget.style);
   }
 }

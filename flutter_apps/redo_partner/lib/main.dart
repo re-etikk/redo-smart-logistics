@@ -96,8 +96,30 @@ class PartnerMainTabs extends StatefulWidget {
 class _PartnerMainTabsState extends State<PartnerMainTabs> {
   int _currentIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Register once: fires for BOTH the mic and the AI text chat sheet, the
+    // moment an action is parsed — not after some unrelated future resolves.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<VoiceAssistantService>().onActionReady = _handleVoiceAction;
+    });
+  }
+
   void _handleVoiceAction(VoiceAssistantAction action) {
     switch (action.type) {
+      case 'search_route':
+        // Actually apply the spoken/typed route to the loads search — this
+        // is the part that was previously a no-op (only switched tabs).
+        final query = [action.fromCity, action.toCity]
+            .where((c) => c != null && c.trim().isNotEmpty)
+            .join(' ');
+        if (query.isNotEmpty) {
+          context.read<PartnerTripsViewModel>().setSearchFilter(query);
+        }
+        setState(() => _currentIndex = 0);
+        break;
       case 'check_earnings':
         setState(() => _currentIndex = 2);
         break;
@@ -109,7 +131,8 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
         setState(() => _currentIndex = 1);
         break;
       default:
-        setState(() => _currentIndex = 0);
+        // 'chat' / 'unknown' — plain conversational answer, no navigation.
+        break;
     }
   }
 
@@ -128,9 +151,7 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
         index: _currentIndex,
         children: screens,
       ),
-      floatingActionButton: VoiceAssistantFab(
-        onAction: _handleVoiceAction,
-      ),
+      floatingActionButton: const VoiceAssistantFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

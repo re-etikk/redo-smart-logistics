@@ -89,8 +89,22 @@ class CustomerMainTabs extends StatefulWidget {
 class _CustomerMainTabsState extends State<CustomerMainTabs> {
   int _currentIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Register once: fires for BOTH the mic and the AI text chat sheet, the
+    // moment an action is parsed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<VoiceAssistantService>().onActionReady = _handleVoiceAction;
+    });
+  }
+
   void _handleVoiceAction(VoiceAssistantAction action) {
     switch (action.type) {
+      case 'book_shipment':
+        setState(() => _currentIndex = 0);
+        break;
       case 'open_bookings':
         setState(() => _currentIndex = 1);
         break;
@@ -101,7 +115,8 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
         setState(() => _currentIndex = 3);
         break;
       default:
-        setState(() => _currentIndex = 0);
+        // 'chat' / 'unknown' — plain conversational answer, no navigation.
+        break;
     }
   }
 
@@ -117,7 +132,7 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      floatingActionButton: VoiceAssistantFab(onAction: _handleVoiceAction),
+      floatingActionButton: const VoiceAssistantFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
