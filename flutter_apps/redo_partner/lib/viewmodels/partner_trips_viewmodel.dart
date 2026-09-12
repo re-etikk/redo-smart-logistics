@@ -18,6 +18,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   // Route / Corridor Search & Filter State
   String _searchFilter = '';
+  String _searchFrom = '';
+  String _searchTo = '';
   bool _myCorridorOnly = false;
   String _categoryFilter = 'all'; // 'all', 'instant', 'scheduled', 'best_match'
   String _tonnageFilter = 'all'; // 'all', 'mini', 'medium', 'heavy'
@@ -29,6 +31,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
   final Set<String> _declinedInstantIds = {};
 
   String get searchFilter => _searchFilter;
+  String get searchFrom => _searchFrom;
+  String get searchTo => _searchTo;
   bool get myCorridorOnly => _myCorridorOnly;
   String get categoryFilter => _categoryFilter;
   String get tonnageFilter => _tonnageFilter;
@@ -37,27 +41,96 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   List<AvailableLoad> get allAvailableLoads => _availableLoads;
 
+  static String _normCity(String raw) {
+    var s = raw.toLowerCase().trim();
+    s = s.replaceAll(RegExp(r'\b(hub|junction|station|terminal|city|ncr|depot|wharf|port)\b', caseSensitive: false), ' ');
+    s = s.replaceAll(RegExp(r'[^\w\s]'), ' ');
+    s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (s.contains('delhi') || s.contains('new delhi') || s.contains('gurugram') || s.contains('noida')) return 'delhi';
+    if (s.contains('mumbai') || s.contains('bombay') || s.contains('navi mumbai') || s.contains('thane')) return 'mumbai';
+    if (s.contains('bengaluru') || s.contains('bangalore')) return 'bengaluru';
+    if (s.contains('hyderabad') || s.contains('secunderabad')) return 'hyderabad';
+    if (s.contains('kolkata') || s.contains('calcutta')) return 'kolkata';
+    if (s.contains('chennai') || s.contains('madras')) return 'chennai';
+    if (s.contains('pune')) return 'pune';
+    if (s.contains('jaipur')) return 'jaipur';
+    if (s.contains('ahmedabad')) return 'ahmedabad';
+    if (s.contains('surat')) return 'surat';
+    if (s.contains('lucknow')) return 'lucknow';
+    if (s.contains('kanpur')) return 'kanpur';
+    if (s.contains('nagpur')) return 'nagpur';
+    if (s.contains('indore')) return 'indore';
+    return s;
+  }
+
   List<AvailableLoad> get availableLoads {
     var list = List<AvailableLoad>.from(_availableLoads);
-    if (_myCorridorOnly && _myTrucks.isNotEmpty) {
-      final truck = _myTrucks.first;
-      final home = truck.homeOrigin.toLowerCase();
-      list = list
-          .where(
-            (l) =>
-                l.origin.toLowerCase().contains(home) ||
-                l.destination.toLowerCase().contains(home),
-          )
-          .toList();
-    }
-    if (_searchFilter.trim().isNotEmpty) {
+
+    // Apply explicit route search if From or To is filled
+    if (_searchFrom.isNotEmpty || _searchTo.isNotEmpty) {
+      final nFrom = _normCity(_searchFrom);
+      final nTo = _normCity(_searchTo);
+
+      list = list.where((l) {
+        final lOrigin = _normCity(l.origin);
+        final lDest = _normCity(l.destination);
+
+        // When BOTH From & To are provided
+        if (nFrom.isNotEmpty && nTo.isNotEmpty) {
+          // 1. Forward corridor (e.g. Delhi -> Hyderabad)
+          final forward = (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) &&
+                          (lDest.contains(nTo) || nTo.contains(lDest));
+          if (forward) return true;
+
+          // 2. Return / Backhaul load (e.g. Hyderabad -> Delhi)
+          final returnLoad = (lOrigin.contains(nTo) || nTo.contains(lOrigin)) &&
+                             (lDest.contains(nFrom) || nFrom.contains(lDest));
+          if (returnLoad) return true;
+
+          // 3. Either stop matches if on the corridor
+          final partial = (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) ||
+                          (lDest.contains(nTo) || nTo.contains(lDest));
+          if (partial) return true;
+        } else if (nFrom.isNotEmpty) {
+          // Only From provided
+          if (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) return true;
+          if (lDest.contains(nFrom) || nFrom.contains(lDest)) return true;
+        } else if (nTo.isNotEmpty) {
+          // Only To provided
+          if (lDest.contains(nTo) || nTo.contains(lDest)) return true;
+          if (lOrigin.contains(nTo) || nTo.contains(lOrigin)) return true;
+        }
+
+        // Cargo type keyword match
+        if (_searchFilter.trim().isNotEmpty) {
+          final q = _searchFilter.toLowerCase().trim();
+          if (l.cargoType.toLowerCase().contains(q)) return true;
+        }
+
+        return false;
+      }).toList();
+    } else if (_searchFilter.trim().isNotEmpty) {
       final q = _searchFilter.toLowerCase().trim();
+      final nq = _normCity(q);
+      list = list.where((l) {
+        final lOrigin = _normCity(l.origin);
+        final lDest = _normCity(l.destination);
+        return lOrigin.contains(nq) ||
+               nq.contains(lOrigin) ||
+               lDest.contains(nq) ||
+               nq.contains(lDest) ||
+               l.origin.toLowerCase().contains(q) ||
+               l.destination.toLowerCase().contains(q) ||
+               l.cargoType.toLowerCase().contains(q);
+      }).toList();
+    } else if (_myCorridorOnly && _myTrucks.isNotEmpty) {
+      final truck = _myTrucks.first;
+      final home = _normCity(truck.homeOrigin);
       list = list
           .where(
             (l) =>
-                l.origin.toLowerCase().contains(q) ||
-                l.destination.toLowerCase().contains(q) ||
-                l.cargoType.toLowerCase().contains(q),
+                _normCity(l.origin).contains(home) ||
+                _normCity(l.destination).contains(home),
           )
           .toList();
     }
@@ -95,6 +168,21 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   void setSearchFilter(String query) {
     _searchFilter = query;
+    _searchFrom = '';
+    _searchTo = '';
+    notifyListeners();
+  }
+
+  void setRouteSearch({String from = '', String to = ''}) {
+    _searchFrom = from.trim();
+    _searchTo = to.trim();
+    if (from.isNotEmpty && to.isNotEmpty) {
+      _searchFilter = '$from ➔ $to';
+    } else if (from.isNotEmpty) {
+      _searchFilter = from;
+    } else {
+      _searchFilter = to;
+    }
     notifyListeners();
   }
 
@@ -115,6 +203,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   void clearFilters() {
     _searchFilter = '';
+    _searchFrom = '';
+    _searchTo = '';
     _myCorridorOnly = false;
     _categoryFilter = 'all';
     _tonnageFilter = 'all';

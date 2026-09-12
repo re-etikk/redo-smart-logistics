@@ -480,6 +480,20 @@ class SupabaseService {
     // 5. Fallback: High-Demand Indian Return Corridor Loads (Ready for immediate driver pickup)
     return [
       AvailableLoad(
+        cargoId: 'CR-24614',
+        smeName: 'Delhi Express Logistics',
+        origin: 'Delhi NCR Hub',
+        destination: 'Hyderabad Hub',
+        cargoType: 'Parcel / Express',
+        weightTons: 1.5,
+        offeredPriceInr: 2413.0,
+        distanceKm: 1532.0,
+        pickupWindow: 'Today, 2:00 PM • Live Broadcast',
+        matchScore: 99,
+        hasRealMatchScore: true,
+        matchReasons: ['Direct shipper corridor', 'Ideal capacity match', 'Instant advance available'],
+      ),
+      AvailableLoad(
         cargoId: 'CR-DL-MUM-01',
         smeName: 'Tata Steel Dist.',
         origin: 'Delhi',

@@ -139,7 +139,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       _fromName = place.name;
       _fromLatLng = place.latLng;
     });
-    tripsVM.setSearchFilter(place.name);
+    tripsVM.setRouteSearch(from: place.name, to: _toController.text.trim());
 
     if (_toLatLng != null) {
       _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, _fromName!, _toName!);
@@ -158,6 +158,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       _toName = place.name;
       _toLatLng = place.latLng;
     });
+    tripsVM.setRouteSearch(from: _fromController.text.trim(), to: place.name);
 
     if (_fromLatLng != null) {
       _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, _fromName!, _toName!);
@@ -293,6 +294,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     if (_fromLatLng != null && _toLatLng != null) {
       _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, _fromName ?? '', _toName ?? '');
     }
+    context.read<PartnerTripsViewModel>().setRouteSearch(
+      from: _fromController.text.trim(),
+      to: _toController.text.trim(),
+    );
   }
 
   @override
@@ -549,14 +554,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       final from = _fromController.text.trim();
                       final to = _toController.text.trim();
                       if (from.isNotEmpty || to.isNotEmpty) {
-                        final q = from.isNotEmpty ? from : to;
-                        tripsVM.setSearchFilter(q);
+                        tripsVM.setRouteSearch(from: from, to: to);
                         final p1 = _fromLatLng ?? _posFor(from.isNotEmpty ? from : 'Delhi');
-                        final p2 = _toLatLng ?? _posFor(to.isNotEmpty ? to : 'Mumbai');
+                        final p2 = _toLatLng ?? _posFor(to.isNotEmpty ? to : 'Hyderabad');
                         _fromLatLng = p1;
                         _toLatLng = p2;
                         _fromName = from.isNotEmpty ? from : 'Delhi';
-                        _toName = to.isNotEmpty ? to : 'Mumbai';
+                        _toName = to.isNotEmpty ? to : 'Hyderabad';
                         _calculateAndDrawRoute(p1, p2, _fromName!, _toName!);
                       } else {
                         tripsVM.clearFilters();
@@ -612,21 +616,37 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      // "My Corridor" Chip
+                      // "Best Match (ML)" Chip
                       FilterChip(
-                        avatar: const Icon(Icons.radar, size: 14, color: AppColors.slateDark),
+                        avatar: const Icon(Icons.star, size: 14, color: AppColors.slateDark),
                         label: Text(
-                          l10n?.bestMatch ?? '★ My Corridor',
+                          l10n?.bestMatch ?? '★ Best Match (ML)',
                           style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 11),
                         ),
-                        selected: tripsVM.myCorridorOnly,
+                        selected: tripsVM.categoryFilter == 'best_match',
                         selectedColor: AppColors.brandYellow,
                         backgroundColor: isDark ? AppColors.darkCanvas : AppColors.canvas,
-                        onSelected: (_) => tripsVM.toggleMyCorridorOnly(),
+                        onSelected: (selected) =>
+                            tripsVM.setCategoryFilter(selected ? 'best_match' : 'all'),
                       ),
                       const SizedBox(width: 6),
 
                       // Quick Corridors
+                      ActionChip(
+                        label: Text('Delhi ⇄ Hyderabad', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+                        backgroundColor: isDark ? AppColors.darkCanvas : AppColors.canvas,
+                        onPressed: () {
+                          _fromController.text = 'Delhi NCR Hub';
+                          _toController.text = 'Hyderabad Hub';
+                          _fromName = 'Delhi NCR Hub';
+                          _toName = 'Hyderabad Hub';
+                          _fromLatLng = _cityLatLng['Delhi NCR'] ?? const LatLng(28.6139, 77.2090);
+                          _toLatLng = _cityLatLng['Hyderabad'] ?? const LatLng(17.3850, 78.4867);
+                          tripsVM.setRouteSearch(from: 'Delhi NCR Hub', to: 'Hyderabad Hub');
+                          _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, 'Delhi NCR Hub', 'Hyderabad Hub');
+                        },
+                      ),
+                      const SizedBox(width: 6),
                       ActionChip(
                         label: Text('Delhi ⇄ Mumbai', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
                         backgroundColor: isDark ? AppColors.darkCanvas : AppColors.canvas,
@@ -637,7 +657,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           _toName = 'Mumbai';
                           _fromLatLng = _cityLatLng['Delhi'];
                           _toLatLng = _cityLatLng['Mumbai'];
-                          tripsVM.setSearchFilter('Delhi');
+                          tripsVM.setRouteSearch(from: 'Delhi', to: 'Mumbai');
                           if (_fromLatLng != null && _toLatLng != null) {
                             _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, 'Delhi', 'Mumbai');
                           }

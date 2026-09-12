@@ -602,6 +602,21 @@ class SupabaseService {
           } catch (_) {}
         }
       }
+
+      // Auto-sync locally saved cargo requests to backend so Partner App receives them immediately
+      Future.microtask(() async {
+        try {
+          for (final key in localKeys) {
+            final list = prefs.getStringList(key) ?? [];
+            for (final raw in list) {
+              try {
+                final map = jsonDecode(raw) as Map<String, dynamic>;
+                await ApiService.post('/cargo', map);
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      });
     } catch (_) {}
 
     final result = merged.values.toList();
