@@ -121,6 +121,24 @@ class CargoRequest {
       gstin: gNum ?? json['gstin'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'cargo_id': cargoId,
+    'sme_id': smeId,
+    'origin': origin,
+    'destination': destination,
+    'distance_km': distanceKm,
+    'cargo_type': cargoType,
+    'cargo_weight_tons': cargoWeightTons,
+    if (pickupDate != null) 'pickup_date': pickupDate,
+    if (pickupAt != null) 'pickup_at': pickupAt,
+    'urgency': urgency,
+    'status': status,
+    'created_at': createdAt,
+    if (pickupAddress != null) 'pickup_address': pickupAddress,
+    if (dropAddress != null) 'drop_address': dropAddress,
+    if (gstin != null) 'gstin': gstin,
+  };
 }
 
 class TruckMatch {
@@ -235,7 +253,8 @@ class BookingItem {
           cargo?['destination'] as String? ??
           json['destination'] as String? ??
           '',
-      cargoType: cargo?['cargo_type'] as String? ?? '',
+      cargoType:
+          cargo?['cargo_type'] as String? ?? json['cargo_type'] as String? ?? '',
       weightTons:
           (cargo?['cargo_weight_tons'] as num?)?.toDouble() ??
           (json['weight_tons'] as num?)?.toDouble() ??
@@ -248,11 +267,46 @@ class BookingItem {
       currentLng:
           (truck?['current_lng'] as num?)?.toDouble() ??
           (json['current_lng'] as num?)?.toDouble(),
-      driverName: owner?['full_name'] as String?,
-      driverPhone: owner?['phone'] as String?,
-      truckReg: truck?['registration_number'] as String?,
+      driverName: owner?['full_name'] as String? ?? json['driver_name'] as String?,
+      driverPhone: owner?['phone'] as String? ?? json['driver_phone'] as String?,
+      truckReg: truck?['registration_number'] as String? ?? json['truck_reg'] as String?,
       createdAt:
           json['created_at'] as String? ?? DateTime.now().toIso8601String(),
     );
   }
+
+  factory BookingItem.fromCargo(CargoRequest c) {
+    return BookingItem(
+      id: c.cargoId,
+      cargoId: c.cargoId,
+      truckId: '',
+      origin: c.origin,
+      destination: c.destination,
+      cargoType: c.cargoType,
+      weightTons: c.cargoWeightTons,
+      agreedPriceInr: (c.distanceKm * c.cargoWeightTons * 1.05).roundToDouble(),
+      status: c.status,
+      createdAt: c.createdAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'cargo_id': cargoId,
+    'truck_id': truckId,
+    if (pickupOtp != null) 'pickup_otp': pickupOtp,
+    if (deliveryOtp != null) 'delivery_otp': deliveryOtp,
+    'origin': origin,
+    'destination': destination,
+    'cargo_type': cargoType,
+    'weight_tons': weightTons,
+    'agreed_price_inr': agreedPriceInr,
+    'status': status,
+    if (currentLat != null) 'current_lat': currentLat,
+    if (currentLng != null) 'current_lng': currentLng,
+    if (driverName != null) 'driver_name': driverName,
+    if (driverPhone != null) 'driver_phone': driverPhone,
+    if (truckReg != null) 'truck_reg': truckReg,
+    'created_at': createdAt,
+  };
 }

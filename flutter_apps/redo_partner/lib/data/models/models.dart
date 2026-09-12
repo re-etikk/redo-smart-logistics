@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:intl/intl.dart';
 
 class DriverProfile {
   final String id;
@@ -168,6 +169,12 @@ class AvailableLoad {
   final String? dropAddress;
   final String? gstin;
   final int matchScore;
+  // True only when matchScore came from the real backend ML pipeline
+  // (/recommendations/cargo/:truck_id), scored against one of this driver's
+  // actual open trips. False for the flat/unfiltered fallback listing — the
+  // UI should hide the score badge rather than show a fabricated number.
+  final bool hasRealMatchScore;
+  final List<String> matchReasons;
 
   AvailableLoad({
     required this.cargoId,
@@ -185,7 +192,9 @@ class AvailableLoad {
     this.pickupAddress,
     this.dropAddress,
     this.gstin,
-    this.matchScore = 95,
+    this.matchScore = 0,
+    this.hasRealMatchScore = false,
+    this.matchReasons = const [],
   });
 
   factory AvailableLoad.fromJson(Map<String, dynamic> json) {
@@ -214,17 +223,8 @@ class AvailableLoad {
       } catch (_) {}
     }
 
-    // ML Match Score calculation (between 88% - 99% based on corridor and weight)
     final tons = (json['cargo_weight_tons'] as num?)?.toDouble() ?? 0;
     final km = (json['distance_km'] as num?)?.toDouble() ?? 0;
-    int calculatedScore = 92;
-    if (tons > 10 && km > 400) {
-      calculatedScore = 98;
-    } else if (isInst) {
-      calculatedScore = 96;
-    } else {
-      calculatedScore = 90 + ((tons.toInt() * 7) % 9);
-    }
 
     return AvailableLoad(
       cargoId: json['cargo_id'] as String,
@@ -232,9 +232,12 @@ class AvailableLoad {
       origin: json['origin'] as String? ?? '',
       destination: json['destination'] as String? ?? '',
       cargoType: json['cargo_type'] as String? ?? 'General Freight',
-      weightTons: (json['cargo_weight_tons'] as num?)?.toDouble() ?? 0,
-      offeredPriceInr: (json['offered_price_inr'] as num?)?.toDouble() ?? 0,
-      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
+      weightTons: tons,
+      // No confirmed price until a truck is matched/booked — show an
+      // honest estimate using the same ₹/km/ton rate the backend uses,
+      // rather than a random/undefined number.
+      offeredPriceInr: (km * tons * 1.05).roundToDouble(),
+      distanceKm: km,
       pickupWindow: json['pickup_window'] as String? ?? 'Flexible pickup',
       pickupAt: parsedPickup,
       urgency: urg,
@@ -242,7 +245,47 @@ class AvailableLoad {
       pickupAddress: pAddr,
       dropAddress: dAddr,
       gstin: gst,
-      matchScore: calculatedScore,
+      // No ML match score in this flat/unfiltered listing (it isn't scored
+      // against any specific truck/trip) — hasRealMatchScore stays false so
+      // the UI doesn't show a fabricated percentage.
+      matchScore: 0,
+      hasRealMatchScore: false,
+    );
+  }
+
+  /// Built from a REAL ranked result: backend GET
+  /// /recommendations/cargo/:truck_id — Stage-1 hard filters (route,
+  /// capacity, timing, cargo type) + Stage-2 ML ranking, scored specifically
+  /// against one of the driver's own open trips. This is the actual
+  /// "Mumbai→Delhi truck sees Mumbai→Delhi loads" matching the driver asked
+  /// for — not a flat list of every open load in the country.
+  factory AvailableLoad.fromMatchJson(Map<String, dynamic> json) {
+    final urg = (json['urgency'] as String? ?? 'normal').toLowerCase();
+    DateTime? parsedPickup;
+    if (json['pickup_at'] != null) {
+      parsedPickup = DateTime.tryParse(json['pickup_at'].toString())?.toLocal();
+    }
+    String window = 'Flexible pickup';
+    if (parsedPickup != null) window = DateFormat('EEE, d MMM - h:mm a').format(parsedPickup);
+
+    return AvailableLoad(
+      cargoId: json['cargo_id'] as String,
+      smeName: 'Verified Shipper',
+      origin: json['origin'] as String? ?? '',
+      destination: json['destination'] as String? ?? '',
+      cargoType: json['cargo_type'] as String? ?? 'General Freight',
+      weightTons: (json['cargo_weight_tons'] as num?)?.toDouble() ?? 0,
+      offeredPriceInr: (json['estimated_price_inr'] as num?)?.toDouble() ?? 0,
+      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
+      pickupWindow: window,
+      pickupAt: parsedPickup,
+      urgency: urg,
+      isInstant: urg == 'instant',
+      // match_score from the backend is 0..1 (ML probability) — show as a
+      // whole-number percentage.
+      matchScore: (((json['match_score'] as num?) ?? 0) * 100).round(),
+      hasRealMatchScore: true,
+      matchReasons: (json['reasons'] as List?)?.map((e) => '$e').toList() ?? const [],
     );
   }
 }

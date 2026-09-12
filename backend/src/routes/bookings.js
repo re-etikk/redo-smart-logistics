@@ -86,10 +86,14 @@ r.post("/", async (req, res, next) => {
 // GET /bookings — my bookings (role-aware)
 r.get("/", async (req, res, next) => {
   try {
-    let q = supabaseAdmin.from("bookings").select("*, cargo:cargo_requests(*), truck:trucks(*)").order("created_at", { ascending: false });
+    let q = supabaseAdmin.from("bookings").select("*, cargo:cargo_requests(*), truck:trucks(*, owner:profiles(full_name, phone))").order("created_at", { ascending: false });
     const { data: all } = await q;
-    let mine = (all || []).filter((b) =>
-      req.profile.role === "truck_owner" ? b.truck.owner_id === req.profile.id : b.cargo.sme_id === req.profile.id);
+    let mine = (all || []).filter((b) => {
+      if (req.profile.role === "truck_owner") {
+        return b.truck?.owner_id === req.profile.id;
+      }
+      return b.cargo?.sme_id === req.profile.id;
+    });
     if (req.profile.role === "sme") {
       mine = await Promise.all(mine.map((b) => ensureOtps(b))); // backfill old rows
     }

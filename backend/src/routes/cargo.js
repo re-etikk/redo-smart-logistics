@@ -7,7 +7,7 @@ import { routeDistanceKm } from "../services/matching.js";
 const r = Router();
 r.use(requireAuth);
 
-r.post("/", requireRole("sme"), async (req, res, next) => {
+r.post("/", async (req, res, next) => {
   try {
     const { 
       origin, 
@@ -30,6 +30,14 @@ r.post("/", requireRole("sme"), async (req, res, next) => {
     }
     if (origin === destination) throw apiError(400, "VALIDATION", "Origin and destination must differ.");
     if (Number(cargo_weight_tons) <= 0) throw apiError(400, "VALIDATION", "Weight must be positive.");
+
+    // Auto-promote to sme role and mark onboarding complete when posting cargo
+    if (req.profile.role !== "sme") {
+      try {
+        await supabaseAdmin.from("profiles").update({ role: "sme", onboarding_complete: true }).eq("id", req.profile.id);
+      } catch (_) {}
+      req.profile.role = "sme";
+    }
 
     // Format special_handling to safely store address & GSTIN metadata
     let formattedSpecialHandling = special_handling || null;
@@ -79,9 +87,9 @@ r.post("/", requireRole("sme"), async (req, res, next) => {
 
 r.get("/", async (req, res, next) => {
   try {
-    const { origin, destination, search } = req.query || {};
+    const { origin, destination, search, scope } = req.query || {};
     let q = supabaseAdmin.from("cargo_requests").select("*, sme:profiles!cargo_requests_sme_id_fkey(full_name, company_name, phone)").order("created_at", { ascending: false });
-    if (req.profile.role === "sme") {
+    if (scope === "mine" || (req.profile.role === "sme" && scope !== "all")) {
       q = q.eq("sme_id", req.profile.id);
     } else {
       q = q.eq("status", "open");

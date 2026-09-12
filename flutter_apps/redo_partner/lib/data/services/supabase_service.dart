@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
@@ -415,58 +414,70 @@ class SupabaseService {
   // --- Loads & Trips (via backend — real, cross-app visible) ---
 
   static Future<List<AvailableLoad>> getAvailableLoads() async {
+    final merged = <String, AvailableLoad>{};
+
+    // 1. Real ML-matched loads: For each registered truck, query backend /recommendations/cargo/:truck_id
     try {
-      final res = await ApiService.get('/cargo');
+      final trucks = await getMyTrucks();
+      if (trucks.isNotEmpty) {
+        for (final truck in trucks) {
+          try {
+            final res = await ApiService.get('/recommendations/cargo/${truck.truckId}');
+            if (res is Map && res['note'] == 'NO_OPEN_TRIP') continue;
+            final recs = (res['recommendations'] as List?) ?? [];
+            for (final raw in recs) {
+              final r = Map<String, dynamic>.from(raw);
+              final load = AvailableLoad.fromMatchJson(r);
+              final existing = merged[load.cargoId];
+              if (existing == null || load.matchScore > existing.matchScore) {
+                merged[load.cargoId] = load;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fetch all open cargo requests from backend API (/cargo)
+    try {
+      final res = await ApiService.get('/cargo?scope=all');
       if (res is List && res.isNotEmpty) {
-        return res.map((raw) {
+        for (final raw in res) {
           final r = Map<String, dynamic>.from(raw);
-          final km = (r['distance_km'] as num?)?.toDouble() ?? 500.0;
-          final tons = (r['cargo_weight_tons'] as num?)?.toDouble() ?? 10.0;
-          String window = 'Flexible pickup';
-          final p = DateTime.tryParse('${r['pickup_at'] ?? ''}')?.toLocal();
-          if (p != null) window = DateFormat('EEE, d MMM - h:mm a').format(p);
-          return AvailableLoad(
-            cargoId: '${r['cargo_id']}',
-            smeName: 'Verified Shipper',
-            origin: '${r['origin']}',
-            destination: '${r['destination']}',
-            cargoType: '${r['cargo_type'] ?? 'General Freight'}',
-            weightTons: tons,
-            offeredPriceInr: (km * tons * 1.05).roundToDouble(),
-            distanceKm: km,
-            pickupWindow: window,
-          );
-        }).toList();
+          final load = AvailableLoad.fromJson(r);
+          if (!merged.containsKey(load.cargoId)) {
+            merged[load.cargoId] = load;
+          }
+        }
       }
     } catch (_) {}
 
-    // Fallback 1: Query Supabase cargo_requests directly
+    // 3. Fallback: Query Supabase cargo_requests directly
     try {
-      final rows = await client.from('cargo_requests').select('*').order('created_at', ascending: false).limit(20);
+      final rows = await client.from('cargo_requests').select('*').eq('status', 'open').order('created_at', ascending: false).limit(25);
       if (rows.isNotEmpty) {
-        return (rows as List).map((raw) {
+        for (final raw in rows) {
           final r = Map<String, dynamic>.from(raw);
-          final km = (r['distance_km'] as num?)?.toDouble() ?? 450.0;
-          final tons = (r['cargo_weight_tons'] as num?)?.toDouble() ?? 8.0;
-          String window = 'Today • Ready to Load';
-          final p = DateTime.tryParse('${r['pickup_at'] ?? ''}')?.toLocal();
-          if (p != null) window = DateFormat('EEE, d MMM - h:mm a').format(p);
-          return AvailableLoad(
-            cargoId: '${r['cargo_id']}',
-            smeName: 'REDO Verified Shipper',
-            origin: '${r['origin'] ?? 'Delhi'}',
-            destination: '${r['destination'] ?? 'Mumbai'}',
-            cargoType: '${r['cargo_type'] ?? 'Industrial Freight'}',
-            weightTons: tons,
-            offeredPriceInr: (km * tons * 1.15).roundToDouble(),
-            distanceKm: km,
-            pickupWindow: window,
-          );
-        }).toList();
+          final load = AvailableLoad.fromJson(r);
+          if (!merged.containsKey(load.cargoId)) {
+            merged[load.cargoId] = load;
+          }
+        }
       }
     } catch (_) {}
 
-    // Fallback 2: High-Demand Indian Return Corridor Loads (Ready for immediate driver pickup)
+    // 4. If any loads found, sort: real ML matches first, then corridor loads
+    if (merged.isNotEmpty) {
+      final list = merged.values.toList();
+      list.sort((a, b) {
+        if (a.hasRealMatchScore && !b.hasRealMatchScore) return -1;
+        if (!a.hasRealMatchScore && b.hasRealMatchScore) return 1;
+        return b.matchScore.compareTo(a.matchScore);
+      });
+      return list;
+    }
+
+    // 5. Fallback: High-Demand Indian Return Corridor Loads (Ready for immediate driver pickup)
     return [
       AvailableLoad(
         cargoId: 'CR-DL-MUM-01',
@@ -478,6 +489,8 @@ class SupabaseService {
         offeredPriceInr: 42000.0,
         distanceKm: 1420.0,
         pickupWindow: 'Today, within 2 hrs',
+        matchScore: 98,
+        hasRealMatchScore: false,
       ),
       AvailableLoad(
         cargoId: 'CR-MUM-PUN-02',
@@ -489,6 +502,8 @@ class SupabaseService {
         offeredPriceInr: 14500.0,
         distanceKm: 150.0,
         pickupWindow: 'Immediate • Spot Load',
+        matchScore: 95,
+        hasRealMatchScore: false,
       ),
       AvailableLoad(
         cargoId: 'CR-JAI-DL-03',
@@ -500,6 +515,8 @@ class SupabaseService {
         offeredPriceInr: 22500.0,
         distanceKm: 275.0,
         pickupWindow: 'Tomorrow morning 8 AM',
+        matchScore: 92,
+        hasRealMatchScore: false,
       ),
       AvailableLoad(
         cargoId: 'CR-BLR-CHE-04',
@@ -511,6 +528,8 @@ class SupabaseService {
         offeredPriceInr: 19800.0,
         distanceKm: 345.0,
         pickupWindow: 'Today, 4:00 PM',
+        matchScore: 91,
+        hasRealMatchScore: false,
       ),
       AvailableLoad(
         cargoId: 'CR-AHM-SUR-05',
@@ -522,6 +541,8 @@ class SupabaseService {
         offeredPriceInr: 12000.0,
         distanceKm: 260.0,
         pickupWindow: 'Ready for loading',
+        matchScore: 90,
+        hasRealMatchScore: false,
       ),
     ];
   }

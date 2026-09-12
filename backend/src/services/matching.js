@@ -33,17 +33,27 @@ export function timeGapHours(truckDepartureIso, cargoPickupIso) {
   return Math.abs(a - b) / 36e5;
 }
 
+function normCity(s) {
+  if (!s) return "";
+  return s.toLowerCase().split(",")[0].trim().replace(/\s+(hub|central|area|ncr|district)$/i, "").trim();
+}
+
 // Corridor-model route similarity:
 export function routeSimilarity(trip, cargo) {
   if (!trip || !cargo) return 0.5;
-  const tO = (trip.origin || '').toLowerCase();
-  const tD = (trip.destination || '').toLowerCase();
-  const cO = (cargo.origin || '').toLowerCase();
-  const cD = (cargo.destination || '').toLowerCase();
+  const tO = normCity(trip.origin);
+  const tD = normCity(trip.destination);
+  const cO = normCity(cargo.origin);
+  const cD = normCity(cargo.destination);
 
-  if (tO.includes(cO) && tD.includes(cD)) return 1.0;
-  if (tD.includes(cD)) return 0.85;
-  if (tO.includes(cO)) return 0.80;
+  const oMatch = tO && cO && (tO.includes(cO) || cO.includes(tO));
+  const dMatch = tD && cD && (tD.includes(cD) || cD.includes(tD));
+  const revMatch = tO && cD && (tO.includes(cD) || cD.includes(tO)) && tD && cO && (tD.includes(cO) || cO.includes(tD));
+
+  if (oMatch && dMatch) return 1.0;
+  if (revMatch) return 0.95; // perfect return corridor / backhaul load
+  if (dMatch) return 0.85;
+  if (oMatch) return 0.80;
   return 0.50; // default baseline similarity so valid backhauls are never arbitrarily discarded
 }
 

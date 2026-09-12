@@ -957,24 +957,50 @@ class _LoadsBody extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.bolt, size: 14, color: AppColors.success),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      load.distanceKm > 0
-                                          ? '${load.distanceKm.round()} km road corridor'
-                                          : 'Verified Corridor Load',
-                                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.success),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.bolt, size: 14, color: AppColors.success),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          load.distanceKm > 0
+                                              ? '${load.distanceKm.round()} km road corridor'
+                                              : 'Verified Corridor Load',
+                                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.success),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Real ML match score — only shown when it came from backend ranking
+                                  if (load.hasRealMatchScore) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF3B82F6)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${load.matchScore}% match',
+                                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF3B82F6)),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
-                                ),
+                                ],
                               ),
                               Text(
                                 load.pickupWindow,

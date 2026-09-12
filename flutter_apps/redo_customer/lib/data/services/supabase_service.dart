@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -300,9 +301,10 @@ class SupabaseService {
       if (gstin != null && gstin.isNotEmpty) 'gstin': gstin,
     };
 
+    CargoRequest result;
     try {
       final res = await ApiService.post('/cargo', body);
-      return CargoRequest.fromJson(Map<String, dynamic>.from(res));
+      result = CargoRequest.fromJson(Map<String, dynamic>.from(res));
     } catch (e) {
       // Fallback 1: Direct Supabase insert via authenticated client session
       final generatedId = 'CR-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
@@ -323,7 +325,7 @@ class SupabaseService {
       } catch (_) {
         // Fallback 2: Proceed in-memory so user is never blocked from finding matching trucks
       }
-      return CargoRequest(
+      result = CargoRequest(
         cargoId: generatedId,
         smeId: client.auth.currentUser?.id ?? '',
         origin: origin,
@@ -340,6 +342,18 @@ class SupabaseService {
         gstin: gstin,
       );
     }
+
+    // Immediately cache locally so it never disappears on re-login or screen change
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = client.auth.currentUser?.id;
+      final rawList = prefs.getStringList('customer_posted_cargo_$uid') ?? [];
+      rawList.insert(0, jsonEncode(result.toJson()));
+      if (uid != null) await prefs.setStringList('customer_posted_cargo_$uid', rawList.take(25).toList());
+      await prefs.setStringList('customer_posted_cargo_latest', rawList.take(25).toList());
+    } catch (_) {}
+
+    return result;
   }
 
   /// ML-ranked matches for a posted cargo. Honest by design:
@@ -507,25 +521,120 @@ class SupabaseService {
   }
 
   static Future<List<BookingItem>> getShipments() async {
+    final Map<String, BookingItem> merged = {};
+    final uid = client.auth.currentUser?.id;
+
+    // 1. Fetch real bookings from Express API
     try {
       final res = await ApiService.get('/bookings');
       if (res is List) {
-        return res
-            .map((r) => BookingItem.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
+        for (final r in res) {
+          final item = BookingItem.fromJson(Map<String, dynamic>.from(r));
+          final key = item.cargoId.isNotEmpty ? item.cargoId : item.id;
+          merged[key] = item;
+        }
       }
     } catch (_) {}
 
+    // 2. Fetch bookings from Supabase table directly with full driver and truck relations
     try {
-      final rows = await client.from('bookings').select('*').order('created_at', ascending: false);
+      final rows = await client
+          .from('bookings')
+          .select('*, truck:trucks(*, owner:profiles(full_name, phone))')
+          .order('created_at', ascending: false);
       if (rows.isNotEmpty) {
-        return (rows as List)
-            .map((r) => BookingItem.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
+        for (final r in (rows as List)) {
+          final item = BookingItem.fromJson(Map<String, dynamic>.from(r));
+          final key = item.cargoId.isNotEmpty ? item.cargoId : item.id;
+          if (!merged.containsKey(key)) {
+            merged[key] = item;
+          }
+        }
       }
     } catch (_) {}
 
-    return [];
+    // 3. Fetch user's cargo requests from Express API (/cargo?scope=mine)
+    try {
+      final cargoRes = await ApiService.get('/cargo?scope=mine');
+      if (cargoRes is List) {
+        for (final c in cargoRes) {
+          final cargo = CargoRequest.fromJson(Map<String, dynamic>.from(c));
+          if (!merged.containsKey(cargo.cargoId)) {
+            merged[cargo.cargoId] = BookingItem.fromCargo(cargo);
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 4. Fetch user's cargo requests from Supabase directly
+    try {
+      var query = client.from('cargo_requests').select('*');
+      if (uid != null && uid.isNotEmpty) {
+        query = query.eq('sme_id', uid);
+      }
+      final cargoRows = await query.order('created_at', ascending: false).limit(30);
+      if (cargoRows.isNotEmpty) {
+        for (final r in (cargoRows as List)) {
+          final cargo = CargoRequest.fromJson(Map<String, dynamic>.from(r));
+          if (!merged.containsKey(cargo.cargoId)) {
+            merged[cargo.cargoId] = BookingItem.fromCargo(cargo);
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 5. Read locally persisted cargo requests from SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localKeys = [
+        if (uid != null) 'customer_posted_cargo_$uid',
+        'customer_posted_cargo_latest',
+      ];
+      for (final key in localKeys) {
+        final list = prefs.getStringList(key) ?? [];
+        for (final raw in list) {
+          try {
+            final map = jsonDecode(raw) as Map<String, dynamic>;
+            final cargo = CargoRequest.fromJson(map);
+            if (!merged.containsKey(cargo.cargoId)) {
+              merged[cargo.cargoId] = BookingItem.fromCargo(cargo);
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    final result = merged.values.toList();
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Cache combined shipments offline
+    try {
+      if (result.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        final cacheKey = uid != null ? 'customer_shipments_$uid' : 'customer_shipments_cached';
+        await prefs.setStringList(
+          cacheKey,
+          result.take(30).map((e) => jsonEncode(e.toJson())).toList(),
+        );
+      }
+    } catch (_) {}
+
+    // If result is empty, try loading cached shipments from SharedPreferences
+    if (result.isEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final cacheKey = uid != null ? 'customer_shipments_$uid' : 'customer_shipments_cached';
+        final cached = prefs.getStringList(cacheKey) ?? [];
+        for (final raw in cached) {
+          try {
+            final map = jsonDecode(raw) as Map<String, dynamic>;
+            result.add(BookingItem.fromJson(map));
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
+    return result;
   }
 
   /// SME confirms the truck (accepted -> confirmed) — unlocks the trip.
@@ -570,15 +679,21 @@ class SupabaseService {
     return ch;
   }
 
-  /// Any booking change (partner advances status on their app) -> refresh.
+  /// Any booking or cargo request change (partner advances status on their app) -> refresh.
   static RealtimeChannel subscribeBookings(void Function() onChange) {
     final ch = client.channel(
-      'bookings-${DateTime.now().microsecondsSinceEpoch}',
+      'bookings-cargo-${DateTime.now().microsecondsSinceEpoch}',
     );
     ch.onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
       table: 'bookings',
+      callback: (_) => onChange(),
+    );
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'cargo_requests',
       callback: (_) => onChange(),
     );
     ch.subscribe();

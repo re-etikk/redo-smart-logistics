@@ -7,6 +7,8 @@ import '../../../data/models/models.dart';
 import '../../../viewmodels/booking_viewmodel.dart';
 import '../../../viewmodels/shipments_viewmodel.dart';
 import '../../widgets/ui_components.dart';
+import '../invoices/invoices_screen.dart';
+import '../matches/matching_trucks_screen.dart';
 import '../misc/notifications_screen.dart';
 import 'tracking_screen.dart';
 
@@ -18,19 +20,26 @@ class ShipmentsScreen extends StatefulWidget {
   State<ShipmentsScreen> createState() => _ShipmentsScreenState();
 }
 
-class _ShipmentsScreenState extends State<ShipmentsScreen> {
-  String _filter = 'all'; // all, ongoing, completed, cancelled
+class _ShipmentsScreenState extends State<ShipmentsScreen>
+    with SingleTickerProviderStateMixin {
+  String _filter = 'all'; // all, open, ongoing, completed, cancelled
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
     Future.microtask(() => context.read<ShipmentsViewModel>().fetchShipments());
   }
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -41,9 +50,15 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
     final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     final filteredItems = vm.shipments.where((item) {
+      final isOpen = ['open', 'searching', 'pending', 'requested'].contains(item.status) &&
+          (item.truckId.isEmpty || item.status == 'open');
+
       // 1. Tab status filter
-      if (_filter == 'ongoing') {
-        if (['completed', 'cancelled'].contains(item.status)) return false;
+      if (_filter == 'open') {
+        if (!isOpen) return false;
+      } else if (_filter == 'ongoing') {
+        if (isOpen) return false;
+        if (['completed', 'delivered', 'cancelled'].contains(item.status)) return false;
       } else if (_filter == 'completed') {
         if (!['completed', 'delivered'].contains(item.status)) return false;
       } else if (_filter == 'cancelled') {
@@ -164,6 +179,7 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
   Widget _buildFilterTabs() {
     final tabs = [
       ('All', 'all'),
+      ('Open Loads', 'open'),
       ('Ongoing', 'ongoing'),
       ('Completed', 'completed'),
       ('Cancelled', 'cancelled'),
@@ -296,7 +312,259 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
   }
 
   Widget _buildShipmentCard(BookingItem item, NumberFormat currency) {
+    final isOpen = ['open', 'searching', 'pending', 'requested'].contains(item.status) &&
+        (item.truckId.isEmpty || item.status == 'open');
+    if (isOpen) {
+      return _buildOpenLoadCard(item, currency);
+    } else if (['completed', 'delivered'].contains(item.status)) {
+      return _buildCompletedShipmentCard(item, currency);
+    } else {
+      return _buildActiveShipmentCard(item, currency);
+    }
+  }
+
+  Widget _buildOpenLoadCard(BookingItem item, NumberFormat currency) {
     final shortId = item.id.length > 8 ? item.id.substring(0, 8).toUpperCase() : item.id.toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border.all(
+          color: AppColors.brandYellow.withValues(alpha: 0.6),
+          width: 1.5,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandYellow.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: ID + Animated Radar Badge
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.brandYellow.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.brandYellow.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.outbox_outlined, size: 14, color: AppColors.slateDark),
+                    const SizedBox(width: 4),
+                    Text(
+                      '#LOAD-$shortId',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.slateDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Color.lerp(
+                        AppColors.brandYellow.withValues(alpha: 0.15),
+                        AppColors.brandYellow.withValues(alpha: 0.35),
+                        _pulseController.value,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.brandYellow.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Transform.scale(
+                          scale: 0.85 + (_pulseController.value * 0.25),
+                          child: const Icon(
+                            Icons.radar,
+                            size: 14,
+                            color: AppColors.slateDark,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Searching Corridor Trucks',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.slateDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Route: Origin -> Destination
+          Row(
+            children: [
+              const Icon(Icons.trip_origin, color: AppColors.success, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.origin,
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.arrow_forward, size: 14, color: AppColors.inkMuted),
+              ),
+              const Icon(Icons.location_on, color: AppColors.danger, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.destination,
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Cargo weight & type
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  '${item.weightTons.toStringAsFixed(1)} Tons',
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  item.cargoType.isEmpty ? 'General Freight' : item.cargoType,
+                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Corridor live match banner
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.canvas,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.bolt, size: 16, color: AppColors.warning),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Corridor Broadcast Active • Drivers notified along route',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.slateSoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // Bottom Row: Estimated Price + [View Matching Trucks]
+          Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Estimated Rate',
+                    style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
+                  ),
+                  Text(
+                    item.agreedPriceInr > 0 ? currency.format(item.agreedPriceInr) : 'Market Rate',
+                    style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final bvm = context.read<BookingViewModel>();
+                  bvm.setOrigin(item.origin);
+                  bvm.setDestination(item.destination);
+                  bvm.setCargoType(item.cargoType);
+                  bvm.setWeightTons(item.weightTons);
+                  await bvm.searchMatchingTrucks();
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MatchingTrucksScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brandYellow,
+                  foregroundColor: AppColors.slateDark,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+                icon: const Icon(Icons.local_shipping, size: 16),
+                label: Text(
+                  'View Matching Trucks',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveShipmentCard(BookingItem item, NumberFormat currency) {
+    final shortId = item.id.length > 8 ? item.id.substring(0, 8).toUpperCase() : item.id.toUpperCase();
+    final isAssigned = ['accepted', 'confirmed', 'pickup_ready'].contains(item.status);
+    final isInTransit = ['picked_up', 'in_transit'].contains(item.status);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -346,6 +614,74 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
           ),
           const SizedBox(height: 12),
 
+          // Driver & Truck Information Card
+          Container(
+            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppColors.canvas,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.brandYellow,
+                  child: const Icon(Icons.person, size: 20, color: AppColors.slateDark),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.driverName ?? 'Verified Partner Driver',
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.slateDark,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              item.truckReg ?? (item.truckId.isNotEmpty ? item.truckId : 'Commercial Truck'),
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          if (item.driverPhone != null && item.driverPhone!.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              item.driverPhone!,
+                              style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (item.driverPhone != null && item.driverPhone!.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.phone, size: 18, color: AppColors.success),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Calling driver: ${item.driverPhone}')),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+
           // Route: Origin -> Destination
           Row(
             children: [
@@ -377,14 +713,65 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
           ),
           const SizedBox(height: 6),
 
-          // Cargo Info Chip
-          Text(
-            '${item.weightTons.toStringAsFixed(1)} Tons · ${item.cargoType.isEmpty ? 'Cargo' : item.cargoType}',
-            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+          // Cargo Info Chip & OTP
+          Row(
+            children: [
+              Text(
+                '${item.weightTons.toStringAsFixed(1)} Tons · ${item.cargoType.isEmpty ? 'Cargo' : item.cargoType}',
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+              ),
+              const Spacer(),
+              if (isAssigned && item.pickupOtp != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandYellow.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.brandYellow),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.pin_outlined, size: 12, color: AppColors.slateDark),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Pickup OTP: ${item.pickupOtp}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.slateDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (isInTransit && item.deliveryOtp != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.success),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.pin_outlined, size: 12, color: AppColors.success),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Delivery OTP: ${item.deliveryOtp}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 14),
 
-          // 4-Step Stepper from Mockup 2
+          // 4-Step Stepper
           _build4StepStepper(item.status),
           const SizedBox(height: 14),
 
@@ -409,6 +796,174 @@ class _ShipmentsScreenState extends State<ShipmentsScreen> {
               ),
               const Spacer(),
               _buildActions(item),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedShipmentCard(BookingItem item, NumberFormat currency) {
+    final shortId = item.id.length > 8 ? item.id.substring(0, 8).toUpperCase() : item.id.toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  '#REDO-$shortId',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.slateDark,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.success),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, size: 13, color: AppColors.success),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Completed & Delivered',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Route
+          Row(
+            children: [
+              const Icon(Icons.trip_origin, color: AppColors.success, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.origin,
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.arrow_forward, size: 14, color: AppColors.inkMuted),
+              ),
+              const Icon(Icons.location_on, color: AppColors.danger, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.destination,
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${item.weightTons.toStringAsFixed(1)} Tons · ${item.cargoType.isEmpty ? 'Cargo' : item.cargoType}',
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+          ),
+          const SizedBox(height: 12),
+
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Paid Total',
+                    style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
+                  ),
+                  Text(
+                    currency.format(item.agreedPriceInr),
+                    style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const InvoicesScreen()),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                icon: const Icon(Icons.receipt, size: 14),
+                label: Text(
+                  'GST Invoice',
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                onPressed: () => _rateDialog(item),
+                icon: const Icon(Icons.star, size: 20, color: AppColors.brandYellow),
+                tooltip: 'Rate driver',
+              ),
+              const SizedBox(width: 4),
+              ElevatedButton(
+                onPressed: () {
+                  final bvm = context.read<BookingViewModel>();
+                  bvm.setOrigin(item.origin);
+                  bvm.setDestination(item.destination);
+                  widget.onNewBookingPressed?.call();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brandYellow,
+                  foregroundColor: AppColors.slateDark,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: Text('Rebook', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800)),
+              ),
             ],
           ),
         ],

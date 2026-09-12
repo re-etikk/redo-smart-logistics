@@ -149,8 +149,8 @@ class VoiceAssistantFab extends StatelessWidget {
                 else if (va.state == VoiceAssistantState.speaking)
                   Row(
                     children: [
-                      const Icon(Icons.volume_up, size: 14, color: AppColors.success),
-                      const SizedBox(width: 6),
+                      const _AnimatedWaveBars(color: AppColors.success, height: 14),
+                      const SizedBox(width: 8),
                       Text('Speaking response...', style: GoogleFonts.inter(fontSize: 11, color: AppColors.success)),
                     ],
                   ),
@@ -211,16 +211,16 @@ class VoiceAssistantFab extends StatelessWidget {
                     )
                   : AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        va.state == VoiceAssistantState.listening
-                            ? Icons.mic_off
-                            : va.state == VoiceAssistantState.speaking
-                                ? Icons.volume_up
-                                : Icons.mic,
-                        key: ValueKey(va.state),
-                        color: AppColors.slateDark,
-                        size: 26,
-                      ),
+                      child: va.state == VoiceAssistantState.listening
+                          ? const _AnimatedWaveBars(color: Colors.white, height: 20)
+                          : Icon(
+                              va.state == VoiceAssistantState.speaking
+                                  ? Icons.volume_up
+                                  : Icons.mic,
+                              key: ValueKey(va.state),
+                              color: AppColors.slateDark,
+                              size: 26,
+                            ),
                     ),
             ),
           ],
@@ -252,8 +252,8 @@ class VoiceAssistantFab extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.graphic_eq, color: AppColors.brandYellow, size: 16),
-        const SizedBox(width: 6),
+        const _AnimatedWaveBars(color: AppColors.brandYellow, height: 16),
+        const SizedBox(width: 8),
         Text(
           l10n?.listening ?? 'Listening... (Speak in any language)',
           style: GoogleFonts.inter(
@@ -280,12 +280,133 @@ class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
   final _scrollCtrl = ScrollController();
 
   final _quickPrompts = [
-    'Delhi se Mumbai ke return loads',
-    'Meri total earnings kitni hui?',
-    'Truck RC kaise register karein?',
-    'Active trips ka status kya hai?',
-    'Show high-paying freight loads',
+    'Delhi se Mumbai return loads 🚛',
+    'Meri total earnings kitni hui? 💰',
+    'Truck RC registration status 📄',
+    'Active trips ka status kya hai? ⚡',
+    'Show high-paying freight loads 📦',
   ];
+
+  Widget _buildLoadCard(ChatMessage m, VoiceAssistantService va, bool isDark, Color textPrimary) {
+    final fromCity = m.action?.fromCity?.isNotEmpty == true ? m.action!.fromCity! : 'Mumbai Hub';
+    final toCity = m.action?.toCity?.isNotEmpty == true ? m.action!.toCity! : 'Delhi NCR';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.brandYellow.withValues(alpha: 0.6), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.brandYellow.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '★ 96% Match • Verified Corridor',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.brandYellowDark,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Instant Booking',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  color: AppColors.inkMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.trip_origin, size: 14, color: AppColors.success),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  fromCity,
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(Icons.arrow_forward, size: 12, color: AppColors.inkMuted),
+              ),
+              const Icon(Icons.location_on, size: 14, color: AppColors.danger),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  toCity,
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '16.0 Tons • Industrial Steel Coils • Ready to Load',
+            style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '₹42,000',
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900, color: textPrimary),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  if (va.onActionReady != null) {
+                    va.onActionReady!(VoiceAssistantAction(
+                      type: 'search_route',
+                      fromCity: fromCity,
+                      toCity: toCity,
+                      responseText: 'Showing corridor loads for $fromCity to $toCity',
+                    ));
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brandYellow,
+                  foregroundColor: AppColors.slateDark,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.bolt, size: 14),
+                label: Text('Accept Load', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -469,6 +590,14 @@ class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
                                       ),
                                     ),
                               if (!m.isUser) ...[
+                                if (m.action?.type == 'search_route' ||
+                                    (m.action?.fromCity != null && m.action!.fromCity!.isNotEmpty) ||
+                                    m.text.toLowerCase().contains('load') ||
+                                    m.text.toLowerCase().contains('freight') ||
+                                    m.text.toLowerCase().contains('mumbai') ||
+                                    m.text.toLowerCase().contains('delhi') ||
+                                    m.text.toLowerCase().contains('pune'))
+                                  _buildLoadCard(m, va, isDark, textPrimary),
                                 const SizedBox(height: 6),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -598,5 +727,64 @@ class _TypewriterTextState extends State<_TypewriterText> {
   @override
   Widget build(BuildContext context) {
     return Text(widget.text.substring(0, _visibleChars), style: widget.style);
+  }
+}
+
+class _AnimatedWaveBars extends StatefulWidget {
+  final Color color;
+  final double height;
+  const _AnimatedWaveBars({required this.color, this.height = 18});
+
+  @override
+  State<_AnimatedWaveBars> createState() => _AnimatedWaveBarsState();
+}
+
+class _AnimatedWaveBarsState extends State<_AnimatedWaveBars>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        return SizedBox(
+          height: widget.height,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: List.generate(5, (i) {
+              final offsets = [0.15, 0.65, 0.95, 0.45, 0.3];
+              final factor = ((_ctrl.value + offsets[i]) % 1.0);
+              final barH = (4.0 + (factor * (widget.height - 4))).clamp(4.0, widget.height);
+              return Container(
+                width: 3.5,
+                height: barH,
+                margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
+          ),
+        );
+      },
+    );
   }
 }
