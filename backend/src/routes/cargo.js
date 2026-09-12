@@ -1,88 +1,36 @@
 import { Router } from "express";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { apiError } from "../middleware/error.js";
-import { routeDistanceKm } from "../services/matching.js";
+import { routeDistanceKm, normCity } from "../services/matching.js";
 
 const r = Router();
 
-// In-memory active cargo pool — ensures zero-failure cross-app synchronization
-// even if Supabase has RLS or table permission restrictions (e.g. 42501).
-const activeCargoPool = new Map();
+// In-memory active cargo pool — stores REAL loads posted by shippers with zero downtime.
+// Starts EMPTY — ONLY holds real cargo requests created by users or loaded from database!
+export const activeCargoPool = new Map();
 
-// Pre-seed with the active Delhi NCR Hub ➔ Hyderabad Hub load and major corridors
-const defaultSeedLoads = [
-  {
-    cargo_id: "CR-24614",
-    sme_id: "00000000-0000-0000-0000-000000000002",
-    origin: "Delhi NCR Hub",
-    destination: "Hyderabad Hub",
-    distance_km: 1532,
-    cargo_type: "Parcel / Express",
-    cargo_weight_tons: 1.5,
-    pickup_at: new Date(Date.now() + 3600000 * 4).toISOString(),
-    pickup_date: new Date().toISOString().slice(0, 10),
-    pickup_hour: 14,
-    urgency: "normal",
-    status: "open",
-    offered_price_inr: 2413,
-    created_at: new Date().toISOString(),
-    sme: { full_name: "Meera Traders", company_name: "Delhi Express Logistics", phone: "+91-9811223344" }
-  },
-  {
-    cargo_id: "CR-DL-MUM-01",
-    sme_id: "00000000-0000-0000-0000-000000000002",
-    origin: "Delhi",
-    destination: "Mumbai",
-    distance_km: 1420,
-    cargo_type: "Steel Coils & Auto Parts",
-    cargo_weight_tons: 16.0,
-    pickup_at: new Date(Date.now() + 3600000 * 2).toISOString(),
-    pickup_date: new Date().toISOString().slice(0, 10),
-    pickup_hour: 12,
-    urgency: "instant",
-    status: "open",
-    offered_price_inr: 42000,
-    created_at: new Date().toISOString(),
-    sme: { full_name: "Tata Steel Dist.", company_name: "Tata Steel Dist.", phone: "+91-9800000002" }
-  },
-  {
-    cargo_id: "CR-MUM-PUN-02",
-    sme_id: "00000000-0000-0000-0000-000000000002",
-    origin: "Mumbai",
-    destination: "Pune",
-    distance_km: 150,
-    cargo_type: "Industrial Machinery",
-    cargo_weight_tons: 8.5,
-    pickup_at: new Date(Date.now() + 3600000 * 3).toISOString(),
-    pickup_date: new Date().toISOString().slice(0, 10),
-    pickup_hour: 15,
-    urgency: "normal",
-    status: "open",
-    offered_price_inr: 14500,
-    created_at: new Date().toISOString(),
-    sme: { full_name: "Bajaj Logistics", company_name: "Bajaj Logistics", phone: "+91-9800000004" }
-  },
-  {
-    cargo_id: "CR-BLR-CHE-04",
-    sme_id: "00000000-0000-0000-0000-000000000002",
-    origin: "Bengaluru",
-    destination: "Chennai",
-    distance_km: 345,
-    cargo_type: "Electronics & Hardware",
-    cargo_weight_tons: 7.0,
-    pickup_at: new Date(Date.now() + 3600000 * 5).toISOString(),
-    pickup_date: new Date().toISOString().slice(0, 10),
-    pickup_hour: 16,
-    urgency: "normal",
-    status: "open",
-    offered_price_inr: 19800,
-    created_at: new Date().toISOString(),
-    sme: { full_name: "South Freight Hub", company_name: "South Freight Hub", phone: "+91-9800000005" }
+export function getCargoById(id) {
+  return activeCargoPool.get(id) || null;
+}
+
+export async function getActiveOpenCargos() {
+  const merged = new Map();
+  for (const [id, item] of activeCargoPool.entries()) {
+    if (item.status === "open") merged.set(id, item);
   }
-];
-
-for (const load of defaultSeedLoads) {
-  activeCargoPool.set(load.cargo_id, load);
+  try {
+    const { data } = await supabaseAdmin
+      .from("cargo_requests")
+      .select("*, sme:profiles!cargo_requests_sme_id_fkey(full_name, company_name, phone)")
+      .eq("status", "open")
+      .limit(100);
+    if (Array.isArray(data)) {
+      for (const row of data) {
+        merged.set(row.cargo_id, { ...merged.get(row.cargo_id), ...row });
+      }
+    }
+  } catch (_) {}
+  return Array.from(merged.values());
 }
 
 // Optional Auth Middleware: Extracts user/profile if token is valid, but allows
@@ -280,24 +228,40 @@ r.get("/", async (req, res, next) => {
 
     let list = Array.from(merged.values());
 
-    // Filter by origin
-    if (origin) {
-      const q = origin.toLowerCase().trim();
-      list = list.filter(c => c.origin && c.origin.toLowerCase().includes(q));
+    // Strict Corridor / Route filtering
+    if (origin && destination) {
+      const normO = normCity(origin);
+      const normD = normCity(destination);
+      list = list.filter(c => {
+        const cO = normCity(c.origin || "");
+        const cD = normCity(c.destination || "");
+        // 1. Forward corridor (e.g. Delhi -> Hyderabad)
+        const forward = (cO.includes(normO) || normO.includes(cO)) && (cD.includes(normD) || normD.includes(cD));
+        // 2. Return / Backhaul load (e.g. Hyderabad -> Delhi)
+        const returnLoad = (cO.includes(normD) || normD.includes(cO)) && (cD.includes(normO) || normO.includes(cD));
+        return forward || returnLoad;
+      });
+    } else if (origin) {
+      const normO = normCity(origin);
+      list = list.filter(c => {
+        const cO = normCity(c.origin || "");
+        return cO.includes(normO) || normO.includes(cO);
+      });
+    } else if (destination) {
+      const normD = normCity(destination);
+      list = list.filter(c => {
+        const cD = normCity(c.destination || "");
+        return cD.includes(normD) || normD.includes(cD);
+      });
     }
 
-    // Filter by destination
-    if (destination) {
-      const q = destination.toLowerCase().trim();
-      list = list.filter(c => c.destination && c.destination.toLowerCase().includes(q));
-    }
-
-    // Filter by general search
+    // Filter by general search keyword
     if (search) {
       const q = search.toLowerCase().trim();
+      const nq = normCity(q);
       list = list.filter(c => 
-        (c.origin && c.origin.toLowerCase().includes(q)) ||
-        (c.destination && c.destination.toLowerCase().includes(q)) ||
+        (c.origin && (c.origin.toLowerCase().includes(q) || normCity(c.origin).includes(nq))) ||
+        (c.destination && (c.destination.toLowerCase().includes(q) || normCity(c.destination).includes(nq))) ||
         (c.cargo_type && c.cargo_type.toLowerCase().includes(q))
       );
     }

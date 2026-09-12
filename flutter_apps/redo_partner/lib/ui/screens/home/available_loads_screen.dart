@@ -674,7 +674,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           _toName = 'Pune';
                           _fromLatLng = _cityLatLng['Mumbai'];
                           _toLatLng = _cityLatLng['Pune'];
-                          tripsVM.setSearchFilter('Pune');
+                          tripsVM.setRouteSearch(from: 'Mumbai', to: 'Pune');
                           if (_fromLatLng != null && _toLatLng != null) {
                             _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, 'Mumbai', 'Pune');
                           }
@@ -691,7 +691,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           _toName = 'Delhi';
                           _fromLatLng = _cityLatLng['Jaipur'];
                           _toLatLng = _cityLatLng['Delhi'];
-                          tripsVM.setSearchFilter('Jaipur');
+                          tripsVM.setRouteSearch(from: 'Jaipur', to: 'Delhi');
                           if (_fromLatLng != null && _toLatLng != null) {
                             _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, 'Jaipur', 'Delhi');
                           }
@@ -708,7 +708,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           _toName = 'Surat';
                           _fromLatLng = _cityLatLng['Ahmedabad'];
                           _toLatLng = _cityLatLng['Surat'];
-                          tripsVM.setSearchFilter('Ahmedabad');
+                          tripsVM.setRouteSearch(from: 'Ahmedabad', to: 'Surat');
                           if (_fromLatLng != null && _toLatLng != null) {
                             _calculateAndDrawRoute(_fromLatLng!, _toLatLng!, 'Ahmedabad', 'Surat');
                           }

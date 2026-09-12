@@ -466,99 +466,14 @@ class SupabaseService {
       }
     } catch (_) {}
 
-    // 4. If any loads found, sort: real ML matches first, then corridor loads
-    if (merged.isNotEmpty) {
-      final list = merged.values.toList();
-      list.sort((a, b) {
-        if (a.hasRealMatchScore && !b.hasRealMatchScore) return -1;
-        if (!a.hasRealMatchScore && b.hasRealMatchScore) return 1;
-        return b.matchScore.compareTo(a.matchScore);
-      });
-      return list;
-    }
-
-    // 5. Fallback: High-Demand Indian Return Corridor Loads (Ready for immediate driver pickup)
-    return [
-      AvailableLoad(
-        cargoId: 'CR-24614',
-        smeName: 'Delhi Express Logistics',
-        origin: 'Delhi NCR Hub',
-        destination: 'Hyderabad Hub',
-        cargoType: 'Parcel / Express',
-        weightTons: 1.5,
-        offeredPriceInr: 2413.0,
-        distanceKm: 1532.0,
-        pickupWindow: 'Today, 2:00 PM • Live Broadcast',
-        matchScore: 99,
-        hasRealMatchScore: true,
-        matchReasons: ['Direct shipper corridor', 'Ideal capacity match', 'Instant advance available'],
-      ),
-      AvailableLoad(
-        cargoId: 'CR-DL-MUM-01',
-        smeName: 'Tata Steel Dist.',
-        origin: 'Delhi',
-        destination: 'Mumbai',
-        cargoType: 'Steel Coils & Auto Parts',
-        weightTons: 16.0,
-        offeredPriceInr: 42000.0,
-        distanceKm: 1420.0,
-        pickupWindow: 'Today, within 2 hrs',
-        matchScore: 98,
-        hasRealMatchScore: false,
-      ),
-      AvailableLoad(
-        cargoId: 'CR-MUM-PUN-02',
-        smeName: 'Bajaj Logistics',
-        origin: 'Mumbai',
-        destination: 'Pune',
-        cargoType: 'Industrial Machinery',
-        weightTons: 8.5,
-        offeredPriceInr: 14500.0,
-        distanceKm: 150.0,
-        pickupWindow: 'Immediate • Spot Load',
-        matchScore: 95,
-        hasRealMatchScore: false,
-      ),
-      AvailableLoad(
-        cargoId: 'CR-JAI-DL-03',
-        smeName: 'Rajasthan Minerals',
-        origin: 'Jaipur',
-        destination: 'Delhi',
-        cargoType: 'FMCG & Packaged Goods',
-        weightTons: 12.0,
-        offeredPriceInr: 22500.0,
-        distanceKm: 275.0,
-        pickupWindow: 'Tomorrow morning 8 AM',
-        matchScore: 92,
-        hasRealMatchScore: false,
-      ),
-      AvailableLoad(
-        cargoId: 'CR-BLR-CHE-04',
-        smeName: 'South Freight Hub',
-        origin: 'Bengaluru',
-        destination: 'Chennai',
-        cargoType: 'Electronics & Hardware',
-        weightTons: 7.0,
-        offeredPriceInr: 19800.0,
-        distanceKm: 345.0,
-        pickupWindow: 'Today, 4:00 PM',
-        matchScore: 91,
-        hasRealMatchScore: false,
-      ),
-      AvailableLoad(
-        cargoId: 'CR-AHM-SUR-05',
-        smeName: 'Gujarat Textiles Corp',
-        origin: 'Ahmedabad',
-        destination: 'Surat',
-        cargoType: 'Textiles & Yarn',
-        weightTons: 6.5,
-        offeredPriceInr: 12000.0,
-        distanceKm: 260.0,
-        pickupWindow: 'Ready for loading',
-        matchScore: 90,
-        hasRealMatchScore: false,
-      ),
-    ];
+    // Return ONLY real loads found in database/backend — zero fake/mock loads!
+    final list = merged.values.toList();
+    list.sort((a, b) {
+      if (a.hasRealMatchScore && !b.hasRealMatchScore) return -1;
+      if (!a.hasRealMatchScore && b.hasRealMatchScore) return 1;
+      return b.matchScore.compareTo(a.matchScore);
+    });
+    return list;
   }
 
   /// REAL accept: creates a booking via the backend (owner_initiated), which

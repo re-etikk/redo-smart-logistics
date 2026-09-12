@@ -9,6 +9,23 @@ export const KNOWN_ROUTES = {
   "Delhi|Bengaluru": 2150, "Bengaluru|Delhi": 2150,
   "Hyderabad|Bengaluru": 570, "Bengaluru|Hyderabad": 570,
   "Ahmedabad|Mumbai": 530, "Mumbai|Ahmedabad": 530,
+  "Delhi|Hyderabad": 1530, "Hyderabad|Delhi": 1530,
+  "Delhi|Kolkata": 1500, "Kolkata|Delhi": 1500,
+  "Delhi|Chennai": 2200, "Chennai|Delhi": 2200,
+  "Mumbai|Hyderabad": 710, "Hyderabad|Mumbai": 710,
+  "Mumbai|Bengaluru": 980, "Bengaluru|Mumbai": 980,
+  "Mumbai|Kolkata": 1960, "Kolkata|Mumbai": 1960,
+  "Mumbai|Chennai": 1340, "Chennai|Mumbai": 1340,
+  "Chennai|Bengaluru": 350, "Bengaluru|Chennai": 350,
+  "Chennai|Hyderabad": 630, "Hyderabad|Chennai": 630,
+  "Kolkata|Hyderabad": 1490, "Hyderabad|Kolkata": 1490,
+  "Delhi|Pune": 1450, "Pune|Delhi": 1450,
+  "Delhi|Ahmedabad": 930, "Ahmedabad|Delhi": 930,
+  "Delhi|Lucknow": 550, "Lucknow|Delhi": 550,
+  "Delhi|Kanpur": 490, "Kanpur|Delhi": 490,
+  "Delhi|Nagpur": 1080, "Nagpur|Delhi": 1080,
+  "Delhi|Indore": 810, "Indore|Delhi": 810,
+  "Ahmedabad|Surat": 260, "Surat|Ahmedabad": 260,
 };
 
 export const routeDistanceKm = (o, d) => {
@@ -16,10 +33,13 @@ export const routeDistanceKm = (o, d) => {
   const direct = KNOWN_ROUTES[`${o}|${d}`];
   if (direct) return direct;
 
-  // Substring matching (e.g. "Delhi NCR" matches "Delhi", "Mumbai Hub" matches "Mumbai")
+  const nO = normCity(o);
+  const nD = normCity(d);
   for (const [k, v] of Object.entries(KNOWN_ROUTES)) {
     const [from, to] = k.split("|");
-    if (o.toLowerCase().includes(from.toLowerCase()) && d.toLowerCase().includes(to.toLowerCase())) {
+    const nf = normCity(from);
+    const nt = normCity(to);
+    if ((nO.includes(nf) || nf.includes(nO)) && (nD.includes(nt) || nt.includes(nD))) {
       return v;
     }
   }
@@ -33,9 +53,20 @@ export function timeGapHours(truckDepartureIso, cargoPickupIso) {
   return Math.abs(a - b) / 36e5;
 }
 
-function normCity(s) {
+export function normCity(s) {
   if (!s) return "";
-  return s.toLowerCase().split(",")[0].trim().replace(/\s+(hub|central|area|ncr|district)$/i, "").trim();
+  let c = s.toLowerCase().split(",")[0].trim()
+    .replace(/\b(hub|junction|station|terminal|city|ncr|depot|wharf|port|area|district|industrial)\b/gi, " ")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (c.includes("delhi") || c.includes("gurugram") || c.includes("noida")) return "delhi";
+  if (c.includes("mumbai") || c.includes("navi mumbai") || c.includes("thane")) return "mumbai";
+  if (c.includes("hyderabad") || c.includes("secunderabad")) return "hyderabad";
+  if (c.includes("bengaluru") || c.includes("bangalore")) return "bengaluru";
+  if (c.includes("kolkata") || c.includes("calcutta")) return "kolkata";
+  if (c.includes("chennai") || c.includes("madras")) return "chennai";
+  return c;
 }
 
 // Corridor-model route similarity:

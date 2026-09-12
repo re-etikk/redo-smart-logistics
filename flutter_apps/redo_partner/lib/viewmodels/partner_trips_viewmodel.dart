@@ -75,7 +75,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
         final lOrigin = _normCity(l.origin);
         final lDest = _normCity(l.destination);
 
-        // When BOTH From & To are provided
+        // When BOTH From & To are provided: STRICT CORRIDOR MATCH ONLY!
         if (nFrom.isNotEmpty && nTo.isNotEmpty) {
           // 1. Forward corridor (e.g. Delhi -> Hyderabad)
           final forward = (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) &&
@@ -87,18 +87,14 @@ class PartnerTripsViewModel extends ChangeNotifier {
                              (lDest.contains(nFrom) || nFrom.contains(lDest));
           if (returnLoad) return true;
 
-          // 3. Either stop matches if on the corridor
-          final partial = (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) ||
-                          (lDest.contains(nTo) || nTo.contains(lDest));
-          if (partial) return true;
+          // DO NOT match loads to third-party cities when both From & To are given!
+          return false;
         } else if (nFrom.isNotEmpty) {
-          // Only From provided
-          if (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) return true;
-          if (lDest.contains(nFrom) || nFrom.contains(lDest)) return true;
+          // Only From provided: match origin
+          return lOrigin.contains(nFrom) || nFrom.contains(lOrigin);
         } else if (nTo.isNotEmpty) {
-          // Only To provided
-          if (lDest.contains(nTo) || nTo.contains(lDest)) return true;
-          if (lOrigin.contains(nTo) || nTo.contains(lOrigin)) return true;
+          // Only To provided: match destination
+          return lDest.contains(nTo) || nTo.contains(lDest);
         }
 
         // Cargo type keyword match
