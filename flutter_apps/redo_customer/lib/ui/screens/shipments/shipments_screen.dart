@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
+import '../../../core/app_strings.dart';
 import '../../../core/theme.dart';
 import '../../../data/models/models.dart';
-import '../../../viewmodels/booking_viewmodel.dart';
 import '../../../viewmodels/shipments_viewmodel.dart';
 import '../../widgets/ui_components.dart';
-import '../invoices/invoices_screen.dart';
-import '../matches/matching_trucks_screen.dart';
 import '../misc/notifications_screen.dart';
 import 'tracking_screen.dart';
 
@@ -20,62 +19,184 @@ class ShipmentsScreen extends StatefulWidget {
   State<ShipmentsScreen> createState() => _ShipmentsScreenState();
 }
 
-class _ShipmentsScreenState extends State<ShipmentsScreen>
-    with SingleTickerProviderStateMixin {
-  String _filter = 'all'; // all, open, ongoing, completed, cancelled
+class _ShipmentsScreenState extends State<ShipmentsScreen> {
+  String _filter = 'all'; // all, ongoing, completed, cancelled
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  late AnimationController _pulseController;
+  String _sortOption = 'newest'; // newest, oldest, weight_high, weight_low
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    Future.microtask(() => context.read<ShipmentsViewModel>().fetchShipments());
+    Future.microtask(() {
+      if (mounted) {
+        context.read<ShipmentsViewModel>().fetchShipments(silent: true);
+      }
+    });
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _showFilterModal(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkBorder : AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppStrings.of(context, 'filters'),
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : AppColors.slateDark,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Sort by',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _buildSortChip('Newest First', 'newest', isDark, setSheetState),
+                      _buildSortChip('Oldest First', 'oldest', isDark, setSheetState),
+                      _buildSortChip('Heaviest (Tons)', 'weight_high', isDark, setSheetState),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brandYellow,
+                        foregroundColor: AppColors.slateDark,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Apply Filters',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSortChip(String label, String value, bool isDark, StateSetter setSheetState) {
+    final isSelected = _sortOption == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: AppColors.brandYellow,
+      backgroundColor: isDark ? AppColors.darkCanvas : const Color(0xFFF1F5F9),
+      labelStyle: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+        color: isSelected ? AppColors.slateDark : (isDark ? Colors.white70 : AppColors.inkMuted),
+      ),
+      side: BorderSide(
+        color: isSelected ? AppColors.brandYellow : (isDark ? AppColors.darkBorder : AppColors.border),
+      ),
+      onSelected: (_) {
+        setSheetState(() => _sortOption = value);
+        setState(() => _sortOption = value);
+      },
+    );
+  }
+
+  List<BookingItem> _filterAndSort(List<BookingItem> all) {
+    final list = all.where((b) {
+      final st = b.status.toLowerCase();
+      if (_filter == 'ongoing') {
+        if (!['in_transit', 'picked_up', 'confirmed', 'pickup_ready', 'open', 'searching', 'pending', 'assigned'].contains(st)) {
+          return false;
+        }
+      } else if (_filter == 'completed') {
+        if (!['completed', 'delivered'].contains(st)) return false;
+      } else if (_filter == 'cancelled') {
+        if (st != 'cancelled') return false;
+      }
+
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matchId = b.id.toLowerCase().contains(q);
+        final matchOrigin = b.origin.toLowerCase().contains(q);
+        final matchDest = b.destination.toLowerCase().contains(q);
+        final matchCargo = b.cargoType.toLowerCase().contains(q);
+        if (!matchId && !matchOrigin && !matchDest && !matchCargo) return false;
+      }
+
+      return true;
+    }).toList();
+
+    if (_sortOption == 'newest') {
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } else if (_sortOption == 'oldest') {
+      list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    } else if (_sortOption == 'weight_high') {
+      list.sort((a, b) => b.weightTons.compareTo(a.weightTons));
+    }
+
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ShipmentsViewModel>();
-    final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final filteredItems = vm.shipments.where((item) {
-      final isOpen = ['open', 'searching', 'pending', 'requested'].contains(item.status) &&
-          (item.truckId.isEmpty || item.status == 'open');
+    final allCount = vm.shipments.length;
+    final ongoingCount = vm.shipments.where((b) {
+      final st = b.status.toLowerCase();
+      return ['in_transit', 'picked_up', 'confirmed', 'pickup_ready', 'open', 'searching', 'pending', 'assigned'].contains(st);
+    }).length;
+    final completedCount = vm.shipments.where((b) {
+      final st = b.status.toLowerCase();
+      return ['completed', 'delivered'].contains(st);
+    }).length;
+    final cancelledCount = vm.shipments.where((b) => b.status.toLowerCase() == 'cancelled').length;
 
-      // 1. Tab status filter
-      if (_filter == 'open') {
-        if (!isOpen) return false;
-      } else if (_filter == 'ongoing') {
-        if (isOpen) return false;
-        if (['completed', 'delivered', 'cancelled'].contains(item.status)) return false;
-      } else if (_filter == 'completed') {
-        if (!['completed', 'delivered'].contains(item.status)) return false;
-      } else if (_filter == 'cancelled') {
-        if (item.status != 'cancelled') return false;
-      }
-
-      // 2. Search query filter
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matchesRoute = item.origin.toLowerCase().contains(q) ||
-            item.destination.toLowerCase().contains(q);
-        final matchesId = item.id.toLowerCase().contains(q);
-        final matchesCargo = item.cargoType.toLowerCase().contains(q);
-        if (!matchesRoute && !matchesId && !matchesCargo) return false;
-      }
-      return true;
-    }).toList();
+    final items = _filterAndSort(vm.shipments);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -89,85 +210,52 @@ class _ShipmentsScreenState extends State<ShipmentsScreen>
                 MaterialPageRoute(builder: (_) => const NotificationsScreen()),
               ),
             ),
-
-            // Top Header: Title + "+ New Booking" Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'My Bookings',
-                          style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Track shipments and manage return loads.',
-                          style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: widget.onNewBookingPressed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brandYellow,
-                      foregroundColor: AppColors.slateDark,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    ),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(
-                      'New Booking',
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Filter Tabs (All, Ongoing, Completed, Cancelled)
-            _buildFilterTabs(),
-
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                decoration: InputDecoration(
-                  hintText: 'Search by city, cargo or Booking ID...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                      : null,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  filled: true,
-                  fillColor: AppColors.cardBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: AppColors.border),
-                  ),
-                ),
-              ),
-            ),
-
-            // Bookings List / Empty State
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.brandYellow,
                 onRefresh: vm.fetchShipments,
-                child: _buildBookingsContent(vm, filteredItems, currency),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+                  children: [
+                    // Screen Title Row + "+ New Booking" Button
+                    _buildHeaderRow(isDark),
+                    const SizedBox(height: 14),
+
+                    // Filter Tabs Row (All, Ongoing, Completed, Cancelled)
+                    _buildFilterTabs(
+                      isDark: isDark,
+                      allCount: allCount,
+                      ongoingCount: ongoingCount,
+                      completedCount: completedCount,
+                      cancelledCount: cancelledCount,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Search and Filters Button Row
+                    _buildSearchAndFilterRow(isDark),
+                    const SizedBox(height: 14),
+
+                    // List of Shipment Cards
+                    if (vm.isLoading) ...[
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40),
+                          child: CircularProgressIndicator(color: AppColors.brandYellow),
+                        ),
+                      ),
+                    ] else if (items.isEmpty) ...[
+                      _buildEmptyState(isDark),
+                    ] else ...[
+                      ...items.map((b) => _buildBookingCard(b, isDark)),
+                    ],
+
+                    const SizedBox(height: 8),
+
+                    // Bottom "Need to move another load?" Banner
+                    _buildNeedAnotherLoadBanner(isDark),
+                  ],
+                ),
               ),
             ),
           ],
@@ -176,38 +264,138 @@ class _ShipmentsScreenState extends State<ShipmentsScreen>
     );
   }
 
-  Widget _buildFilterTabs() {
+  Widget _buildHeaderRow(bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppStrings.of(context, 'myBookings'),
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : AppColors.slateDark,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                AppStrings.of(context, 'manageShipments'),
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.inkMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        ElevatedButton(
+          onPressed: widget.onNewBookingPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.brandYellow,
+            foregroundColor: AppColors.slateDark,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add, size: 16, color: AppColors.slateDark),
+              const SizedBox(width: 4),
+              Text(
+                'New Booking',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.slateDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterTabs({
+    required bool isDark,
+    required int allCount,
+    required int ongoingCount,
+    required int completedCount,
+    required int cancelledCount,
+  }) {
     final tabs = [
-      ('All', 'all'),
-      ('Open Loads', 'open'),
-      ('Ongoing', 'ongoing'),
-      ('Completed', 'completed'),
-      ('Cancelled', 'cancelled'),
+      ('All', 'all', allCount),
+      ('Ongoing', 'ongoing', ongoingCount),
+      ('Completed', 'completed', completedCount),
+      ('Cancelled', 'cancelled', cancelledCount),
     ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: tabs.map((tab) {
           final isSelected = _filter == tab.$2;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(tab.$1),
-              selected: isSelected,
-              selectedColor: AppColors.brandYellow,
-              backgroundColor: Theme.of(context).cardColor,
-              labelStyle: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                color: isSelected ? AppColors.slateDark : AppColors.inkMuted,
+            child: InkWell(
+              onTap: () => setState(() => _filter = tab.$2),
+              borderRadius: BorderRadius.circular(24),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.brandYellow
+                      : (isDark ? AppColors.darkCard : Colors.white),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.brandYellow
+                        : (isDark ? AppColors.darkBorder : AppColors.border),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      tab.$1,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected
+                            ? AppColors.slateDark
+                            : (isDark ? Colors.white70 : AppColors.inkMuted),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${tab.$3}',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: isSelected
+                              ? AppColors.slateDark
+                              : (isDark ? Colors.white70 : AppColors.inkMuted),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              side: BorderSide(
-                color: isSelected ? AppColors.brandYellow : AppColors.border,
-              ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              onSelected: (_) => setState(() => _filter = tab.$2),
             ),
           );
         }).toList(),
@@ -215,835 +403,347 @@ class _ShipmentsScreenState extends State<ShipmentsScreen>
     );
   }
 
-  Widget _buildBookingsContent(
-    ShipmentsViewModel vm,
-    List<BookingItem> items,
-    NumberFormat currency,
-  ) {
-    if (vm.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (vm.errorMessage != null) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              children: [
-                Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.inkMuted),
-                const SizedBox(height: 12),
-                Text(
-                  'Could not load bookings',
-                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  vm.errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: vm.fetchShipments,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (items.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(36),
-            child: Column(
-              children: [
-                Icon(Icons.inventory_2_outlined, size: 52, color: AppColors.inkMuted),
-                const SizedBox(height: 14),
-                Text(
-                  _filter == 'all' ? 'No bookings found' : 'No $_filter bookings',
-                  style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _searchQuery.isNotEmpty
-                      ? 'No shipments match "$_searchQuery". Try clearing search.'
-                      : 'Book your cargo to see live shipment cards and tracking updates here.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkMuted),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: widget.onNewBookingPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brandYellow,
-                    foregroundColor: AppColors.slateDark,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  icon: const Icon(Icons.search),
-                  label: Text(
-                    'Book Transport',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
-      itemBuilder: (_, index) => _buildShipmentCard(items[index], currency),
-    );
-  }
-
-  Widget _buildShipmentCard(BookingItem item, NumberFormat currency) {
-    final isOpen = ['open', 'searching', 'pending', 'requested'].contains(item.status) &&
-        (item.truckId.isEmpty || item.status == 'open');
-    if (isOpen) {
-      return _buildOpenLoadCard(item, currency);
-    } else if (['completed', 'delivered'].contains(item.status)) {
-      return _buildCompletedShipmentCard(item, currency);
-    } else {
-      return _buildActiveShipmentCard(item, currency);
-    }
-  }
-
-  Widget _buildOpenLoadCard(BookingItem item, NumberFormat currency) {
-    final shortId = item.id.length > 8 ? item.id.substring(0, 8).toUpperCase() : item.id.toUpperCase();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border.all(
-          color: AppColors.brandYellow.withValues(alpha: 0.6),
-          width: 1.5,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandYellow.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: ID + Animated Radar Badge
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.brandYellow.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.brandYellow.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.outbox_outlined, size: 14, color: AppColors.slateDark),
-                    const SizedBox(width: 4),
-                    Text(
-                      '#LOAD-$shortId',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.slateDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Color.lerp(
-                        AppColors.brandYellow.withValues(alpha: 0.15),
-                        AppColors.brandYellow.withValues(alpha: 0.35),
-                        _pulseController.value,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.brandYellow.withValues(alpha: 0.6),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Transform.scale(
-                          scale: 0.85 + (_pulseController.value * 0.25),
-                          child: const Icon(
-                            Icons.radar,
-                            size: 14,
-                            color: AppColors.slateDark,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Searching Corridor Trucks',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.slateDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Route: Origin -> Destination
-          Row(
-            children: [
-              const Icon(Icons.trip_origin, color: AppColors.success, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.origin,
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Icon(Icons.arrow_forward, size: 14, color: AppColors.inkMuted),
-              ),
-              const Icon(Icons.location_on, color: AppColors.danger, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.destination,
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Cargo weight & type
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  '${item.weightTons.toStringAsFixed(1)} Tons',
-                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  item.cargoType.isEmpty ? 'General Freight' : item.cargoType,
-                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Corridor live match banner
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  Widget _buildSearchAndFilterRow(bool isDark) {
+    return Row(
+      children: [
+        // Search Input
+        Expanded(
+          child: Container(
             decoration: BoxDecoration(
-              color: AppColors.canvas,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
+              color: isDark ? AppColors.darkCard : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
             ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             child: Row(
               children: [
-                const Icon(Icons.bolt, size: 16, color: AppColors.warning),
-                const SizedBox(width: 6),
+                const Icon(Icons.search, size: 18, color: AppColors.inkMuted),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'Corridor Broadcast Active • Drivers notified along route',
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) => setState(() => _searchQuery = val.trim()),
                     style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.slateSoft,
+                      fontSize: 12,
+                      color: isDark ? Colors.white : AppColors.slateDark,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: AppStrings.of(context, 'searchBookingsHint'),
+                      hintStyle: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? AppColors.darkInkMuted : AppColors.inkFaint,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-
-          // Bottom Row: Estimated Price + [View Matching Trucks]
-          Row(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Estimated Rate',
-                    style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
-                  ),
-                  Text(
-                    item.agreedPriceInr > 0 ? currency.format(item.agreedPriceInr) : 'Market Rate',
-                    style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final bvm = context.read<BookingViewModel>();
-                  bvm.setOrigin(item.origin);
-                  bvm.setDestination(item.destination);
-                  bvm.setCargoType(item.cargoType);
-                  bvm.setWeightTons(item.weightTons);
-                  await bvm.searchMatchingTrucks();
-                  if (!context.mounted) return;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MatchingTrucksScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandYellow,
-                  foregroundColor: AppColors.slateDark,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                ),
-                icon: const Icon(Icons.local_shipping, size: 16),
-                label: Text(
-                  'View Matching Trucks',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveShipmentCard(BookingItem item, NumberFormat currency) {
-    final shortId = item.id.length > 8 ? item.id.substring(0, 8).toUpperCase() : item.id.toUpperCase();
-    final isAssigned = ['accepted', 'confirmed', 'pickup_ready'].contains(item.status);
-    final isInTransit = ['picked_up', 'in_transit'].contains(item.status);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Row: Booking ID + Status Badge
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.receipt_outlined, size: 14, color: AppColors.inkMuted),
-                    const SizedBox(width: 4),
-                    Text(
-                      '#REDO-$shortId',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.slateDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              StatusBadge(status: item.status),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Driver & Truck Information Card
-          Container(
-            padding: const EdgeInsets.all(10),
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: AppColors.canvas,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.brandYellow,
-                  child: const Icon(Icons.person, size: 20, color: AppColors.slateDark),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.driverName ?? 'Verified Partner Driver',
-                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: AppColors.slateDark,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              item.truckReg ?? (item.truckId.isNotEmpty ? item.truckId : 'Commercial Truck'),
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          if (item.driverPhone != null && item.driverPhone!.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            Text(
-                              item.driverPhone!,
-                              style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (item.driverPhone != null && item.driverPhone!.isNotEmpty)
+                if (_searchQuery.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.phone, size: 18, color: AppColors.success),
+                    icon: const Icon(Icons.clear, size: 16, color: AppColors.inkMuted),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Calling driver: ${item.driverPhone}')),
-                      );
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
                     },
                   ),
               ],
             ),
           ),
+        ),
+        const SizedBox(width: 8),
 
-          // Route: Origin -> Destination
-          Row(
-            children: [
-              const Icon(Icons.trip_origin, color: AppColors.success, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.origin,
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        // Filters Button
+        InkWell(
+          onTap: () => _showFilterModal(context, isDark),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.tune,
+                  size: 16,
+                  color: isDark ? Colors.white70 : AppColors.slateDark,
                 ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Icon(Icons.arrow_forward, size: 14, color: AppColors.inkMuted),
-              ),
-              const Icon(Icons.location_on, color: AppColors.danger, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.destination,
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          // Cargo Info Chip & OTP
-          Row(
-            children: [
-              Text(
-                '${item.weightTons.toStringAsFixed(1)} Tons · ${item.cargoType.isEmpty ? 'Cargo' : item.cargoType}',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-              ),
-              const Spacer(),
-              if (isAssigned && item.pickupOtp != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandYellow.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.brandYellow),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.pin_outlined, size: 12, color: AppColors.slateDark),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Pickup OTP: ${item.pickupOtp}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.slateDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else if (isInTransit && item.deliveryOtp != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.success),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.pin_outlined, size: 12, color: AppColors.success),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Delivery OTP: ${item.deliveryOtp}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.success,
-                        ),
-                      ),
-                    ],
+                const SizedBox(width: 6),
+                Text(
+                  AppStrings.of(context, 'filters'),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppColors.slateDark,
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-
-          // 4-Step Stepper
-          _build4StepStepper(item.status),
-          const SizedBox(height: 14),
-
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-
-          // Bottom Row: Price + Action Buttons
-          Row(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Agreed Price',
-                    style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
-                  ),
-                  Text(
-                    currency.format(item.agreedPriceInr),
-                    style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              _buildActions(item),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildCompletedShipmentCard(BookingItem item, NumberFormat currency) {
-    final shortId = item.id.length > 8 ? item.id.substring(0, 8).toUpperCase() : item.id.toUpperCase();
+  Widget _buildBookingCard(BookingItem b, bool isDark) {
+    final st = b.status.toLowerCase();
+    final isOngoing = ['in_transit', 'picked_up', 'confirmed', 'pickup_ready'].contains(st);
+    final idDisplay = b.id.length > 9 ? b.id.substring(0, 9).toUpperCase() : b.id.toUpperCase();
+    final dateStr = _formatBookingDate(b.createdAt);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => TrackingScreen(booking: b)),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  '#REDO-$shortId',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.slateDark,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.success),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, size: 13, color: AppColors.success),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Completed & Delivered',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.success,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Route
-          Row(
-            children: [
-              const Icon(Icons.trip_origin, color: AppColors.success, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.origin,
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Icon(Icons.arrow_forward, size: 14, color: AppColors.inkMuted),
-              ),
-              const Icon(Icons.location_on, color: AppColors.danger, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.destination,
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${item.weightTons.toStringAsFixed(1)} Tons · ${item.cargoType.isEmpty ? 'Cargo' : item.cargoType}',
-            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-          ),
-          const SizedBox(height: 12),
-
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Column(
+              // Main Card Row
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Paid Total',
-                    style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
+                  // Redo Yellow Commercial Truck Thumbnail
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/images/tracking_truck_thumb.png',
+                      width: 52,
+                      height: 40,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 52,
+                        height: 40,
+                        color: const Color(0xFFFEF3C7),
+                        child: const Icon(
+                          Icons.local_shipping,
+                          color: AppColors.brandYellow,
+                          size: 22,
+                        ),
+                      ),
+                    ),
                   ),
-                  Text(
-                    currency.format(item.agreedPriceInr),
-                    style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900),
+                  const SizedBox(width: 10),
+
+                  // Route and specs
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '#$idDisplay',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${b.origin} → ${b.destination}',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : AppColors.slateDark,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${b.weightTons.toStringAsFixed(1)} T • ${b.cargoType.isNotEmpty ? b.cargoType : 'Parcel / Express'}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Date, Status Badge & Chevron
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        dateStr,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: AppColors.inkFaint,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildStatusBadge(b.status, isDark),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: AppColors.inkFaint,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const InvoicesScreen()),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppColors.border),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+
+              // Mini-Stepper if active / in_transit (Matching Card 1 in screenshot!)
+              if (isOngoing) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: isDark ? AppColors.darkBorder : AppColors.border,
+                        width: 0.8,
+                      ),
+                    ),
+                  ),
+                  child: _buildMiniStepper(b, isDark),
                 ),
-                icon: const Icon(Icons.receipt, size: 14),
-                label: Text(
-                  'GST Invoice',
-                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(width: 6),
-              IconButton(
-                onPressed: () => _rateDialog(item),
-                icon: const Icon(Icons.star, size: 20, color: AppColors.brandYellow),
-                tooltip: 'Rate driver',
-              ),
-              const SizedBox(width: 4),
-              ElevatedButton(
-                onPressed: () {
-                  final bvm = context.read<BookingViewModel>();
-                  bvm.setOrigin(item.origin);
-                  bvm.setDestination(item.destination);
-                  widget.onNewBookingPressed?.call();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandYellow,
-                  foregroundColor: AppColors.slateDark,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                child: Text('Rebook', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800)),
-              ),
+              ],
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _build4StepStepper(String status) {
-    const steps = [
-      'Order Placed',
-      'Driver Assigned',
-      'In Transit',
-      'Delivered',
+  Widget _buildMiniStepper(BookingItem b, bool isDark) {
+    final st = b.status.toLowerCase();
+    final createdDate = DateTime.tryParse(b.createdAt) ?? DateTime.now();
+
+    final step1Time = DateFormat('d MMM, HH:mm').format(createdDate);
+    final step2Time = DateFormat('d MMM, HH:mm').format(createdDate.add(const Duration(hours: 6)));
+
+    final isBookedDone = true;
+    final isPickedUpDone = ['picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'completed'].contains(st);
+    final isInTransitCurrent = st == 'in_transit';
+
+    final steps = [
+      {'title': 'Booked', 'subtitle': step1Time, 'done': isBookedDone, 'current': false},
+      {'title': 'Picked Up', 'subtitle': step2Time, 'done': isPickedUpDone, 'current': false},
+      {'title': 'In Transit', 'subtitle': '', 'done': false, 'current': isInTransitCurrent},
+      {'title': 'Delivered', 'subtitle': '', 'done': false, 'current': false},
     ];
 
-    int currentStep = 0;
-    if (['pending', 'requested'].contains(status)) {
-      currentStep = 0;
-    } else if (['accepted', 'confirmed', 'pickup_ready'].contains(status)) {
-      currentStep = 1;
-    } else if (['picked_up', 'in_transit'].contains(status)) {
-      currentStep = 2;
-    } else if (['delivered', 'completed'].contains(status)) {
-      currentStep = 3;
-    }
-
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(steps.length, (i) {
-        final isDone = i <= currentStep;
+        final step = steps[i];
+        final done = step['done'] as bool;
+        final current = step['current'] as bool;
         final isLast = i == steps.length - 1;
 
         return Expanded(
-          child: Row(
+          child: Column(
             children: [
-              Column(
+              Row(
                 children: [
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isDone ? AppColors.brandYellow : AppColors.canvas,
-                      border: Border.all(
-                        color: isDone ? AppColors.brandYellow : AppColors.border,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: isDone
-                          ? const Icon(Icons.check, size: 12, color: AppColors.slateDark)
-                          : Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.inkFaint,
-                              ),
-                            ),
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      color: i == 0
+                          ? Colors.transparent
+                          : (done || current ? AppColors.brandYellow : (isDark ? AppColors.darkBorder : AppColors.border)),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    steps[i],
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 8,
-                      fontWeight: isDone ? FontWeight.w800 : FontWeight.w500,
-                      color: isDone ? AppColors.slateDark : AppColors.inkFaint,
+                  if (done)
+                    Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        color: AppColors.brandYellow,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check, size: 10, color: AppColors.slateDark),
+                    )
+                  else if (current)
+                    Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        color: AppColors.brandYellow,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.local_shipping, size: 9, color: AppColors.slateDark),
+                    )
+                  else
+                    Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white38 : AppColors.inkFaint,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      color: isLast
+                          ? Colors.transparent
+                          : (done ? AppColors.brandYellow : (isDark ? AppColors.darkBorder : AppColors.border)),
                     ),
                   ),
                 ],
               ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    height: 2,
-                    margin: const EdgeInsets.only(bottom: 14),
-                    color: i < currentStep ? AppColors.brandYellow : AppColors.border,
+              const SizedBox(height: 4),
+              Text(
+                step['title'] as String,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 9,
+                  fontWeight: done || current ? FontWeight.w800 : FontWeight.w500,
+                  color: done || current
+                      ? (isDark ? Colors.white : AppColors.slateDark)
+                      : AppColors.inkFaint,
+                ),
+              ),
+              if ((step['subtitle'] as String).isNotEmpty) ...[
+                const SizedBox(height: 1),
+                Text(
+                  step['subtitle'] as String,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 8,
+                    color: AppColors.inkMuted,
                   ),
                 ),
+              ],
             ],
           ),
         );
@@ -1051,136 +751,205 @@ class _ShipmentsScreenState extends State<ShipmentsScreen>
     );
   }
 
-  Widget _buildActions(BookingItem item) {
-    final vm = context.read<ShipmentsViewModel>();
-    final canConfirm = item.status == 'accepted';
-    final canComplete = item.status == 'delivered';
+  Widget _buildStatusBadge(String status, bool isDark) {
+    Color bg;
+    Color fg;
+    String text;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Track Button
-        ElevatedButton.icon(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => TrackingScreen(booking: item)),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            foregroundColor: AppColors.slateDark,
-            elevation: 0,
-            side: BorderSide(color: AppColors.border),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-          icon: const Icon(Icons.location_searching, size: 14),
-          label: Text('Track', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700)),
+    switch (status.toLowerCase()) {
+      case 'in_transit':
+        bg = isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7);
+        fg = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF15803D);
+        text = 'In Transit';
+        break;
+      case 'picked_up':
+        bg = isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7);
+        fg = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF15803D);
+        text = 'Picked Up';
+        break;
+      case 'confirmed':
+      case 'assigned':
+        bg = isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF);
+        fg = isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB);
+        text = 'Confirmed';
+        break;
+      case 'completed':
+      case 'delivered':
+        bg = isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7);
+        fg = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF15803D);
+        text = 'Completed';
+        break;
+      case 'cancelled':
+        bg = isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2);
+        fg = isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626);
+        text = 'Cancelled';
+        break;
+      default:
+        bg = isDark ? const Color(0xFF78350F) : const Color(0xFFFEF3C7);
+        fg = isDark ? const Color(0xFFFDE68A) : const Color(0xFFD97706);
+        text = 'Open';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: fg,
         ),
+      ),
+    );
+  }
 
-        // Confirm Button
-        if (canConfirm) ...[
+  Widget _buildNeedAnotherLoadBanner(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.of(context, 'needToMoveLoad'),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppColors.slateDark,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  AppStrings.of(context, 'instantMatches'),
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppColors.inkMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () async {
-              final error = await vm.confirmBooking(item);
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(error ?? 'Booking confirmed successfully.')),
-              );
-            },
+            onPressed: widget.onNewBookingPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brandYellow,
               foregroundColor: AppColors.slateDark,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            child: Text('Confirm', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800)),
-          ),
-        ],
-
-        // Complete & Rate Button
-        if (canComplete) ...[
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () async {
-              final error = await vm.completeBooking(item);
-              if (!mounted) return;
-              if (error == null) {
-                _rateDialog(item);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            child: Text('Complete', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800)),
-          ),
-        ],
-
-        // Rebook Button (for completed)
-        if (item.status == 'completed') ...[
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () => _rateDialog(item),
-            icon: const Icon(Icons.star_outline, size: 20, color: AppColors.brandYellow),
-            tooltip: 'Rate driver',
-          ),
-          OutlinedButton(
-            onPressed: () {
-              final bvm = context.read<BookingViewModel>();
-              bvm.setOrigin(item.origin);
-              bvm.setDestination(item.destination);
-              widget.onNewBookingPressed?.call();
-            },
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: AppColors.border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
-            child: Text('Rebook', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Book Again',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const Icon(Icons.arrow_forward, size: 12),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.asset(
+              'assets/images/tracking_parcel_box.png',
+              width: 38,
+              height: 34,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.inventory_2,
+                color: Color(0xFFD97706),
+                size: 28,
+              ),
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 
-  Future<void> _rateDialog(BookingItem item) async {
-    final score = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Rate Trip Experience', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('How was the delivery for ${item.origin} to ${item.destination}?', style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkMuted)),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(
-                5,
-                (i) => IconButton(
-                  icon: const Icon(Icons.star, color: AppColors.brandYellow, size: 30),
-                  onPressed: () => Navigator.pop(ctx, i + 1),
-                ),
-              ),
-            ),
-          ],
+  Widget _buildEmptyState(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
         ),
       ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEF3C7),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              size: 40,
+              color: AppColors.slateDark,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            AppStrings.of(context, 'noBookingsFound'),
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : AppColors.slateDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'No shipments match your current filter or search. Create a new booking to get started.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: AppColors.inkMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: widget.onNewBookingPressed,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Book a Truck Now'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandYellow,
+              foregroundColor: AppColors.slateDark,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
+      ),
     );
+  }
 
-    if (score == null || !mounted) return;
-    final error = await context.read<ShipmentsViewModel>().rate(item, score);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'Thank you! Rating submitted.')),
-      );
-    }
+  String _formatBookingDate(String raw) {
+    final dt = DateTime.tryParse(raw)?.toLocal();
+    if (dt == null) return 'Recent';
+    return DateFormat('d MMM yyyy, hh:mm a').format(dt);
   }
 }

@@ -26,7 +26,11 @@ class _ActiveTripsScreenState extends State<ActiveTripsScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<PartnerTripsViewModel>().fetchAll());
+    Future.microtask(() {
+      if (mounted) {
+        context.read<PartnerTripsViewModel>().fetchAll();
+      }
+    });
   }
 
   @override

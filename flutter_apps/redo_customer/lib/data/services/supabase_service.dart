@@ -602,6 +602,44 @@ class SupabaseService {
 
   // --- Live tracking (real telemetry: tracking_events + Realtime) ---
 
+  static Future<BookingItem?> getBookingByIdOrSearch(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return null;
+    try {
+      final res = await ApiService.get('/bookings/$q');
+      if (res is Map<String, dynamic>) {
+        return BookingItem.fromJson(res);
+      }
+    } catch (_) {}
+
+    try {
+      final data = await client
+          .from('bookings')
+          .select('*, cargo:cargo_requests(*), truck:trucks(*, owner:profiles(*))')
+          .or('id.eq.$q,cargo_id.eq.$q')
+          .maybeSingle();
+      if (data != null) {
+        return BookingItem.fromJson(Map<String, dynamic>.from(data));
+      }
+    } catch (_) {}
+
+    try {
+      final cargo = await client
+          .from('cargo_requests')
+          .select('*')
+          .eq('cargo_id', q)
+          .maybeSingle();
+      if (cargo != null) {
+        return BookingItem.fromCargo(
+          CargoRequest.fromJson(Map<String, dynamic>.from(cargo)),
+        );
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+
   static Future<List<Map<String, dynamic>>> getTrackingHistory(
     String bookingId,
   ) async {

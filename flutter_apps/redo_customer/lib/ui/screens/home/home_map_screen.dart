@@ -1651,6 +1651,21 @@ class _PlacePickerState extends State<_PlacePicker> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _results = [
+      PlaceSuggestion(name: 'Patna Hub', description: 'Transport Nagar / Bypass, Patna, Bihar', latLng: const LatLng(25.5941, 85.1376)),
+      PlaceSuggestion(name: 'Lucknow Hub', description: 'Transport Nagar, Kanpur Road, Lucknow, UP', latLng: const LatLng(26.8467, 80.9462)),
+      PlaceSuggestion(name: 'Delhi NCR Hub', description: 'Sanjay Gandhi Transport Nagar / Okhla, DL', latLng: const LatLng(28.6139, 77.2090)),
+      PlaceSuggestion(name: 'Kanpur Hub', description: 'Fazalganj Industrial Area / Transport Nagar, UP', latLng: const LatLng(26.4499, 80.3319)),
+      PlaceSuggestion(name: 'Varanasi Hub', description: 'Chandpur Industrial Estate, Varanasi, UP', latLng: const LatLng(25.3176, 82.9739)),
+      PlaceSuggestion(name: 'Mumbai Hub', description: 'Bhiwandi / Kalamboli Freight Hub, MH', latLng: const LatLng(19.0760, 72.8777)),
+      PlaceSuggestion(name: 'Kolkata Hub', description: 'Dankuni Freight Terminal, WB', latLng: const LatLng(22.5726, 88.3639)),
+      PlaceSuggestion(name: 'Bengaluru Hub', description: 'Peenya Industrial Logistics Complex, KA', latLng: const LatLng(12.9716, 77.5946)),
+    ];
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();

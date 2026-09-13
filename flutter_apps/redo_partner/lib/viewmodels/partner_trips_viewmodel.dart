@@ -4,8 +4,24 @@ import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/models.dart';
 import '../data/services/supabase_service.dart';
+import '../data/services/corridor_ml_service.dart';
 
 class PartnerTripsViewModel extends ChangeNotifier {
+  // ML Match Results cache per load
+  final Map<String, CorridorMatchResult> _matchResults = {};
+  CorridorMatchResult? getMatchResult(String cargoId) => _matchResults[cargoId];
+
+  void recordLoadView(AvailableLoad load) {
+    final match = _matchResults[load.cargoId];
+    if (match != null) {
+      CorridorMLService().recordInteraction(
+        match.corridorKey,
+        'view_route',
+        detourKm: match.detourKm,
+      );
+    }
+  }
+
   List<AvailableLoad> _availableLoads = [];
   List<ActiveTrip> _activeTrips = [];
   List<TruckModel> _myTrucks = [];
@@ -75,19 +91,27 @@ class PartnerTripsViewModel extends ChangeNotifier {
         final lOrigin = _normCity(l.origin);
         final lDest = _normCity(l.destination);
 
-        // When BOTH From & To are provided: STRICT CORRIDOR MATCH ONLY!
+        // When BOTH From & To are provided: Evaluate via Intelligent Corridor & ML Waypoint Engine!
         if (nFrom.isNotEmpty && nTo.isNotEmpty) {
-          // 1. Forward corridor (e.g. Delhi -> Hyderabad)
+          final match = CorridorMLService().evaluateMatch(
+            driverFrom: _searchFrom,
+            driverTo: _searchTo,
+            load: l,
+            truckCapacityTons: _myTrucks.isNotEmpty ? _myTrucks.first.defaultCapacityTons : 16.0,
+          );
+          if (match.isMatch) {
+            _matchResults[l.cargoId] = match;
+            return true;
+          }
+          // Direct fallback check
           final forward = (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) &&
                           (lDest.contains(nTo) || nTo.contains(lDest));
           if (forward) return true;
 
-          // 2. Return / Backhaul load (e.g. Hyderabad -> Delhi)
           final returnLoad = (lOrigin.contains(nTo) || nTo.contains(lOrigin)) &&
                              (lDest.contains(nFrom) || nFrom.contains(lDest));
           if (returnLoad) return true;
 
-          // DO NOT match loads to third-party cities when both From & To are given!
           return false;
         } else if (nFrom.isNotEmpty) {
           // Only From provided: match origin
@@ -137,6 +161,15 @@ class PartnerTripsViewModel extends ChangeNotifier {
       list = list.where((l) => l.weightTons >= 3.0 && l.weightTons <= 10.0).toList();
     } else if (_tonnageFilter == 'heavy') {
       list = list.where((l) => l.weightTons > 10.0).toList();
+    }
+
+    // Rank matching loads by composite ML match score so optimal corridor waypoints appear first
+    if (_searchFrom.isNotEmpty && _searchTo.isNotEmpty) {
+      list.sort((a, b) {
+        final scoreA = _matchResults[a.cargoId]?.matchScore ?? (a.hasRealMatchScore ? a.matchScore : 50);
+        final scoreB = _matchResults[b.cargoId]?.matchScore ?? (b.hasRealMatchScore ? b.matchScore : 50);
+        return scoreB.compareTo(scoreA);
+      });
     }
 
     if (_categoryFilter == 'instant') {
@@ -293,6 +326,15 @@ class PartnerTripsViewModel extends ChangeNotifier {
     if (_myTrucks.isEmpty) {
       return 'Register your truck first (Profile → complete onboarding).';
     }
+    final match = _matchResults[load.cargoId];
+    if (match != null) {
+      CorridorMLService().recordInteraction(
+        match.corridorKey,
+        'accept_load',
+        detourKm: match.detourKm,
+      );
+    }
+
     _isLoading = true;
     notifyListeners();
     try {

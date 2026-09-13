@@ -66,7 +66,39 @@ export function normCity(s) {
   if (c.includes("bengaluru") || c.includes("bangalore")) return "bengaluru";
   if (c.includes("kolkata") || c.includes("calcutta")) return "kolkata";
   if (c.includes("chennai") || c.includes("madras")) return "chennai";
+  if (c.includes("patna")) return "patna";
+  if (c.includes("lucknow")) return "lucknow";
+  if (c.includes("kanpur")) return "kanpur";
+  if (c.includes("varanasi")) return "varanasi";
+  if (c.includes("agra")) return "agra";
   return c;
+}
+
+const HIGHWAY_CORRIDORS = [
+  ['kolkata', 'durgapur', 'asansol', 'dhanbad', 'ranchi', 'patna', 'gaya', 'muzaffarpur', 'varanasi', 'prayagraj', 'lucknow', 'kanpur', 'agra', 'delhi'],
+  ['patna', 'buxar', 'varanasi', 'ayodhya', 'gorakhpur', 'lucknow', 'kanpur', 'agra', 'delhi'],
+  ['delhi', 'gurugram', 'neemrana', 'jaipur', 'ajmer', 'ahmedabad', 'vadodara', 'surat', 'vapi', 'mumbai', 'pune', 'bengaluru'],
+  ['delhi', 'agra', 'gwalior', 'jhansi', 'nagpur', 'hyderabad', 'bengaluru', 'salem', 'madurai'],
+  ['kolkata', 'kharagpur', 'cuttack', 'bhubaneswar', 'visakhapatnam', 'vijayawada', 'chennai'],
+];
+
+function checkCorridorEnRoute(tripO, tripD, cargoO, cargoD) {
+  for (const corr of HIGHWAY_CORRIDORS) {
+    const idxTO = corr.findIndex(c => tripO.includes(c) || c.includes(tripO));
+    const idxTD = corr.findIndex(c => tripD.includes(c) || c.includes(tripD));
+    if (idxTO !== -1 && idxTD !== -1 && idxTO < idxTD) {
+      const idxCO = corr.findIndex(c => cargoO.includes(c) || c.includes(cargoO));
+      const idxCD = corr.findIndex(c => cargoD.includes(c) || c.includes(cargoD));
+      if (idxCO !== -1 && idxCD !== -1 && idxCO < idxCD) {
+        if (idxCO >= idxTO && idxCD <= idxTD) {
+          if (idxCO === idxTO && idxCD < idxTD) return 0.96; // En-Route dropoff (e.g. Patna -> Lucknow on Patna -> Delhi)
+          if (idxCO > idxTO && idxCD === idxTD) return 0.93; // En-Route pickup (e.g. Lucknow -> Delhi on Patna -> Delhi)
+          return 0.90; // En-Route corridor segment
+        }
+      }
+    }
+  }
+  return null;
 }
 
 // Corridor-model route similarity:
@@ -83,6 +115,11 @@ export function routeSimilarity(trip, cargo) {
 
   if (oMatch && dMatch) return 1.0;
   if (revMatch) return 0.95; // perfect return corridor / backhaul load
+
+  // Check en-route waypoint corridor
+  const enRouteScore = checkCorridorEnRoute(tO, tD, cO, cD);
+  if (enRouteScore !== null) return enRouteScore;
+
   if (dMatch) return 0.85;
   if (oMatch) return 0.80;
   return 0.50; // default baseline similarity so valid backhauls are never arbitrarily discarded

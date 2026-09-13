@@ -5,6 +5,9 @@ class AppConfig {
   static const String apiBaseUrl = 'https://redo-backend.onrender.com';
   static const String googleMapsKey = 'AIzaSyDnD2JUGtjeZvTETWi4bz7nBvu364T11ds';
   static final String huggingFaceApiKey = const ['hf_', 'CRahLYvPIWtvYFtdOf', 'RFzdcqkRskseOBSo'].join();
-  static const String hfModelId = 'mistralai/Mistral-7B-Instruct-v0.3';
+  static const String hfModelId = 'meta-llama/Llama-3.1-8B-Instruct';
+  static const String hfRouterUrl = 'https://router.huggingface.co/v1/chat/completions';
   static final String sarvamApiKey = const ['sk_7n9whbzv_', '1XgdHjKN7gGqanQCDCgwQUM4'].join();
+  static const String sarvamChatUrl = 'https://api.sarvam.ai/v1/chat/completions';
+  static const String sarvamTtsUrl = 'https://api.sarvam.ai/text-to-speech';
 }

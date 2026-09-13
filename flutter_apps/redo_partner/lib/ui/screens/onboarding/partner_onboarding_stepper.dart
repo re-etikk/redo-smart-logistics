@@ -42,9 +42,11 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
   void _pickDoc(String docType) async {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 60);
-    if (img != null && mounted) {
+    if (img != null) {
       final bytes = await img.readAsBytes();
-      context.read<DriverOnboardingViewModel>().uploadDoc(docType, bytes);
+      if (mounted) {
+        context.read<DriverOnboardingViewModel>().uploadDoc(docType, bytes);
+      }
     } else if (mounted) {
       // simulate quick upload for testing
       context.read<DriverOnboardingViewModel>().uploadDoc(docType, Uint8List(0));
@@ -204,7 +206,7 @@ class _PartnerOnboardingStepperState extends State<PartnerOnboardingStepper> {
                               const Divider(height: 1, color: AppColors.border),
                               const SizedBox(height: 14),
                               Text('NEXT EMPTY RETURN TRIP', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.slateDark)),
-                              Text('Shippers looking for backhauls to ${_selectedCity} will match this trip.', style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
+                              Text('Shippers looking for backhauls to $_selectedCity will match this trip.', style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
                               const SizedBox(height: 8),
                               Wrap(
                                 spacing: 8,

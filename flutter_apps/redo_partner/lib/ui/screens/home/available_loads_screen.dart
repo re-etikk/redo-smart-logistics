@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/services/routing_service.dart';
+import '../../../data/services/corridor_ml_service.dart';
 import '../../../viewmodels/partner_trips_viewmodel.dart';
 import '../../widgets/ui_components.dart';
 import '../misc/notifications_screen.dart';
@@ -39,12 +40,14 @@ const _cityLatLng = <String, LatLng>{
 };
 
 LatLng _posFor(String city) {
+  final resolved = RoutingService.getCoordinatesForCity(city);
+  if (resolved != null) return resolved;
   for (final entry in _cityLatLng.entries) {
     if (city.toLowerCase().contains(entry.key.toLowerCase())) {
       return entry.value;
     }
   }
-  return const LatLng(23.5, 76.0);
+  return const LatLng(25.5941, 85.1376); // Default to Central Indian corridor
 }
 
 class AvailableLoadsScreen extends StatefulWidget {
@@ -980,46 +983,81 @@ class _LoadsBody extends StatelessWidget {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.bolt, size: 14, color: AppColors.success),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          load.distanceKm > 0
-                                              ? '${load.distanceKm.round()} km road corridor'
-                                              : 'Verified Corridor Load',
-                                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.success),
+                                  () {
+                                    final mlMatch = tripsVM.getMatchResult(load.cargoId);
+                                    if (mlMatch != null && mlMatch.isMatch) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFF3B82F6), width: 0.8),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Real ML match score — only shown when it came from backend ranking
-                                  if (load.hasRealMatchScore) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF3B82F6)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${load.matchScore}% match',
-                                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF3B82F6)),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              mlMatch.matchType == EnRouteType.direct
+                                                  ? Icons.bolt
+                                                  : (mlMatch.matchType == EnRouteType.returnBackhaul
+                                                      ? Icons.sync_alt
+                                                      : Icons.alt_route),
+                                              size: 13,
+                                              color: const Color(0xFF2563EB),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              mlMatch.badgeText,
+                                              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w900, color: const Color(0xFF2563EB)),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.bolt, size: 14, color: AppColors.success),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                load.distanceKm > 0
+                                                    ? '${load.distanceKm.round()} km road corridor'
+                                                    : 'Verified Corridor Load',
+                                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.success),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (load.hasRealMatchScore) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF3B82F6)),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '${load.matchScore}% match',
+                                                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF3B82F6)),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ],
-                                      ),
-                                    ),
-                                  ],
+                                      ],
+                                    );
+                                  }(),
                                 ],
                               ),
                               Text(
@@ -1109,6 +1147,46 @@ class _LoadsBody extends StatelessWidget {
                               color: isDark ? AppColors.darkInkMuted : AppColors.inkMuted,
                             ),
                           ),
+                          () {
+                            final mlMatch = tripsVM.getMatchResult(load.cargoId);
+                            if (mlMatch != null && mlMatch.description.isNotEmpty) {
+                              return Container(
+                                margin: const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF332000) : const Color(0xFFFFFBEB),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFFDE68A)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.alt_route, size: 13, color: Color(0xFFD97706)),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        mlMatch.description,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? AppColors.brandYellow : const Color(0xFF92400E),
+                                        ),
+                                      ),
+                                    ),
+                                    if (mlMatch.detourKm > 0)
+                                      Text(
+                                        '+${mlMatch.detourKm.round()} km detour',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          color: const Color(0xFFD97706),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }(),
                           const SizedBox(height: 12),
                           Divider(height: 1, color: isDark ? AppColors.darkBorder : AppColors.border),
                           const SizedBox(height: 12),

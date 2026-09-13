@@ -13,7 +13,10 @@ import 'ui/screens/onboarding/partner_onboarding_stepper.dart';
 import 'ui/screens/home/available_loads_screen.dart';
 import 'ui/screens/trips/active_trip_execution_screen.dart';
 import 'ui/screens/earnings/earnings_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/screens/profile/profile_screen.dart';
+import 'ui/screens/ai/partner_ai_assistant_screen.dart';
+import 'ui/screens/onboarding/brand_story_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'ui/widgets/voice_assistant_widget.dart';
 
@@ -104,14 +107,28 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<VoiceAssistantService>().onActionReady = _handleVoiceAction;
+      _checkBrandStory();
     });
+  }
+
+  Future<void> _checkBrandStory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('has_seen_partner_brand_story_v1') ?? false;
+    if (!seen && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => PartnerBrandStoryScreen(
+            onComplete: () => Navigator.of(context).pop(),
+          ),
+        ),
+      );
+    }
   }
 
   void _handleVoiceAction(VoiceAssistantAction action) {
     switch (action.type) {
       case 'search_route':
-        // Actually apply the spoken/typed route to the loads search — this
-        // is the part that was previously a no-op (only switched tabs).
         final query = [action.fromCity, action.toCity]
             .where((c) => c != null && c.trim().isNotEmpty)
             .join(' ');
@@ -120,15 +137,19 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
         }
         setState(() => _currentIndex = 0);
         break;
+      case 'open_trips':
+        setState(() => _currentIndex = 1);
+        break;
       case 'check_earnings':
         setState(() => _currentIndex = 2);
         break;
-      case 'open_profile':
-      case 'register_truck':
+      case 'chat':
+      case 'open_ai':
         setState(() => _currentIndex = 3);
         break;
-      case 'open_trips':
-        setState(() => _currentIndex = 1);
+      case 'open_profile':
+      case 'register_truck':
+        setState(() => _currentIndex = 4);
         break;
       default:
         // 'chat' / 'unknown' — plain conversational answer, no navigation.
@@ -143,6 +164,7 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
       AvailableLoadsScreen(onNavigateToTrips: () => setState(() => _currentIndex = 1)),
       ActiveTripsScreen(onFindLoadsPressed: () => setState(() => _currentIndex = 0)),
       const EarningsScreen(),
+      PartnerAiAssistantScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
       const ProfileScreen(),
     ];
 
@@ -151,7 +173,7 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
         index: _currentIndex,
         children: screens,
       ),
-      floatingActionButton: const VoiceAssistantFab(),
+      floatingActionButton: _currentIndex == 3 ? null : const VoiceAssistantFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
@@ -159,9 +181,9 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
         indicatorColor: AppColors.brandYellow,
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home, color: AppColors.slateDark),
-            label: l10n?.home ?? 'Home',
+            icon: const Icon(Icons.search_rounded),
+            selectedIcon: const Icon(Icons.search, color: AppColors.slateDark),
+            label: l10n?.searchLoads ?? 'Loads',
           ),
           NavigationDestination(
             icon: const Icon(Icons.local_shipping_outlined),
@@ -172,6 +194,11 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
             icon: const Icon(Icons.account_balance_wallet_outlined),
             selectedIcon: const Icon(Icons.account_balance_wallet, color: AppColors.slateDark),
             label: l10n?.earnings ?? 'Earnings',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome, color: AppColors.slateDark),
+            label: 'Fleet AI',
           ),
           NavigationDestination(
             icon: const Icon(Icons.person_outline),

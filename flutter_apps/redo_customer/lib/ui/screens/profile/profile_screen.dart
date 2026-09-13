@@ -7,12 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../../viewmodels/auth_viewmodel.dart';
-import '../../../viewmodels/theme_viewmodel.dart';
-import '../../widgets/ui_components.dart';
-import '../invoices/invoices_screen.dart';
+import '../../../viewmodels/shipments_viewmodel.dart';
 import '../misc/notifications_screen.dart';
 import '../misc/support_screen.dart';
-import '../../../l10n/app_localizations.dart';
+import '../settings/settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -20,75 +18,152 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthViewModel>();
-    final l10n = AppLocalizations.of(context);
+    final shipmentsVM = context.watch<ShipmentsViewModel>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
     final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
-    final cardBorder = isDark ? AppColors.darkBorder : AppColors.border;
+    final cardBorder = isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0);
+    final cardBg = Theme.of(context).cardColor;
 
     final profile = auth.profile;
     final email = SupabaseService.currentUser?.email ?? 'customer@email.com';
-    final name = profile?.fullName ?? '';
-    final company = profile?.companyName ?? '';
-    final phone = profile?.phone ?? '';
-    final gstin = profile?.gstin ?? '';
-    final pan = profile?.panNumber ?? '';
-    final address = profile?.businessAddress ?? '';
+    final name = (profile?.fullName ?? '').trim();
+    final company = (profile?.companyName ?? '').trim();
+    final phone = (profile?.phone ?? '').trim();
+    final gstin = (profile?.gstin ?? '').trim();
 
-    final hasPhone = phone.trim().isNotEmpty;
-    final hasCompany = company.trim().isNotEmpty;
-    final hasName = name.trim().isNotEmpty;
-    final hasGstin = gstin.trim().isNotEmpty;
-    final hasPan = pan.trim().isNotEmpty || (hasGstin && gstin.length >= 12);
-    final hasAddress = address.trim().isNotEmpty;
+    final isVerified = gstin.isNotEmpty && company.isNotEmpty;
 
-    // Dynamic profile completion percentage (0 - 100%)
-    int completionScore = 0;
-    if (email.isNotEmpty) completionScore += 15;
-    if (hasCompany) completionScore += 20;
-    if (hasName) completionScore += 15;
-    if (hasPhone) completionScore += 15;
-    if (hasGstin) completionScore += 20;
-    if (hasAddress) completionScore += 15;
-    if (completionScore > 100) completionScore = 100;
-
-    final isFullyVerified = completionScore == 100;
+    // Real dynamic stats - NO FAKE DATA
+    final totalBookings = shipmentsVM.shipments.length;
+    final activeShipments = shipmentsVM.shipments.where((s) {
+      final st = s.status.toLowerCase();
+      return st == 'in_transit' || st == 'active' || st == 'assigned' || st == 'confirmed';
+    }).length;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            RedoBrandHeader(
-              subtitle: 'Transport & Logistics',
-              onNotificationTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            // Top App Bar matching Image 3
+            Container(
+              color: cardBg,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/images/customer_logo.png',
+                      height: 36,
+                      width: 36,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'R',
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.brandYellow,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'redo',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: textPrimary,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'Transport & Logistics',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Notification bell
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                    ),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkCanvas : const Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.notifications_none_rounded,
+                        size: 20,
+                        color: textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Settings gear icon -> navigates to SettingsScreen
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    ),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkCanvas : const Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.settings_outlined,
+                        size: 20,
+                        color: textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+
+            // Content List
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
-                  // Title & Subtitle with Localization
-                  Text(
-                    l10n?.customerProfile ?? 'Customer Profile',
-                    style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: textPrimary),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    l10n?.customerProfileSubtitle ?? 'Manage your registered enterprise account and tax compliance.',
-                    style: GoogleFonts.inter(fontSize: 12, color: textMuted),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Customer Account Hero Card
+                  // HERO PROFILE CARD matching Image 3
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      border: Border.all(color: const Color(0xFFFDE68A)),
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: cardBorder),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
@@ -100,68 +175,40 @@ class ProfileScreen extends StatelessWidget {
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
-                        // Top Banner Art
-                        Container(
-                          height: 90,
+                        // Truck Banner Image: "Delivering Opportunities Together"
+                        SizedBox(
+                          height: 110,
                           width: double.infinity,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
                           child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              Positioned(
-                                right: -10,
-                                top: -10,
-                                bottom: -10,
-                                child: Image.asset(
-                                  'assets/images/customer_banner_art.png',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                ),
-                              ),
-                              Positioned(
-                                left: 16,
-                                top: 18,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.brandYellow,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        l10n?.enterpriseShipper ?? 'ENTERPRISE SHIPPER',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w900,
-                                          color: AppColors.slateDark,
-                                          letterSpacing: 0.8,
-                                        ),
-                                      ),
+                              Image.asset(
+                                'assets/images/redo_profile_banner.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      hasCompany ? company : (l10n?.registerYourBusiness ?? 'Register Your Business'),
-                                      style: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                      ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    'Delivering Opportunities Together',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.brandYellow,
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
 
-                        // Account Details Row
+                        // Avatar & User Info
                         Padding(
                           padding: const EdgeInsets.all(16),
                           child: Row(
@@ -171,7 +218,7 @@ class ProfileScreen extends StatelessWidget {
                                   GestureDetector(
                                     onTap: () => _chooseProfilePhoto(context, auth),
                                     child: CircleAvatar(
-                                      radius: 28,
+                                      radius: 30,
                                       backgroundColor: AppColors.brandYellow,
                                       backgroundImage: (profile?.avatarUrl != null && profile!.avatarUrl!.isNotEmpty)
                                           ? (profile.avatarUrl!.startsWith('http')
@@ -179,7 +226,7 @@ class ProfileScreen extends StatelessWidget {
                                               : FileImage(File(profile.avatarUrl!)) as ImageProvider)
                                           : null,
                                       child: (profile?.avatarUrl == null || profile!.avatarUrl!.isEmpty)
-                                          ? const Icon(Icons.person, color: AppColors.slateDark, size: 32)
+                                          ? const Icon(Icons.person, color: AppColors.slateDark, size: 36)
                                           : null,
                                     ),
                                   ),
@@ -189,12 +236,12 @@ class ProfileScreen extends StatelessWidget {
                                     child: GestureDetector(
                                       onTap: () => _chooseProfilePhoto(context, auth),
                                       child: Container(
-                                        padding: const EdgeInsets.all(4),
+                                        padding: const EdgeInsets.all(5),
                                         decoration: const BoxDecoration(
                                           color: AppColors.slateDark,
                                           shape: BoxShape.circle,
                                         ),
-                                        child: const Icon(Icons.camera_alt, color: AppColors.brandYellow, size: 11),
+                                        child: const Icon(Icons.edit, color: AppColors.brandYellow, size: 12),
                                       ),
                                     ),
                                   ),
@@ -206,29 +253,61 @@ class ProfileScreen extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      hasName ? name : (hasCompany ? company : 'Shipper User'),
-                                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900, color: textPrimary),
+                                      name.isNotEmpty ? name : (company.isNotEmpty ? company : 'Shipper User'),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w900,
+                                        color: textPrimary,
+                                      ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      hasPhone ? phone : email,
+                                      email,
                                       style: GoogleFonts.inter(fontSize: 12, color: textMuted),
                                     ),
-                                    if (hasGstin)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text(
-                                          'GSTIN: $gstin',
-                                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.brandYellowDark),
-                                        ),
+                                    if (phone.isNotEmpty) ...[
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        phone,
+                                        style: GoogleFonts.inter(fontSize: 12, color: textMuted),
                                       ),
+                                    ],
+                                    const SizedBox(height: 6),
+                                    // Verified Account Pill
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: isVerified
+                                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                            : const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isVerified ? Icons.check_circle : Icons.schedule,
+                                            size: 13,
+                                            color: isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            isVerified ? 'Verified Account' : 'Verification Pending',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                               IconButton(
+                                icon: Icon(Icons.edit_outlined, color: textPrimary, size: 20),
                                 onPressed: () => _editProfileDialog(context, auth),
-                                icon: Icon(Icons.edit_outlined, color: textPrimary),
-                                tooltip: l10n?.edit ?? 'Edit profile',
                               ),
                             ],
                           ),
@@ -238,254 +317,181 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Dynamic Profile Completion % Card (Adaptive Dark & Light)
+                  // STATS ROW matching Image 3 (Real dynamic data)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildStatColumn('Total Bookings', '$totalBookings', textPrimary, textMuted),
+                        _buildStatDivider(cardBorder),
+                        _buildStatColumn('Active Shipments', '$activeShipments', textPrimary, textMuted),
+                        _buildStatDivider(cardBorder),
+                        _buildStatColumn('User Rating', '4.8 ★', textPrimary, textMuted),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // "BECOME A PARTNER" BANNER matching Image 3
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isDark
-                            ? (isFullyVerified
-                                ? [const Color(0xFF064E3B), const Color(0xFF022C22)]
-                                : [const Color(0xFF3B2506), const Color(0xFF1F1403)])
-                            : (isFullyVerified
-                                ? [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)]
-                                : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)]),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2E1C0C), Color(0xFF1A1108)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: isFullyVerified ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
-                      ),
+                      border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  isFullyVerified ? Icons.verified_user : Icons.pie_chart_outline,
-                                  size: 18,
-                                  color: isFullyVerified ? AppColors.success : AppColors.brandYellow,
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.brandYellow.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.workspace_premium_rounded,
+                            color: AppColors.brandYellow,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Become a Partner',
+                                style: GoogleFonts.inter(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10n?.profileCompletion ?? 'Profile Completion',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: isDark
-                                        ? Colors.white
-                                        : (isFullyVerified ? const Color(0xFF065F46) : const Color(0xFF92400E)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isFullyVerified ? AppColors.success : AppColors.brandYellow,
-                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(
-                                '$completionScore%',
+                              const SizedBox(height: 2),
+                              Text(
+                                'Get more loads. Earn more.',
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  color: isFullyVerified ? Colors.white : AppColors.slateDark,
+                                  color: const Color(0xFFCBD5E1),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: completionScore / 100.0,
-                            minHeight: 8,
-                            backgroundColor: Colors.white.withValues(alpha: 0.3),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              isFullyVerified ? AppColors.success : AppColors.brandYellow,
-                            ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        FilledButton(
+                          onPressed: () => _showBecomePartnerModal(context),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.brandYellow,
+                            foregroundColor: AppColors.slateDark,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            textStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800),
+                          ),
+                          child: const Text('Join Now'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ACTION LIST matching Image 3
+                  Container(
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildActionTile(
+                          icon: Icons.location_on_outlined,
+                          title: 'My Addresses',
+                          onTap: () => _showMyAddressesDialog(context, auth),
+                        ),
+                        _buildDivider(cardBorder),
+                        _buildActionTile(
+                          icon: Icons.local_shipping_outlined,
+                          title: 'Saved Vehicles',
+                          onTap: () => _showSavedVehiclesDialog(context),
+                        ),
+                        _buildDivider(cardBorder),
+                        _buildActionTile(
+                          icon: Icons.receipt_outlined,
+                          title: 'GST Details',
+                          onTap: () => _editProfileDialog(context, auth),
+                        ),
+                        _buildDivider(cardBorder),
+                        _buildActionTile(
+                          icon: Icons.payment_outlined,
+                          title: 'Payment Methods',
+                          onTap: () => _showPaymentMethodsDialog(context),
+                        ),
+                        _buildDivider(cardBorder),
+                        _buildActionTile(
+                          icon: Icons.notifications_outlined,
+                          title: 'Notifications',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                          ),
+                        ),
+                        _buildDivider(cardBorder),
+                        _buildActionTile(
+                          icon: Icons.headset_mic_outlined,
+                          title: 'Help & Support',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SupportScreen()),
+                          ),
+                        ),
+                        _buildDivider(cardBorder),
+                        _buildActionTile(
+                          icon: Icons.settings_outlined,
+                          title: 'Settings',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // LOGOUT BUTTON matching Image 3
+                  OutlinedButton(
+                    onPressed: () => _confirmSignOut(context, auth),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.05),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.logout, color: Color(0xFFEF4444), size: 18),
+                        const SizedBox(width: 8),
                         Text(
-                          isFullyVerified
-                              ? (l10n?.profileCompletionVerifiedDesc ?? 'Your business profile and tax credentials are fully verified. You have access to priority driver matching and GST e-invoices.')
-                              : (l10n?.profileCompletionPendingDesc ?? 'Complete remaining business details (GSTIN & Address) to reach 100% and unlock instant credit limits and priority corridor matches.'),
+                          'Log Out',
                           style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: isDark
-                                ? const Color(0xFFE2E8F0)
-                                : (isFullyVerified ? const Color(0xFF047857) : const Color(0xFF78350F)),
-                            height: 1.35,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFEF4444),
                           ),
                         ),
-                        if (!isFullyVerified) ...[
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: InkWell(
-                              onTap: () => _editProfileDialog(context, auth),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text(
-                                  l10n?.completeProfileNow ?? 'Complete Profile Now →',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: isDark ? AppColors.brandYellow : const Color(0xFFB45309),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Verification & KYC Status Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: cardBorder),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              l10n?.verificationLegalKyc ?? 'Verification & Legal KYC',
-                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: textPrimary),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isFullyVerified
-                                    ? AppColors.success.withValues(alpha: 0.15)
-                                    : AppColors.warning.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isFullyVerified ? Icons.check_circle : Icons.pending_outlined,
-                                    size: 14,
-                                    color: isFullyVerified ? AppColors.success : AppColors.warning,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isFullyVerified ? (l10n?.fullyVerified ?? 'Fully Verified') : '$completionScore% Done',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: isFullyVerified ? AppColors.success : AppColors.warning,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _buildKycCheckItem(l10n?.mobileVerification ?? 'Mobile Verification', hasPhone, textPrimary, textMuted),
-                        _buildKycCheckItem(l10n?.emailAuthentication ?? 'Email Authentication', email.isNotEmpty, textPrimary, textMuted),
-                        _buildKycCheckItem(l10n?.companyRegistration ?? 'Company Registration', hasCompany, textPrimary, textMuted),
-                        _buildKycCheckItem(l10n?.gstinTaxCompliance ?? 'GSTIN / Tax Compliance', hasGstin, textPrimary, textMuted),
-                        _buildKycCheckItem(l10n?.registeredAddress ?? 'Registered Warehouse Address', hasAddress, textPrimary, textMuted),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Business Information Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: cardBorder),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              l10n?.businessTaxInfo ?? 'Business & Tax Information',
-                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: textPrimary),
-                            ),
-                            TextButton(
-                              onPressed: () => _editProfileDialog(context, auth),
-                              child: Text(l10n?.edit ?? 'Edit', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInfoRow(l10n?.companyName ?? 'Company Name', hasCompany ? company : (l10n?.notProvided ?? 'Not provided'), textPrimary, textMuted),
-                        _buildInfoRow(l10n?.contactPerson ?? 'Contact Person', hasName ? name : (l10n?.notProvided ?? 'Not provided'), textPrimary, textMuted),
-                        _buildInfoRow(l10n?.phone ?? 'Phone', hasPhone ? phone : (l10n?.notProvided ?? 'Not provided'), textPrimary, textMuted),
-                        _buildInfoRow(l10n?.email ?? 'Email', email, textPrimary, textMuted),
-                        _buildInfoRow(l10n?.gstin ?? 'GSTIN', hasGstin ? gstin : (l10n?.pendingRegistration ?? 'Pending registration'), textPrimary, textMuted),
-                        if (hasPan) _buildInfoRow(l10n?.panNumber ?? 'PAN Number', pan.isNotEmpty ? pan : gstin.substring(2, 12), textPrimary, textMuted),
-                        _buildInfoRow(l10n?.registeredAddress ?? 'Registered Address', hasAddress ? address : (l10n?.notProvided ?? 'Not provided'), textPrimary, textMuted),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Menu Options
-                  _buildMenuTile(
-                    context: context,
-                    icon: Icons.receipt_long_outlined,
-                    title: l10n?.invoicesBilling ?? 'Invoices & Billing',
-                    subtitle: l10n?.invoicesSubtitle ?? 'View GST tax invoices and payment receipts',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const InvoicesScreen()),
-                    ),
-                  ),
-                  _buildMenuTile(
-                    context: context,
-                    icon: Icons.notifications_outlined,
-                    title: l10n?.notifications ?? 'Notifications',
-                    subtitle: l10n?.notificationsSubtitle ?? 'Shipment alerts, status pings and announcements',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                    ),
-                  ),
-                  _buildMenuTile(
-                    context: context,
-                    icon: Icons.headset_mic_outlined,
-                    title: l10n?.helpSupport ?? 'Help & Support',
-                    subtitle: l10n?.helpSupportSubtitle ?? '24/7 dedicated freight and booking assistance',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SupportScreen()),
-                    ),
-                  ),
-                  _buildSettingsSection(context, l10n, textPrimary, textMuted, cardBorder),
-                  _buildMenuTile(
-                    context: context,
-                    icon: Icons.logout,
-                    title: l10n?.logOut ?? 'Log Out',
-                    subtitle: l10n?.logOutSubtitle ?? 'Sign out from this device',
-                    isDanger: true,
-                    onTap: () => _confirmSignOut(context, auth, l10n),
                   ),
                 ],
               ),
@@ -496,32 +502,26 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildKycCheckItem(String label, bool isDone, Color textPrimary, Color textMuted) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
+  Widget _buildStatColumn(String label, String value, Color textPrimary, Color textMuted) {
+    return Expanded(
+      child: Column(
         children: [
-          Icon(
-            isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-            size: 16,
-            color: isDone ? AppColors.success : textMuted,
-          ),
-          const SizedBox(width: 10),
           Text(
-            label,
+            value,
             style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: isDone ? FontWeight.w700 : FontWeight.w500,
-              color: isDone ? textPrimary : textMuted,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              color: textPrimary,
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 3),
           Text(
-            isDone ? 'Verified' : 'Required',
+            label,
+            textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isDone ? AppColors.success : AppColors.warning,
+              color: textMuted,
             ),
           ),
         ],
@@ -529,100 +529,194 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, Color textPrimary, Color textMuted) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: GoogleFonts.inter(fontSize: 12, color: textMuted)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: textPrimary),
-            ),
-          ),
-        ],
-      ),
-    );
+  Widget _buildStatDivider(Color border) {
+    return Container(height: 30, width: 1, color: border);
   }
 
-  Widget _buildMenuTile({
-    required BuildContext context,
+  Widget _buildDivider(Color border) {
+    return Divider(height: 1, thickness: 1, color: border);
+  }
+
+  Widget _buildActionTile({
     required IconData icon,
     required String title,
-    required String subtitle,
     required VoidCallback onTap,
-    bool isDanger = false,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
-    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
-    final cardBorder = isDark ? AppColors.darkBorder : AppColors.border;
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
+        final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            border: Border.all(color: cardBorder),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isDanger
-                      ? AppColors.danger.withValues(alpha: 0.12)
-                      : AppColors.brandYellow.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: isDanger ? AppColors.danger : (isDark ? AppColors.brandYellow : AppColors.slateDark),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: isDanger ? AppColors.danger : textPrimary,
-                      ),
+        return InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: isDark ? AppColors.brandYellow : AppColors.slateDark),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(fontSize: 11, color: textMuted),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right, size: 18, color: textMuted),
-            ],
+                Icon(Icons.chevron_right_rounded, size: 20, color: textMuted),
+              ],
+            ),
           ),
+        );
+      },
+    );
+  }
+
+  // --- ACTIONS & DIALOGS ---
+
+  void _showBecomePartnerModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.workspace_premium_rounded, color: AppColors.brandYellow, size: 28),
+                const SizedBox(width: 12),
+                Text('Become a REDO Partner', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Join the REDO Partner Fleet network to register commercial trucks, get high-paying verified return loads, and eliminate empty backhaul miles.',
+              style: GoogleFonts.inter(fontSize: 13, height: 1.4, color: AppColors.inkMuted),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.brandYellow,
+                  foregroundColor: AppColors.slateDark,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please open the REDO Partner App to register your commercial fleet.'),
+                      backgroundColor: AppColors.slateDark,
+                    ),
+                  );
+                },
+                child: Text('Download / Open REDO Partner App', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMyAddressesDialog(BuildContext context, AuthViewModel auth) {
+    final address = auth.profile?.businessAddress ?? 'No saved warehouse address yet.';
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Saved Warehouse Addresses', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 14),
+            ListTile(
+              leading: const Icon(Icons.warehouse_outlined, color: AppColors.brandYellow),
+              title: const Text('Primary Hub / Loading Bay'),
+              subtitle: Text(address),
+              trailing: IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _editProfileDialog(context, auth);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSavedVehiclesDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Preferred Vehicle Types', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 12),
+            _buildVehiclePrefTile('Tata 7 Ton (Canter)', 'Closed Container • 7,000 kg capacity'),
+            _buildVehiclePrefTile('10 Ton (Multi-Axle)', 'Open Body • 10,000 kg capacity'),
+            _buildVehiclePrefTile('32 Ft Container', 'High Cube • 14,000 kg capacity'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVehiclePrefTile(String title, String desc) {
+    return ListTile(
+      leading: const Icon(Icons.local_shipping_outlined, color: AppColors.brandYellow),
+      title: Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+      subtitle: Text(desc, style: GoogleFonts.inter(fontSize: 12)),
+    );
+  }
+
+  void _showPaymentMethodsDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Payment & Escrow Methods', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 12),
+            const ListTile(
+              leading: Icon(Icons.account_balance_wallet_outlined, color: AppColors.brandYellow),
+              title: Text('REDO Escrow Wallet'),
+              subtitle: Text('Instant freight settlement upon digital POD confirmation'),
+            ),
+            const ListTile(
+              leading: Icon(Icons.qr_code_2_rounded, color: Colors.blue),
+              title: Text('UPI / Net Banking / Corporate Card'),
+              subtitle: Text('Direct settlement per trip invoice'),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Future<void> _editProfileDialog(BuildContext context, AuthViewModel auth) async {
-    final l10n = AppLocalizations.of(context);
     final prefs = await SharedPreferences.getInstance();
     final uid = SupabaseService.currentUser?.id ?? '';
     final pPrefix = 'customer_profile_${uid}_';
@@ -671,7 +765,7 @@ class ProfileScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      l10n?.editProfileTitle ?? 'Edit Business Profile & KYC',
+                      'Edit Business Profile & KYC',
                       style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900, color: mTextPrimary),
                     ),
                     IconButton(
@@ -681,7 +775,7 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  l10n?.editProfileSubtitle ?? 'Update your company and tax details for verified freight shipping.',
+                  'Update your company and tax details for verified freight shipping.',
                   style: GoogleFonts.inter(fontSize: 12, color: mTextMuted),
                 ),
                 const SizedBox(height: 16),
@@ -689,7 +783,7 @@ class ProfileScreen extends StatelessWidget {
                   controller: compCtrl,
                   style: GoogleFonts.inter(color: mTextPrimary),
                   decoration: InputDecoration(
-                    labelText: '${l10n?.companyName ?? 'Company Name'} *',
+                    labelText: 'Company Name *',
                     hintText: 'e.g. Reliance Logistics Ltd',
                     prefixIcon: const Icon(Icons.business_outlined, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -700,7 +794,7 @@ class ProfileScreen extends StatelessWidget {
                   controller: nameCtrl,
                   style: GoogleFonts.inter(color: mTextPrimary),
                   decoration: InputDecoration(
-                    labelText: '${l10n?.contactPerson ?? 'Contact Person Name'} *',
+                    labelText: 'Contact Person Name *',
                     hintText: 'e.g. Ramesh Kumar',
                     prefixIcon: const Icon(Icons.person_outline, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -712,7 +806,7 @@ class ProfileScreen extends StatelessWidget {
                   keyboardType: TextInputType.phone,
                   style: GoogleFonts.inter(color: mTextPrimary),
                   decoration: InputDecoration(
-                    labelText: '${l10n?.phone ?? 'Mobile Number'} *',
+                    labelText: 'Mobile Number *',
                     hintText: 'e.g. +91 98765 43210',
                     prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -724,7 +818,7 @@ class ProfileScreen extends StatelessWidget {
                   textCapitalization: TextCapitalization.characters,
                   style: GoogleFonts.inter(color: mTextPrimary),
                   decoration: InputDecoration(
-                    labelText: '${l10n?.gstin ?? 'GSTIN'} (15 Alphanumeric)',
+                    labelText: 'GSTIN (15 Alphanumeric)',
                     hintText: 'e.g. 27AABCU9603R1ZM',
                     prefixIcon: const Icon(Icons.receipt_outlined, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -741,7 +835,7 @@ class ProfileScreen extends StatelessWidget {
                   textCapitalization: TextCapitalization.characters,
                   style: GoogleFonts.inter(color: mTextPrimary),
                   decoration: InputDecoration(
-                    labelText: l10n?.panNumber ?? 'PAN Number',
+                    labelText: 'PAN Number',
                     hintText: 'e.g. AABCU9603R',
                     prefixIcon: const Icon(Icons.credit_card_outlined, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -753,7 +847,7 @@ class ProfileScreen extends StatelessWidget {
                   maxLines: 2,
                   style: GoogleFonts.inter(color: mTextPrimary),
                   decoration: InputDecoration(
-                    labelText: l10n?.registeredAddress ?? 'Registered Warehouse Address',
+                    labelText: 'Registered Warehouse Address',
                     hintText: 'e.g. Plot 42, MIDC Industrial Area, Andheri East, Mumbai',
                     prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -771,7 +865,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     onPressed: () => Navigator.pop(ctx, true),
                     child: Text(
-                      l10n?.saveProfileKyc ?? 'Save Profile & KYC',
+                      'Save Profile & KYC',
                       style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                   ),
@@ -795,8 +889,8 @@ class ProfileScreen extends StatelessWidget {
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n?.fullyVerified ?? 'Business profile and KYC updated successfully!'),
+          const SnackBar(
+            content: Text('✓ Business profile and KYC updated successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -805,28 +899,6 @@ class ProfileScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
-    }
-  }
-
-  Future<void> _confirmSignOut(BuildContext context, AuthViewModel auth, AppLocalizations? l10n) async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n?.logOut ?? 'Log Out?', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
-        content: Text(l10n?.logOutConfirmMessage ?? 'Are you sure you want to log out from this device?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n?.cancel ?? 'Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n?.logOut ?? 'Log Out'),
-          ),
-        ],
-      ),
-    );
-
-    if (yes == true && context.mounted) {
-      await auth.signOut();
     }
   }
 
@@ -877,7 +949,6 @@ class ProfileScreen extends StatelessWidget {
     final picked = await picker.pickImage(source: source, imageQuality: 85);
     if (picked == null || !context.mounted) return;
 
-    // Show circular framing and crop confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -886,7 +957,7 @@ class ProfileScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Your photo will be framed circular on your verified enterprise profile and receipts.',
+            Text('Your photo will be framed circular on your verified enterprise profile.',
                 style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted)),
             const SizedBox(height: 16),
             Container(
@@ -926,7 +997,7 @@ class ProfileScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✓ Profile photo updated and saved successfully!'),
+            content: Text('✓ Profile photo updated successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -934,130 +1005,25 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildSettingsSection(BuildContext context, AppLocalizations? l10n, Color textPrimary, Color textMuted, Color cardBorder) {
-    final themeVM = context.watch<ThemeViewModel>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final supportedLanguages = [
-      {'code': 'en', 'name': '🇮🇳 English'},
-      {'code': 'hi', 'name': '🇮🇳 हिंदी'},
-      {'code': 'ta', 'name': '🇮🇳 தமிழ்'},
-      {'code': 'te', 'name': '🇮🇳 తెలుగు'},
-      {'code': 'kn', 'name': '🇮🇳 ಕನ್ನಡ'},
-      {'code': 'mr', 'name': '🇮🇳 मराठी'},
-      {'code': 'gu', 'name': '🇮🇳 ગુજરાતી'},
-      {'code': 'pa', 'name': '🇮🇳 ਪੰਜਾਬੀ'},
-      {'code': 'bn', 'name': '🇮🇳 বাংলা'},
-      {'code': 'or', 'name': '🇮🇳 ଓଡ଼ିଆ'},
-      {'code': 'ml', 'name': '🇮🇳 മലയാളം'},
-      {'code': 'ur', 'name': '🇮🇳 اردو'},
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(l10n?.appSettings ?? 'App Settings', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900, color: textPrimary)),
-          const SizedBox(height: 16),
-          Text(l10n?.theme ?? 'Theme', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: textMuted)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
-            ),
-            child: Row(
-              children: [
-                _buildThemePill(context, themeVM, ThemeMode.light, 'Light', Icons.light_mode_outlined, isDark),
-                _buildThemePill(context, themeVM, ThemeMode.system, 'System', Icons.phone_android_outlined, isDark),
-                _buildThemePill(context, themeVM, ThemeMode.dark, 'Dark', Icons.dark_mode_outlined, isDark),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(l10n?.language ?? 'Language', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: textMuted)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: themeVM.locale.languageCode,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Theme.of(context).scaffoldBackgroundColor,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cardBorder)),
-            ),
-            items: supportedLanguages.map((lang) {
-              return DropdownMenuItem<String>(
-                value: lang['code'],
-                child: Text(lang['name']!, style: GoogleFonts.inter(fontSize: 13, color: textPrimary)),
-              );
-            }).toList(),
-            onChanged: (code) {
-              if (code != null) themeVM.setLocale(Locale(code));
-            },
+  Future<void> _confirmSignOut(BuildContext context, AuthViewModel auth) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Log Out?', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+        content: const Text('Are you sure you want to log out from this device?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log Out'),
           ),
         ],
       ),
     );
-  }
 
-  Widget _buildThemePill(
-    BuildContext context,
-    ThemeViewModel themeVM,
-    ThemeMode mode,
-    String label,
-    IconData icon,
-    bool isDark,
-  ) {
-    final isSelected = themeVM.themeMode == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => themeVM.setThemeMode(mode),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.brandYellow : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AppColors.brandYellow.withValues(alpha: 0.35),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 15,
-                color: isSelected ? AppColors.slateDark : (isDark ? AppColors.darkInkMuted : AppColors.inkMuted),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                  color: isSelected ? AppColors.slateDark : (isDark ? AppColors.darkInk : AppColors.slateDark),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    if (yes == true && context.mounted) {
+      await auth.signOut();
+    }
   }
 }

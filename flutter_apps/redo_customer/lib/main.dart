@@ -14,7 +14,10 @@ import 'ui/screens/onboarding/customer_onboarding_screen.dart';
 import 'ui/screens/home/home_map_screen.dart';
 import 'ui/screens/shipments/shipments_screen.dart';
 import 'ui/screens/shipments/tracking_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/screens/profile/profile_screen.dart';
+import 'ui/screens/ai/ai_assistant_screen.dart';
+import 'ui/screens/onboarding/brand_story_screen.dart';
 import 'ui/widgets/voice_assistant_widget.dart';
 import 'l10n/app_localizations.dart';
 
@@ -97,7 +100,23 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<VoiceAssistantService>().onActionReady = _handleVoiceAction;
+      _checkBrandStory();
     });
+  }
+
+  Future<void> _checkBrandStory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('has_seen_brand_story_v1') ?? false;
+    if (!seen && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => BrandStoryIntroScreen(
+            onComplete: () => Navigator.of(context).pop(),
+          ),
+        ),
+      );
+    }
   }
 
   void _handleVoiceAction(VoiceAssistantAction action) {
@@ -111,8 +130,12 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
       case 'track_shipment':
         setState(() => _currentIndex = 2);
         break;
-      case 'open_profile':
+      case 'chat':
+      case 'open_ai':
         setState(() => _currentIndex = 3);
+        break;
+      case 'open_profile':
+        setState(() => _currentIndex = 4);
         break;
       default:
         // 'chat' / 'unknown' — plain conversational answer, no navigation.
@@ -126,13 +149,14 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
     final screens = [
       HomeMapScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
       ShipmentsScreen(onNewBookingPressed: () => setState(() => _currentIndex = 0)),
-      const TrackingScreen(),
+      TrackingScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
+      AiAssistantScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
       const ProfileScreen(),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      floatingActionButton: const VoiceAssistantFab(),
+      floatingActionButton: _currentIndex == 3 ? null : const VoiceAssistantFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
@@ -153,6 +177,11 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
             icon: const Icon(Icons.location_on_outlined),
             selectedIcon: const Icon(Icons.location_on, color: AppColors.slateDark),
             label: l10n?.track ?? 'Track',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.auto_awesome_outlined),
+            selectedIcon: const Icon(Icons.auto_awesome, color: AppColors.slateDark),
+            label: 'AI Assistant',
           ),
           NavigationDestination(
             icon: const Icon(Icons.person_outline),

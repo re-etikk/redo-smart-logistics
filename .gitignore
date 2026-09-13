@@ -23,6 +23,7 @@ mobile/
 
 # Build artifacts
 apks/
+build_apks/
 *.apk
 flutter_apps_clean/
 flutter_apps.zip

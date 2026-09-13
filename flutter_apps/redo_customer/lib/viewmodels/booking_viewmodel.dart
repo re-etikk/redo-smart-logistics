@@ -11,13 +11,22 @@ class CityLocation {
 }
 
 const List<CityLocation> majorCities = [
-  CityLocation('Mumbai', LatLng(19.0760, 72.8777)),
   CityLocation('Delhi NCR', LatLng(28.6139, 77.2090)),
+  CityLocation('Mumbai', LatLng(19.0760, 72.8777)),
+  CityLocation('Patna', LatLng(25.5941, 85.1376)),
+  CityLocation('Lucknow', LatLng(26.8467, 80.9462)),
+  CityLocation('Kanpur', LatLng(26.4499, 80.3319)),
+  CityLocation('Varanasi', LatLng(25.3176, 82.9739)),
+  CityLocation('Kolkata', LatLng(22.5726, 88.3639)),
+  CityLocation('Hyderabad', LatLng(17.3850, 78.4867)),
+  CityLocation('Bengaluru', LatLng(12.9716, 77.5946)),
+  CityLocation('Chennai', LatLng(13.0827, 80.2707)),
+  CityLocation('Ahmedabad', LatLng(23.0225, 72.5714)),
+  CityLocation('Surat', LatLng(21.1702, 72.8311)),
   CityLocation('Pune', LatLng(18.5204, 73.8567)),
   CityLocation('Jaipur', LatLng(26.9124, 75.7873)),
-  CityLocation('Surat', LatLng(21.1702, 72.8311)),
-  CityLocation('Ahmedabad', LatLng(23.0225, 72.5714)),
-  CityLocation('Bengaluru', LatLng(12.9716, 77.5946)),
+  CityLocation('Indore', LatLng(22.7196, 75.8577)),
+  CityLocation('Nagpur', LatLng(21.1458, 79.0882)),
 ];
 
 class BookingViewModel extends ChangeNotifier {
