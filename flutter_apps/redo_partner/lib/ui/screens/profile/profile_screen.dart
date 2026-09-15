@@ -17,6 +17,8 @@ import '../misc/support_screen.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../data/services/bank_lookup_service.dart';
 import '../../../data/services/api_service.dart';
+import '../settings/kyc_verification_screen.dart';
+import '../settings/partner_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -603,6 +605,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                    ),
+                  ),
+                  _buildMenuTile(
+                    icon: Icons.verified_user_outlined,
+                    iconColor: AppColors.success,
+                    title: 'Statutory KYC & Document Verification',
+                    subtitle: 'Aadhaar, PAN, DL and Vehicle RC official checks',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
+                    ),
+                  ),
+                  _buildMenuTile(
+                    icon: Icons.settings_outlined,
+                    iconColor: Colors.blueGrey,
+                    title: 'App Settings & Preferences',
+                    subtitle: 'Language, units, notifications, default location',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PartnerSettingsScreen()),
                     ),
                   ),
                   _buildMenuTile(

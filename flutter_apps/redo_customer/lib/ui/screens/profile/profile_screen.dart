@@ -11,6 +11,7 @@ import '../../../viewmodels/shipments_viewmodel.dart';
 import '../misc/notifications_screen.dart';
 import '../misc/support_screen.dart';
 import '../settings/settings_screen.dart';
+import '../settings/kyc_verification_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -177,7 +178,7 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         // Truck Banner Image: "Delivering Opportunities Together"
                         SizedBox(
-                          height: 110,
+                          height: 135,
                           width: double.infinity,
                           child: Stack(
                             fit: StackFit.expand,
@@ -274,32 +275,39 @@ class ProfileScreen extends StatelessWidget {
                                     ],
                                     const SizedBox(height: 6),
                                     // Verified Account Pill
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: isVerified
-                                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                            : const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(12),
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            isVerified ? Icons.check_circle : Icons.schedule,
-                                            size: 13,
-                                            color: isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            isVerified ? 'Verified Account' : 'Verification Pending',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isVerified
+                                              ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                              : const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              isVerified ? Icons.check_circle : Icons.schedule,
+                                              size: 13,
                                               color: isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              isVerified ? 'Verified Account' : 'Verification Pending >',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: isVerified ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -427,8 +435,11 @@ class ProfileScreen extends StatelessWidget {
                         _buildDivider(cardBorder),
                         _buildActionTile(
                           icon: Icons.receipt_outlined,
-                          title: 'GST Details',
-                          onTap: () => _editProfileDialog(context, auth),
+                          title: 'GST & Statutory KYC',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
+                          ),
                         ),
                         _buildDivider(cardBorder),
                         _buildActionTile(

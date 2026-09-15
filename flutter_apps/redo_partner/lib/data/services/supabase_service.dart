@@ -568,10 +568,83 @@ class SupabaseService {
     });
   }
 
-  // --- Earnings (computed by the backend from completed bookings) ---
+  // --- Earnings (computed by the backend or directly via Supabase) ---
   static Future<Map<String, dynamic>> getEarnings() async {
-    final res = await ApiService.get('/earnings');
-    return Map<String, dynamic>.from(res);
+    try {
+      final res = await ApiService.get('/earnings');
+      if (res is Map && res.containsKey('totals')) {
+        return Map<String, dynamic>.from(res);
+      }
+    } catch (_) {}
+
+    // Fallback directly to Supabase client
+    try {
+      final uid = currentUser?.id;
+      if (uid == null) {
+        return {
+          'totals': {
+            'completed_inr': 0,
+            'completed_trips': 0,
+            'avg_per_trip_inr': 0,
+            'pending_inr': 0,
+            'pending_trips': 0,
+          },
+          'transactions': <Map<String, dynamic>>[],
+        };
+      }
+
+      final rows = await client
+          .from('bookings')
+          .select('id, cargo_id, status, agreed_price_inr, created_at, cargo:cargo_requests(origin, destination), truck:trucks(owner_id)')
+          .order('created_at', ascending: false);
+
+      final list = (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final partnerRows = list.where((b) => b['truck'] != null && b['truck']['owner_id'] == uid).toList();
+
+      const activeStatuses = ['confirmed', 'pickup_ready', 'picked_up', 'in_transit', 'delivered'];
+      final done = partnerRows.where((b) => b['status'] == 'completed').toList();
+      final active = partnerRows.where((b) => activeStatuses.contains(b['status'])).toList();
+
+      double sum(List<Map<String, dynamic>> r) => r.fold(0.0, (prev, el) => prev + ((el['agreed_price_inr'] as num?)?.toDouble() ?? 0.0));
+
+      final compInr = sum(done);
+      final pendInr = sum(active);
+      final avgInr = done.isNotEmpty ? (compInr / done.length).round() : 0;
+
+      final txs = [...done, ...active].map((b) {
+        final cargo = b['cargo'] as Map?;
+        return {
+          'booking_id': b['id'],
+          'cargo_id': b['cargo_id'],
+          'route': cargo != null ? '${cargo['origin']} → ${cargo['destination']}' : '—',
+          'amount_inr': (b['agreed_price_inr'] as num?)?.toDouble() ?? 0.0,
+          'settled': b['status'] == 'completed',
+          'date': b['created_at'],
+        };
+      }).toList();
+
+      return {
+        'totals': {
+          'completed_inr': compInr,
+          'completed_trips': done.length,
+          'avg_per_trip_inr': avgInr,
+          'pending_inr': pendInr,
+          'pending_trips': active.length,
+        },
+        'transactions': txs,
+      };
+    } catch (_) {
+      return {
+        'totals': {
+          'completed_inr': 0,
+          'completed_trips': 0,
+          'avg_per_trip_inr': 0,
+          'pending_inr': 0,
+          'pending_trips': 0,
+        },
+        'transactions': <Map<String, dynamic>>[],
+      };
+    }
   }
 
   // --- Realtime ---

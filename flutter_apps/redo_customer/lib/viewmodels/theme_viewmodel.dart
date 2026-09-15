@@ -4,9 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeViewModel extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   Locale _locale = const Locale('en');
+  String _selectedUnits = 'Metric (Kg, Km)';
 
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
+  String get selectedUnits => _selectedUnits;
+  bool get isMetric => !_selectedUnits.toLowerCase().contains('imperial');
 
   ThemeViewModel() {
     _loadSettings();
@@ -21,6 +24,11 @@ class ThemeViewModel extends ChangeNotifier {
     final langCode = prefs.getString('language_code');
     if (langCode != null) {
       _locale = Locale(langCode);
+    }
+
+    final units = prefs.getString('redo_pref_units');
+    if (units != null) {
+      _selectedUnits = units;
     }
     notifyListeners();
   }
@@ -37,5 +45,12 @@ class ThemeViewModel extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     prefs.setString('language_code', locale.languageCode);
+  }
+
+  Future<void> setUnits(String units) async {
+    _selectedUnits = units;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('redo_pref_units', units);
   }
 }

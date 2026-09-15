@@ -3,7 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/app_strings.dart';
 import '../../../core/theme.dart';
+import '../../../data/services/routing_service.dart';
+import 'kyc_verification_screen.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../../viewmodels/auth_viewmodel.dart';
 import '../../../viewmodels/theme_viewmodel.dart';
@@ -197,7 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   // Page Title
                   Text(
-                    'Settings',
+                    AppStrings.of(context, 'settings'),
                     style: GoogleFonts.inter(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -215,66 +218,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 16),
 
                   // Top Highlight Card: Customise your experience
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: cardBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.brandYellow.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
+                  InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => _openCustomiseWizard(context, themeVM),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: cardBorder),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                          child: const Icon(
-                            Icons.tune_rounded,
-                            color: AppColors.slateDark,
-                            size: 22,
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.brandYellow.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.tune_rounded,
+                              color: AppColors.slateDark,
+                              size: 22,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Customise your experience',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: textPrimary,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppStrings.of(context, 'customiseExperience'),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: textPrimary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Make the app work the way you want.',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: textMuted,
+                                const SizedBox(height: 2),
+                                Text(
+                                  AppStrings.of(context, 'customiseSubtitle'),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: textMuted,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          Icon(Icons.chevron_right_rounded, color: textMuted),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
 
                   // SECTION 1: Account Settings
-                  _buildSectionHeader('Account Settings', textPrimary),
+                  _buildSectionHeader(AppStrings.of(context, 'accountSettings'), textPrimary),
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
@@ -286,21 +294,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _buildSettingTile(
                           icon: Icons.person_outline_rounded,
-                          title: 'Personal Information',
+                          title: AppStrings.of(context, 'personalInfo'),
                           subtitle: name.isNotEmpty ? name : email,
                           onTap: () => _editPersonalInfoDialog(context, auth),
                         ),
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.lock_outline_rounded,
-                          title: 'Change Password',
+                          title: AppStrings.of(context, 'changePassword'),
                           subtitle: 'Update your account password',
                           onTap: () => _changePasswordDialog(context),
                         ),
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.verified_user_outlined,
-                          title: 'KYC & Verification',
+                          title: AppStrings.of(context, 'kycVerification'),
                           subtitle: isVerified ? 'Verified Enterprise Account' : 'Verification Pending',
                           trailingBadge: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -330,7 +338,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
-                          onTap: () => _showKycDetailsDialog(context, auth),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KycVerificationScreen())),
                         ),
                       ],
                     ),
@@ -338,7 +346,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 20),
 
                   // SECTION 2: App Preferences
-                  _buildSectionHeader('App Preferences', textPrimary),
+                  _buildSectionHeader(AppStrings.of(context, 'appPreferences'), textPrimary),
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
@@ -350,7 +358,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _buildSettingTile(
                           icon: Icons.notifications_outlined,
-                          title: 'Notifications',
+                          title: AppStrings.of(context, 'notifications'),
                           subtitle: 'Push alerts and delivery status',
                           trailingWidget: Switch.adaptive(
                             value: _pushNotifications,
@@ -369,7 +377,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.language_rounded,
-                          title: 'Language',
+                          title: AppStrings.of(context, 'language'),
                           subtitle: _getLanguageDisplayName(themeVM.locale.languageCode),
                           trailingBadge: _buildPillBadge(_getLanguageDisplayName(themeVM.locale.languageCode)),
                           onTap: () => _selectLanguageBottomSheet(context, themeVM),
@@ -377,7 +385,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.palette_outlined,
-                          title: 'Theme',
+                          title: AppStrings.of(context, 'theme'),
                           subtitle: currentThemeName,
                           trailingBadge: _buildPillBadge(currentThemeName),
                           onTap: () => _selectThemeBottomSheet(context, themeVM),
@@ -385,14 +393,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.location_on_outlined,
-                          title: 'Default Locations',
+                          title: AppStrings.of(context, 'defaultLocations'),
                           subtitle: _defaultLocation,
                           onTap: () => _editDefaultLocationDialog(context),
                         ),
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.straighten_rounded,
-                          title: 'Units',
+                          title: AppStrings.of(context, 'units'),
                           subtitle: _selectedUnits,
                           trailingBadge: _buildPillBadge(_selectedUnits),
                           onTap: () => _selectUnitsDialog(context),
@@ -403,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 20),
 
                   // SECTION 3: Privacy & Security
-                  _buildSectionHeader('Privacy & Security', textPrimary),
+                  _buildSectionHeader(AppStrings.of(context, 'privacySecurity'), textPrimary),
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
@@ -415,21 +423,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _buildSettingTile(
                           icon: Icons.privacy_tip_outlined,
-                          title: 'Privacy Policy',
+                          title: AppStrings.of(context, 'privacyPolicy'),
                           subtitle: 'How we manage and protect your data',
                           onTap: () => _showPrivacyPolicyModal(context),
                         ),
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.description_outlined,
-                          title: 'Terms & Conditions',
+                          title: AppStrings.of(context, 'termsConditions'),
                           subtitle: 'Freight transport service agreements',
                           onTap: () => _showTermsModal(context),
                         ),
                         _buildDivider(cardBorder),
                         _buildSettingTile(
                           icon: Icons.delete_outline_rounded,
-                          title: 'Delete Account',
+                          title: AppStrings.of(context, 'deleteAccount'),
                           subtitle: 'Permanently remove your account and data',
                           isDanger: true,
                           onTap: () => _confirmDeleteAccountDialog(context, auth),
@@ -440,7 +448,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 20),
 
                   // SECTION 4: App Details
-                  _buildSectionHeader('App Details', textPrimary),
+                  _buildSectionHeader(AppStrings.of(context, 'appDetails'), textPrimary),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -494,7 +502,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const Icon(Icons.logout, color: Color(0xFFEF4444), size: 18),
                         const SizedBox(width: 8),
                         Text(
-                          'Log Out',
+                          AppStrings.of(context, 'logOut'),
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -994,55 +1002,288 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _editDefaultLocationDialog(BuildContext context) async {
     final ctrl = TextEditingController(text: _defaultLocation);
-    final saved = await showDialog<bool>(
+    List<String> suggestions = [];
+    bool isSearching = false;
+
+    await showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Default Warehouse Location'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            hintText: 'e.g. Mumbai, Maharashtra',
-            prefixIcon: Icon(Icons.location_on_outlined),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.brandYellow, foregroundColor: AppColors.slateDark),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Save'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              top: 20,
+              left: 20,
+              right: 20,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Default Pickup / Warehouse Location',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : AppColors.slateDark,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Search city, hub, address...',
+                    prefixIcon: const Icon(Icons.location_on, color: AppColors.brandYellow),
+                    suffixIcon: isSearching
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : (ctrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () {
+                                  ctrl.clear();
+                                  setModalState(() => suggestions = []);
+                                },
+                              )
+                            : null),
+                  ),
+                  onChanged: (val) async {
+                    if (val.trim().length < 2) {
+                      setModalState(() => suggestions = []);
+                      return;
+                    }
+                    setModalState(() => isSearching = true);
+                    final results = await RoutingService.searchPlaces(val.trim());
+                    setModalState(() {
+                      isSearching = false;
+                      suggestions = results.map((r) => r.description.isNotEmpty ? r.description : r.name).toList();
+                    });
+                  },
+                ),
+                if (suggestions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkCanvas : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: suggestions.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, idx) {
+                        final item = suggestions[idx];
+                        return ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.pin_drop_outlined, size: 18, color: AppColors.brandYellow),
+                          title: Text(
+                            item,
+                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () {
+                            ctrl.text = item;
+                            setState(() => _defaultLocation = item);
+                            _savePreference('redo_pref_default_location', item);
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('✓ Default location saved: $item'),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.brandYellow,
+                      foregroundColor: AppColors.slateDark,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      if (ctrl.text.trim().isNotEmpty) {
+                        setState(() => _defaultLocation = ctrl.text.trim());
+                        _savePreference('redo_pref_default_location', _defaultLocation);
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('✓ Default location set to: $_defaultLocation'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      }
+                    },
+                    child: Text('Save Location', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
+  }
 
-    if (saved == true && ctrl.text.trim().isNotEmpty) {
-      setState(() => _defaultLocation = ctrl.text.trim());
-      _savePreference('redo_pref_default_location', _defaultLocation);
-    }
+  void _openCustomiseWizard(BuildContext context, ThemeViewModel themeVM) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  AppStrings.of(context, 'customiseExperience'),
+                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Quick setup for appearance, native language, and preferred cargo units.',
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.language_rounded, color: AppColors.brandYellow),
+              title: Text(AppStrings.of(context, 'language'), style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              subtitle: Text(_getLanguageDisplayName(themeVM.locale.languageCode)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(ctx);
+                _selectLanguageBottomSheet(context, themeVM);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.palette_outlined, color: AppColors.brandYellow),
+              title: Text(AppStrings.of(context, 'theme'), style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              subtitle: Text(themeVM.themeMode == ThemeMode.dark ? 'Dark' : (themeVM.themeMode == ThemeMode.light ? 'Light' : 'System Default')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(ctx);
+                _selectThemeBottomSheet(context, themeVM);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.straighten_rounded, color: AppColors.brandYellow),
+              title: Text(AppStrings.of(context, 'units'), style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              subtitle: Text(_selectedUnits),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(ctx);
+                _selectUnitsDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.location_on_outlined, color: AppColors.brandYellow),
+              title: Text(AppStrings.of(context, 'defaultLocations'), style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              subtitle: Text(_defaultLocation),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(ctx);
+                _editDefaultLocationDialog(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _selectUnitsDialog(BuildContext context) async {
+    final themeVM = context.read<ThemeViewModel>();
     await showDialog(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Measurement Units'),
+        title: Text(AppStrings.of(context, 'units'), style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
         children: [
           SimpleDialogOption(
             onPressed: () {
-              setState(() => _selectedUnits = 'Metric (Kg, Km)');
-              _savePreference('redo_pref_units', _selectedUnits);
+              const u = 'Metric (Kg, Km)';
+              setState(() => _selectedUnits = u);
+              _savePreference('redo_pref_units', u);
+              themeVM.setUnits(u);
               Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('✓ Measurement set to Metric (Kg, Km, Tons)')),
+              );
             },
-            child: const Text('Metric (Kg, Km, Tons)'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: AppColors.brandYellow, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Metric (Kg, Km, Tons)', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
           ),
           SimpleDialogOption(
             onPressed: () {
-              setState(() => _selectedUnits = 'Imperial (Lbs, Miles)');
-              _savePreference('redo_pref_units', _selectedUnits);
+              const u = 'Imperial (Lbs, Miles)';
+              setState(() => _selectedUnits = u);
+              _savePreference('redo_pref_units', u);
+              themeVM.setUnits(u);
               Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('✓ Measurement set to Imperial (Lbs, Miles)')),
+              );
             },
-            child: const Text('Imperial (Lbs, Miles)'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: AppColors.inkMuted, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Imperial (Lbs, Miles)', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -1132,7 +1373,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Log Out'),
+            child: Text(AppStrings.of(context, 'logOut')),
           ),
         ],
       ),

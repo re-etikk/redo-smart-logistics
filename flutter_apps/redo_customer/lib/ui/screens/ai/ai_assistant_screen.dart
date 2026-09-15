@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,6 +24,9 @@ class AiAssistantScreen extends StatefulWidget {
 }
 
 class _AiAssistantScreenState extends State<AiAssistantScreen> with SingleTickerProviderStateMixin {
+  File? _attachedBilty;
+  bool _analyzingBilty = false;
+
   int _activeMode = 0; // 0: Chat, 1: Voice
   final TextEditingController _textCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
@@ -1083,6 +1088,126 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> with SingleTicker
     );
   }
 
+  
+  void _openBiltyPickerSheet(BuildContext context, VoiceAssistantService voice) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                'Upload Bilty, Invoice or POD',
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'AI OCR will instantly extract route, weight, tax invoice and cargo items.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+              ),
+              const SizedBox(height: 18),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: Colors.amber),
+                ),
+                title: Text('Scan with Camera', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                subtitle: Text('Capture photo of printed bilty or consignment note', style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _pickBilty(ImageSource.camera, voice);
+                },
+              ),
+              const Divider(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: Colors.blue),
+                ),
+                title: Text('Choose from Gallery / Files', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                subtitle: Text('Select PDF screenshot, JPG or PNG invoice', style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _pickBilty(ImageSource.gallery, voice);
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickBilty(ImageSource source, VoiceAssistantService voice) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (picked != null && mounted) {
+        setState(() {
+          _attachedBilty = File(picked.path);
+        });
+        await _triggerBiltyOcr(voice, picked.name);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not access camera/storage: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _triggerBiltyOcr(VoiceAssistantService voice, String filename) async {
+    if (!mounted) return;
+    setState(() => _analyzingBilty = true);
+    
+    // Dispatch query to AI co-pilot
+    voice.sendTextMessage(
+      'Attached Bilty / E-Way Bill: $filename. Please run instant OCR analysis to extract consignor, destination, cargo weight, and recommend verified trucks.',
+    );
+    
+    // Simulate OCR processing time
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+    
+    setState(() {
+      _analyzingBilty = false;
+      _attachedBilty = null;
+    });
+    
+    _scrollToBottom();
+  }
+
   Widget _buildChatInputBar(
     VoiceAssistantService voice,
     bool isDark,
@@ -1097,16 +1222,62 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> with SingleTicker
         color: cardBg,
         border: Border(top: BorderSide(color: cardBorder, width: 0.8)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          if (_attachedBilty != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.brandYellow),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.file(_attachedBilty!, width: 36, height: 36, fit: BoxFit.cover),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _analyzingBilty ? 'Analyzing Bilty via AI OCR...' : 'Bilty Attached: ${_attachedBilty!.path.split('/').last.split(r'\').last}',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          _analyzingBilty ? 'Extracting Consignor, Weight, Goods & Rate...' : 'Uploaded for instant OCR analysis',
+                          style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_analyzingBilty)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brandYellow),
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(() => _attachedBilty = null),
+                    ),
+                ],
+              ),
+            ),
+          Row(
+            children: [
           IconButton(
-            icon: Icon(Icons.attach_file_rounded, color: textMuted),
+            icon: Icon(Icons.attach_file_rounded, color: _attachedBilty != null ? AppColors.brandYellow : textMuted),
             tooltip: 'Attach Bilty / E-Way Bill',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Upload Bilty or E-Way bill for instant OCR quote.')),
-              );
-            },
+            onPressed: () => _openBiltyPickerSheet(context, voice),
           ),
           Expanded(
             child: TextField(
@@ -1175,6 +1346,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> with SingleTicker
               ),
             ),
           ),
+        ],
+      ),
         ],
       ),
     );

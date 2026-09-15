@@ -16,6 +16,7 @@ import '../../../data/services/routing_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../../viewmodels/shipments_viewmodel.dart';
 import '../../widgets/ui_components.dart';
+import '../chat/direct_chat_screen.dart';
 import '../misc/notifications_screen.dart';
 
 class TrackingScreen extends StatefulWidget {
@@ -321,7 +322,16 @@ class _TrackingScreenState extends State<TrackingScreen> {
       if (mounted) setState(() => _events = events);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+        final errStr = e.toString().toLowerCase();
+        // Do not display false error for unaccepted/open cargo requests or missing telemetry pings
+        if (errStr.contains('not found') || errStr.contains('404') || b.status.toLowerCase() == 'open' || b.status.toLowerCase() == 'pending') {
+          setState(() {
+            _events = [];
+            _error = null;
+          });
+        } else {
+          setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+        }
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -445,20 +455,25 @@ class _TrackingScreenState extends State<TrackingScreen> {
   String _statusTitle(String status) {
     switch (status.toLowerCase()) {
       case 'in_transit':
-        return 'In Transit';
+        return 'In Transit 🛣️';
       case 'picked_up':
-        return 'Picked Up';
+        return 'Picked Up 📦';
       case 'pickup_ready':
         return 'Arrived at Pickup';
       case 'confirmed':
-        return 'Confirmed';
+      case 'assigned':
+        return 'Driver Assigned 🚛';
+      case 'open':
+      case 'pending':
+      case 'matching':
+        return 'Finding Truck Partner... ⏳';
       case 'out_for_delivery':
         return 'Out for Delivery';
       case 'delivered':
       case 'completed':
-        return 'Delivered';
+        return 'Delivered & Completed ✅';
       default:
-        return 'Booked';
+        return 'Finding Truck Partner... ⏳';
     }
   }
 
@@ -1112,23 +1127,31 @@ class _TrackingScreenState extends State<TrackingScreen> {
     final createdDate = DateTime.tryParse(b.createdAt) ?? DateTime.now();
 
     final step1Time = DateFormat('d MMM\n10:30 AM').format(createdDate);
-    final step2Time = DateFormat('d MMM\n04:20 PM').format(createdDate);
-    final step3Time = DateFormat('d MMM\n09:15 AM').format(createdDate.add(const Duration(hours: 18)));
-    final step4Time = '${DateFormat('d MMM').format(createdDate.add(const Duration(hours: 28)))}\n(Expected)';
-    const step5Time = '—';
+    final hasDriverAssigned = ['confirmed', 'assigned', 'pickup_ready', 'picked_up', 'in_transit', 'delivered', 'completed'].contains(st) ||
+        (b.driverName != null && b.driverName!.trim().isNotEmpty && b.driverName != 'Assigning Driver...');
+    final step2Time = hasDriverAssigned
+        ? DateFormat('d MMM\n04:20 PM').format(createdDate)
+        : 'Matching... ⏳';
+    final step3Time = ['picked_up', 'in_transit', 'delivered', 'completed'].contains(st)
+        ? DateFormat('d MMM\n09:15 AM').format(createdDate.add(const Duration(hours: 18)))
+        : '—';
+    final step4Time = ['in_transit', 'delivered', 'completed'].contains(st)
+        ? '${DateFormat('d MMM').format(createdDate.add(const Duration(hours: 28)))}\n(Active)'
+        : '—';
+    final step5Time = ['delivered', 'completed'].contains(st) ? 'Delivered' : '—';
 
     // Status progression logic
-    int progressStage = 1; // Booked
-    if (['picked_up'].contains(st)) progressStage = 2;
-    if (['in_transit'].contains(st)) progressStage = 3;
-    if (['out_for_delivery'].contains(st)) progressStage = 4;
+    int progressStage = 1; // Request Placed / Open
+    if (hasDriverAssigned) progressStage = 2;
+    if (['picked_up'].contains(st)) progressStage = 3;
+    if (['in_transit', 'out_for_delivery'].contains(st)) progressStage = 4;
     if (['delivered', 'completed'].contains(st)) progressStage = 5;
 
     final steps = [
-      {'title': 'Booked', 'subtitle': step1Time, 'stage': 1},
-      {'title': 'Picked Up', 'subtitle': step2Time, 'stage': 2},
-      {'title': 'In Transit', 'subtitle': step3Time, 'stage': 3},
-      {'title': 'Out for Delivery', 'subtitle': step4Time, 'stage': 4},
+      {'title': 'Request Placed', 'subtitle': step1Time, 'stage': 1},
+      {'title': 'Driver Assigned', 'subtitle': step2Time, 'stage': 2},
+      {'title': 'Picked Up', 'subtitle': step3Time, 'stage': 3},
+      {'title': 'In Transit', 'subtitle': step4Time, 'stage': 4},
       {'title': 'Delivered', 'subtitle': step5Time, 'stage': 5},
     ];
 
@@ -1258,168 +1281,256 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   Widget _buildDriverAndTruckCards(BookingItem b, bool isDark) {
-    final hasDriver = b.driverName != null && b.driverName!.isNotEmpty;
+    final hasDriver = b.driverName != null &&
+        b.driverName!.trim().isNotEmpty &&
+        b.driverName != 'Assigning Driver...';
+    final isPendingPartner = !hasDriver;
     final driverName = hasDriver ? b.driverName! : 'Assigning Driver...';
-    final hasPhone = b.driverPhone != null && b.driverPhone!.isNotEmpty;
-    final truckType = b.cargoType.isNotEmpty ? b.cargoType : 'Tata 407';
-    final truckReg = b.truckReg != null && b.truckReg!.isNotEmpty ? b.truckReg! : 'Pending Reg';
+    final hasPhone = b.driverPhone != null && b.driverPhone!.trim().isNotEmpty;
+    final truckType = b.cargoType.isNotEmpty ? b.cargoType : 'Tata 407 (Commercial)';
+    final truckReg = b.truckReg != null && b.truckReg!.isNotEmpty ? b.truckReg! : 'Corridor Search';
 
-    return Row(
-      children: [
-        // Left: Driver Details Card
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.border,
+    if (isPendingPartner) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEF3C7),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.radar_rounded,
+                color: AppColors.slateDark,
+                size: 24,
               ),
             ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/images/driver_avatar_default.png',
-                    width: 38,
-                    height: 38,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const CircleAvatar(
-                      radius: 19,
-                      backgroundColor: Color(0xFFFEF3C7),
-                      child: Icon(Icons.person, color: AppColors.slateDark, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Matching Verified Truck Partner...',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : AppColors.slateDark,
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Corridor: ${b.origin} → ${b.destination}\nNearby commercial truckers on this route are being notified.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: isDark ? AppColors.darkInkMuted : AppColors.inkMuted,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: AppColors.brandYellow,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            // Left: Driver Details Card
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark ? AppColors.darkBorder : AppColors.border,
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        driverName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : AppColors.slateDark,
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        'assets/images/driver_avatar_default.png',
+                        width: 38,
+                        height: 38,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const CircleAvatar(
+                          radius: 19,
+                          backgroundColor: Color(0xFFFEF3C7),
+                          child: Icon(Icons.person, color: AppColors.slateDark, size: 20),
                         ),
                       ),
-                      Row(
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star, size: 11, color: Color(0xFFF59E0B)),
-                          const SizedBox(width: 2),
                           Text(
-                            hasDriver ? '4.8 (320)' : 'Verified',
+                            driverName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : AppColors.slateDark,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.star, size: 11, color: Color(0xFFF59E0B)),
+                              const SizedBox(width: 2),
+                              Text(
+                                '4.8 (320)',
+                                style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Your Driver',
+                            style: GoogleFonts.inter(fontSize: 9, color: AppColors.inkFaint),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hasPhone) ...[
+                      InkWell(
+                        onTap: () => launchUrl(Uri.parse('tel:${b.driverPhone}')),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? AppColors.darkBorder : AppColors.border,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.phone,
+                            size: 13,
+                            color: isDark ? Colors.white : AppColors.slateDark,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // Right: Vehicle Details Card
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark ? AppColors.darkBorder : AppColors.border,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.asset(
+                        'assets/images/tracking_vehicle_thumb.png',
+                        width: 36,
+                        height: 26,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.local_shipping,
+                          size: 24,
+                          color: AppColors.brandYellow,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            truckType,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : AppColors.slateDark,
+                            ),
+                          ),
+                          Text(
+                            truckReg,
                             style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
                           ),
                         ],
                       ),
-                      Text(
-                        'Your Driver',
-                        style: GoogleFonts.inter(fontSize: 9, color: AppColors.inkFaint),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                if (hasPhone) ...[
-                  InkWell(
-                    onTap: () => launchUrl(Uri.parse('tel:${b.driverPhone}')),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? AppColors.darkBorder : AppColors.border,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.phone,
-                        size: 13,
-                        color: isDark ? Colors.white : AppColors.slateDark,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: () => launchUrl(Uri.parse('sms:${b.driverPhone}')),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? AppColors.darkBorder : AppColors.border,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.chat_bubble_outline,
-                        size: 13,
-                        color: isDark ? Colors.white : AppColors.slateDark,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-
-        // Right: Vehicle Details Card
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.border,
               ),
             ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.asset(
-                    'assets/images/tracking_vehicle_thumb.png',
-                    width: 36,
-                    height: 26,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) => const Icon(
-                      Icons.local_shipping,
-                      size: 24,
-                      color: AppColors.brandYellow,
-                    ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Direct In-App Chat Button
+        SizedBox(
+          width: double.infinity,
+          height: 42,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DirectChatScreen(
+                    bookingId: b.id,
+                    counterpartyName: driverName,
+                    counterpartyRole: 'driver',
+                    counterpartyPhone: b.driverPhone ?? '+91 98765 43210',
+                    origin: b.origin,
+                    destination: b.destination,
+                    truckReg: b.truckReg,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        truckType,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : AppColors.slateDark,
-                        ),
-                      ),
-                      Text(
-                        truckReg,
-                        style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkMuted),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              );
+            },
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+            label: Text(
+              'Chat with Driver ($driverName)',
+              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandYellow,
+              foregroundColor: AppColors.slateDark,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ),

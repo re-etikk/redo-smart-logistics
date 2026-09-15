@@ -5,6 +5,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
+import '../../../core/unit_formatter.dart';
+import '../../../viewmodels/theme_viewmodel.dart';
 import '../../../data/models/models.dart';
 import '../../../data/services/places_service.dart';
 import '../../../data/services/routing_service.dart';
@@ -104,8 +106,15 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
+    Future.microtask(() async {
       if (mounted) context.read<ShipmentsViewModel>().fetchShipments(silent: true);
+      final vm = context.read<BookingViewModel>();
+      if (vm.origin.isEmpty && mounted) {
+        await vm.useCurrentLocationForPickup();
+        if (mounted && vm.origin.isNotEmpty) {
+          _updateMapCamera(vm);
+        }
+      }
     });
   }
 
@@ -338,6 +347,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   Widget build(BuildContext context) {
     final booking = context.watch<BookingViewModel>();
     final shipments = context.watch<ShipmentsViewModel>();
+    final themeVM = context.watch<ThemeViewModel>();
     final recentBookings = shipments.shipments.take(3).toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -883,6 +893,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
     Color cardBorder,
     bool isDark,
   ) {
+    final themeVM = context.watch<ThemeViewModel>();
     return SizedBox(
       height: 112,
       child: ListView.separated(
@@ -945,7 +956,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${v.tonnage}T',
+                          UnitFormatter.formatWeightTons(v.tonnage, isMetric: themeVM.isMetric),
                           style: GoogleFonts.inter(
                             fontSize: 10,
                             fontWeight: FontWeight.w900,

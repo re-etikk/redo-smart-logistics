@@ -125,7 +125,7 @@ extrasRouter.get('/invoices', async (req, res, next) => {
 extrasRouter.get('/earnings', async (req, res, next) => {
   try {
     const { data: rows, error } = await supabaseAdmin.from('bookings')
-      .select('id, cargo_id, status, agreed_price_inr, updated_at, created_at, cargo:cargo_requests(origin, destination), truck:trucks(owner_id)')
+      .select('id, cargo_id, status, agreed_price_inr, created_at, cargo:cargo_requests(origin, destination), truck:trucks(owner_id)')
       .order('created_at', { ascending: false });
     if (error) throw apiError(500, 'DB_ERROR', error.message);
     const data = (rows ?? []).filter((b) => b.truck?.owner_id === req.user.id);
@@ -148,7 +148,7 @@ extrasRouter.get('/earnings', async (req, res, next) => {
         route: b.cargo ? `${b.cargo.origin} → ${b.cargo.destination}` : '—',
         amount_inr: Number(b.agreed_price_inr || 0),
         settled: b.status === 'completed',
-        date: b.updated_at ?? b.created_at,
+        date: b.created_at,
       })),
     });
   } catch (e) { next(e); }

@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../../core/unit_formatter.dart';
 import '../../../core/theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/services/routing_service.dart';
@@ -79,15 +81,153 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   bool _calculatingRoute = false;
   Set<Polyline> _polylines = {};
   Set<Marker> _markers = {};
+  bool _proximityAlertShown = false;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
+    Future.microtask(() async {
       if (mounted) {
-        context.read<PartnerTripsViewModel>().fetchAll();
+        final vm = context.read<PartnerTripsViewModel>();
+        await vm.fetchAll();
+        _autoDetectDriverAndCheckProximity(vm);
       }
     });
+  }
+
+  Future<void> _autoDetectDriverAndCheckProximity(PartnerTripsViewModel tripsVM) async {
+    try {
+      final loc = await RoutingService.getCurrentLocation();
+      if (loc != null && mounted) {
+        if (_fromController.text.isEmpty) {
+          setState(() {
+            _fromController.text = loc.name;
+            _fromLatLng = loc.latLng;
+            _fromName = loc.name;
+          });
+        }
+
+        // Check for 1 - 5 km proximity loads
+        if (!_proximityAlertShown && tripsVM.availableLoads.isNotEmpty) {
+          for (final load in tripsVM.availableLoads) {
+            final originCoords = RoutingService.getCoordinatesForCity(load.origin);
+            if (originCoords != null) {
+              final distMeters = Geolocator.distanceBetween(
+                loc.latLng.latitude,
+                loc.latLng.longitude,
+                originCoords.latitude,
+                originCoords.longitude,
+              );
+              final distKm = distMeters / 1000.0;
+              if (distKm >= 0.5 && distKm <= 12.0) {
+                _proximityAlertShown = true;
+                _showProximityLoadPopup(load, distKm, tripsVM);
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _showProximityLoadPopup(AvailableLoad load, double distKm, PartnerTripsViewModel tripsVM) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Theme.of(ctx).cardColor,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEF3C7),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.flash_on, color: Color(0xFFD97706), size: 24),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '⚡ Urgent Load Nearby!',
+                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900),
+                  ),
+                  Text(
+                    '${distKm.toStringAsFixed(1)} km from your truck',
+                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFD97706), fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${load.origin} → ${load.destination}',
+              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${load.weightTons} T • ${load.cargoType}',
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Guaranteed Payout', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF166534))),
+                  Text(
+                    '₹${load.offeredPriceInr.round()}',
+                    style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900, color: const Color(0xFF166534)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Dismiss'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandYellow,
+              foregroundColor: AppColors.slateDark,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final err = await tripsVM.acceptLoad(load);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(err ?? '⚡ Load accepted immediately! Opening trip execution...')),
+                );
+                if (err == null && widget.onNavigateToTrips != null) {
+                  widget.onNavigateToTrips!();
+                }
+              }
+            },
+            child: const Text('⚡ Accept Immediately'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

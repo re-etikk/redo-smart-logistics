@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 
+import '../screens/settings/partner_settings_screen.dart';
+
 class RedoPartnerLogo extends StatelessWidget {
   const RedoPartnerLogo({super.key});
 
@@ -15,14 +17,18 @@ class RedoBrandHeader extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onSettingsTap;
   final bool showProfile;
+  final bool showSettings;
 
   const RedoBrandHeader({
     super.key,
     this.subtitle = 'Partner (Trucks)',
     this.onNotificationTap,
     this.onProfileTap,
+    this.onSettingsTap,
     this.showProfile = true,
+    this.showSettings = true,
   });
 
   @override
@@ -123,6 +129,32 @@ class RedoBrandHeader extends StatelessWidget {
                 ],
               ),
             ),
+            if (showSettings) ...[
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: onSettingsTap ??
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PartnerSettingsScreen()),
+                      );
+                    },
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkCanvas : const Color(0xFFF1F5F9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.settings_outlined,
+                    size: 20,
+                    color: isDark ? AppColors.darkInk : AppColors.slateDark,
+                  ),
+                ),
+              ),
+            ],
             if (showProfile) ...[
               const SizedBox(width: 8),
               InkWell(

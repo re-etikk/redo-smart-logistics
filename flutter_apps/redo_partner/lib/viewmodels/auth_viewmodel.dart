@@ -56,6 +56,10 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshProfile() async {
+    await checkProfileStatus();
+  }
+
   Future<bool> signIn(String email, String password) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
