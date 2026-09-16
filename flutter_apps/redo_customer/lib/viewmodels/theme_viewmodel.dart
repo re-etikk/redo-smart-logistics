@@ -10,6 +10,8 @@ class ThemeViewModel extends ChangeNotifier {
   Locale get locale => _locale;
   String get selectedUnits => _selectedUnits;
   bool get isMetric => !_selectedUnits.toLowerCase().contains('imperial');
+  bool get isDark => _themeMode == ThemeMode.dark;
+  bool isDarkMode(BuildContext context) => _themeMode == ThemeMode.dark || (_themeMode == ThemeMode.system && MediaQuery.of(context).platformBrightness == Brightness.dark);
 
   ThemeViewModel() {
     _loadSettings();

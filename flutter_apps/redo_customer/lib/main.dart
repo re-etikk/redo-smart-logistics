@@ -14,10 +14,8 @@ import 'ui/screens/onboarding/customer_onboarding_screen.dart';
 import 'ui/screens/home/home_map_screen.dart';
 import 'ui/screens/shipments/shipments_screen.dart';
 import 'ui/screens/shipments/tracking_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/screens/profile/profile_screen.dart';
 import 'ui/screens/ai/ai_assistant_screen.dart';
-import 'ui/screens/onboarding/brand_story_screen.dart';
 import 'ui/widgets/voice_assistant_widget.dart';
 import 'l10n/app_localizations.dart';
 
@@ -100,23 +98,7 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<VoiceAssistantService>().onActionReady = _handleVoiceAction;
-      _checkBrandStory();
     });
-  }
-
-  Future<void> _checkBrandStory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool('has_seen_brand_story_v1') ?? false;
-    if (!seen && mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          fullscreenDialog: true,
-          builder: (_) => BrandStoryIntroScreen(
-            onComplete: () => Navigator.of(context).pop(),
-          ),
-        ),
-      );
-    }
   }
 
   void _handleVoiceAction(VoiceAssistantAction action) {

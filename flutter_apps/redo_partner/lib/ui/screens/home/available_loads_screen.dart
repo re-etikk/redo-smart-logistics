@@ -6,12 +6,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../../core/unit_formatter.dart';
 import '../../../core/theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/services/routing_service.dart';
-import '../../../data/services/corridor_ml_service.dart';
 import '../../../data/services/supabase_service.dart';
+import '../../../core/unit_formatter.dart';
 import '../../../viewmodels/partner_trips_viewmodel.dart';
 import '../../../viewmodels/theme_viewmodel.dart';
 import '../../widgets/instant_load_alert_banner.dart';
@@ -24,34 +23,22 @@ const _cityLatLng = <String, LatLng>{
   'Delhi NCR': LatLng(28.6139, 77.2090),
   'Delhi': LatLng(28.6139, 77.2090),
   'Noida': LatLng(28.5355, 77.3910),
-  'Noida (UP)': LatLng(28.5355, 77.3910),
-  'Jaipur': LatLng(26.9124, 75.7873),
-  'Jaipur (RJ)': LatLng(26.9124, 75.7873),
-  'Bengaluru': LatLng(12.9716, 77.5946),
   'Pune': LatLng(18.5204, 73.8567),
+  'Jaipur': LatLng(26.9124, 75.7873),
+  'Surat': LatLng(21.1702, 72.8311),
+  'Ahmedabad': LatLng(23.0225, 72.5714),
+  'Bengaluru': LatLng(12.9716, 77.5946),
   'Chennai': LatLng(13.0827, 80.2707),
   'Kolkata': LatLng(22.5726, 88.3639),
   'Hyderabad': LatLng(17.3850, 78.4867),
-  'Ahmedabad': LatLng(23.0225, 72.5714),
-  'Surat': LatLng(21.1702, 72.8311),
   'Lucknow': LatLng(26.8467, 80.9462),
   'Kanpur': LatLng(26.4499, 80.3319),
   'Patna': LatLng(25.5941, 85.1376),
-  'Nagpur': LatLng(21.1458, 79.0882),
   'Indore': LatLng(22.7196, 75.8577),
-  'Vadodara': LatLng(22.3072, 73.1812),
+  'Nagpur': LatLng(21.1458, 79.0882),
+  'Chandigarh': LatLng(30.7333, 76.7794),
+  'Ludhiana': LatLng(30.9010, 75.8573),
 };
-
-LatLng _resolveCoord(String city) {
-  final resolved = RoutingService.getCoordinatesForCity(city);
-  if (resolved != null) return resolved;
-  for (final entry in _cityLatLng.entries) {
-    if (city.toLowerCase().contains(entry.key.toLowerCase())) {
-      return entry.value;
-    }
-  }
-  return const LatLng(28.6139, 77.2090);
-}
 
 class AvailableLoadsScreen extends StatefulWidget {
   final VoidCallback? onNavigateToTrips;
@@ -62,7 +49,7 @@ class AvailableLoadsScreen extends StatefulWidget {
 }
 
 class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
-  final _fromController = TextEditingController(text: 'Sector 62, Noida (UP)');
+  final _fromController = TextEditingController();
   final _toController = TextEditingController();
   GoogleMapController? _mapController;
 
@@ -73,14 +60,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
   LatLng? _fromLatLng;
   LatLng? _toLatLng;
-  String? _fromName;
-  String? _toName;
+  LatLng? _driverCurrentLatLng;
 
   RouteInfo? _currentRoute;
   Set<Polyline> _polylines = {};
   Set<Marker> _markers = {};
-  bool _proximityAlertShown = false;
-  bool _showMap = false;
+  bool _showMap = true;
+  bool _locatingDriver = false;
 
   // Active status toggles
   bool _isReadyForLoads = true;
@@ -97,134 +83,61 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       if (mounted) {
         final vm = context.read<PartnerTripsViewModel>();
         await vm.fetchAll();
-        _autoDetectDriverAndCheckProximity(vm);
+        _fetchAndZoomCurrentLocation();
       }
     });
   }
 
-  Future<void> _autoDetectDriverAndCheckProximity(PartnerTripsViewModel tripsVM) async {
+  Future<void> _fetchAndZoomCurrentLocation({bool animate = false}) async {
+    setState(() => _locatingDriver = true);
     try {
-      final loc = await RoutingService.getCurrentLocation();
-      if (loc != null && mounted) {
-        if (_fromController.text.isEmpty || _fromController.text == 'Sector 62, Noida (UP)') {
-          setState(() {
-            _fromController.text = loc.city ?? loc.name;
-            _fromLatLng = loc.latLng;
-            _fromName = loc.city ?? loc.name;
-          });
-        }
-
-        // Check for 0.5 - 12 km proximity loads
-        if (!_proximityAlertShown && tripsVM.availableLoads.isNotEmpty) {
-          for (final load in tripsVM.availableLoads) {
-            final originCoords = RoutingService.getCoordinatesForCity(load.origin);
-            if (originCoords != null) {
-              final distMeters = Geolocator.distanceBetween(
-                loc.latLng.latitude,
-                loc.latLng.longitude,
-                originCoords.latitude,
-                originCoords.longitude,
-              );
-              final distKm = distMeters / 1000.0;
-              if (distKm >= 0.5 && distKm <= 12.0) {
-                _proximityAlertShown = true;
-                _showProximityLoadPopup(load, distKm, tripsVM);
-                break;
-              }
-            }
-          }
+      Position? pos;
+      final hasPerm = await Geolocator.checkPermission();
+      if (hasPerm == LocationPermission.always || hasPerm == LocationPermission.whileInUse) {
+        pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).timeout(const Duration(seconds: 4));
+      } else {
+        final req = await Geolocator.requestPermission();
+        if (req == LocationPermission.always || req == LocationPermission.whileInUse) {
+          pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).timeout(const Duration(seconds: 4));
         }
       }
-    } catch (_) {}
-  }
 
-  void _showProximityLoadPopup(AvailableLoad load, double distKm, PartnerTripsViewModel tripsVM) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF1E293B),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.brandYellow.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.radar, color: AppColors.warning, size: 28),
+      if (pos != null && mounted) {
+        final driverLoc = LatLng(pos.latitude, pos.longitude);
+        setState(() {
+          _driverCurrentLatLng = driverLoc;
+          _fromLatLng ??= driverLoc;
+          _markers.removeWhere((m) => m.markerId.value == 'driver_live');
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('driver_live'),
+              position: driverLoc,
+              infoWindow: const InfoWindow(title: 'Your Truck Live Location (GPS)'),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Load Near You!',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white),
-                  ),
-                  Text(
-                    '${distKm.toStringAsFixed(1)} km away from your location',
-                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
+          );
+        });
+
+        if (animate && _mapController != null) {
+          _mapController!.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: driverLoc, zoom: 15.0),
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF334155)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${load.origin} ➔ ${load.destination}',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14, color: Colors.white)),
-                  const SizedBox(height: 6),
-                  Text('Payout: ₹${load.offeredPriceInr.toInt()} • ${load.weightTons} T • ${load.cargoType}',
-                      style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8))),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Ignore', style: GoogleFonts.inter(color: const Color(0xFF94A3B8))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brandYellow,
-              foregroundColor: AppColors.slateDark,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _selectRoute(load.origin, load.destination);
-            },
-            child: Text('View Corridor', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
+          );
+        }
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _locatingDriver = false);
+    }
   }
 
   void _onFromChanged(String q) {
     _debounceFrom?.cancel();
-    _debounceFrom = Timer(const Duration(milliseconds: 300), () async {
+    _debounceFrom = Timer(const Duration(milliseconds: 250), () async {
       if (q.trim().isEmpty) {
         setState(() => _fromSuggestions = []);
+        _updateFilterAndRoute();
         return;
       }
       try {
@@ -236,9 +149,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
   void _onToChanged(String q) {
     _debounceTo?.cancel();
-    _debounceTo = Timer(const Duration(milliseconds: 300), () async {
+    _debounceTo = Timer(const Duration(milliseconds: 250), () async {
       if (q.trim().isEmpty) {
         setState(() => _toSuggestions = []);
+        _updateFilterAndRoute();
         return;
       }
       try {
@@ -257,23 +171,28 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     _fromLatLng = _toLatLng;
     _toLatLng = tempLatLng;
 
-    final tempName = _fromName;
-    _fromName = _toName;
-    _toName = tempName;
-
     _updateFilterAndRoute();
   }
 
-  void _selectRoute(String fromCity, String toCity) {
-    setState(() {
-      _fromController.text = fromCity;
-      _toController.text = toCity;
-      _fromName = fromCity;
-      _toName = toCity;
-      _fromLatLng = _resolveCoord(fromCity);
-      _toLatLng = _resolveCoord(toCity);
-    });
+  void _selectRoute(String from, String to) {
+    _fromController.text = from;
+    _toController.text = to;
+    _fromLatLng = _resolveCoord(from);
+    _toLatLng = _resolveCoord(to);
+    _fromSuggestions = [];
+    _toSuggestions = [];
+    _showMap = true;
     _updateFilterAndRoute();
+  }
+
+  LatLng _resolveCoord(String cityName) {
+    for (final entry in _cityLatLng.entries) {
+      if (cityName.toLowerCase().contains(entry.key.toLowerCase()) ||
+          entry.key.toLowerCase().contains(cityName.toLowerCase())) {
+        return entry.value;
+      }
+    }
+    return const LatLng(28.6139, 77.2090); // Default to Delhi NCR hub
   }
 
   void _updateFilterAndRoute() {
@@ -282,18 +201,20 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     final tripsVM = context.read<PartnerTripsViewModel>();
 
     if (from.isNotEmpty && to.isNotEmpty) {
-      tripsVM.setSearchFilter('$from $to');
+      tripsVM.setRouteSearch(from: from, to: to);
+      _calculateAndShowRoute();
+    } else if (to.isNotEmpty) {
+      tripsVM.setRouteSearch(from: '', to: to);
       _calculateAndShowRoute();
     } else if (from.isNotEmpty) {
-      tripsVM.setSearchFilter(from);
-    } else if (to.isNotEmpty) {
-      tripsVM.setSearchFilter(to);
+      tripsVM.setRouteSearch(from: from, to: '');
+      _calculateAndShowRoute();
     } else {
-      tripsVM.clearSearchFilter();
+      tripsVM.clearFilters();
       setState(() {
         _currentRoute = null;
         _polylines = {};
-        _markers = {};
+        _markers.removeWhere((m) => m.markerId.value != 'driver_live');
       });
     }
   }
@@ -301,48 +222,59 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   Future<void> _calculateAndShowRoute() async {
     final from = _fromController.text.trim();
     final to = _toController.text.trim();
-    if (from.isEmpty || to.isEmpty) return;
+    if (from.isEmpty && to.isEmpty) return;
 
-    final start = _fromLatLng ?? _resolveCoord(from);
-    final end = _toLatLng ?? _resolveCoord(to);
+    final start = _fromLatLng ?? (from.isNotEmpty ? _resolveCoord(from) : (_driverCurrentLatLng ?? const LatLng(28.6139, 77.2090)));
+    final end = _toLatLng ?? (to.isNotEmpty ? _resolveCoord(to) : start);
 
-    try {
-      final route = await RoutingService.getDrivingRoute(start, end);
-      if (!mounted || route == null) return;
+    if (from.isNotEmpty && to.isNotEmpty) {
+      try {
+        final route = await RoutingService.getDrivingRoute(start, end);
+        if (!mounted || route == null) return;
 
-      final polyline = Polyline(
-        polylineId: const PolylineId('selected_corridor'),
-        points: route.points,
-        color: AppColors.brandYellow,
-        width: 5,
-      );
+        final polyline = Polyline(
+          polylineId: const PolylineId('selected_corridor'),
+          points: route.points,
+          color: AppColors.brandYellow,
+          width: 5,
+        );
 
-      final markers = <Marker>{
-        Marker(
-          markerId: const MarkerId('origin'),
-          position: start,
-          infoWindow: InfoWindow(title: 'Pickup: $from'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        ),
-        Marker(
-          markerId: const MarkerId('destination'),
-          position: end,
-          infoWindow: InfoWindow(title: 'Drop: $to'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        ),
-      };
+        final markers = <Marker>{
+          if (_driverCurrentLatLng != null)
+            Marker(
+              markerId: const MarkerId('driver_live'),
+              position: _driverCurrentLatLng!,
+              infoWindow: const InfoWindow(title: 'Your Truck Live Location'),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+            ),
+          Marker(
+            markerId: const MarkerId('origin'),
+            position: start,
+            infoWindow: InfoWindow(title: 'Pickup: $from'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          ),
+          Marker(
+            markerId: const MarkerId('destination'),
+            position: end,
+            infoWindow: InfoWindow(title: 'Drop: $to'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          ),
+        };
 
-      setState(() {
-        _currentRoute = route;
-        _polylines = {polyline};
-        _markers = markers;
-      });
+        setState(() {
+          _currentRoute = route;
+          _polylines = {polyline};
+          _markers = markers;
+        });
 
-      if (_mapController != null && route.points.isNotEmpty) {
-        final bounds = _computeBounds([start, end, ...route.points]);
-        _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
-      }
-    } catch (_) {}
+        if (_mapController != null && route.points.isNotEmpty) {
+          final bounds = _computeBounds([start, end, ...route.points]);
+          _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+        }
+      } catch (_) {}
+    } else if (_mapController != null) {
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(start, 11.0));
+    }
   }
 
   LatLngBounds _computeBounds(List<LatLng> points) {
@@ -369,7 +301,6 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     _debounceTo?.cancel();
     _fromController.dispose();
     _toController.dispose();
-    _mapController?.dispose();
     super.dispose();
   }
 
@@ -377,7 +308,17 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   Widget build(BuildContext context) {
     final tripsVM = context.watch<PartnerTripsViewModel>();
     final themeVM = context.watch<ThemeViewModel>();
+    final isDark = themeVM.isDarkMode(context);
     final isMetric = themeVM.isMetric;
+
+    // Theme-Aware Dynamic Palette
+    final bgColor = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
+    final cardAltBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
+    final cardBorder = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
 
     // Filter loads according to Category & Tonnage
     List<AvailableLoad> displayedLoads = tripsVM.availableLoads;
@@ -400,19 +341,22 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19), // Deep Obsidian Dark Background matching screenshot
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Column(
           children: [
             // 1. TOP COCKPIT HEADER WITH ORIGINAL "R" LOGO
-            _buildTopHeader(context),
+            _buildTopHeader(context, isDark, cardBg, textPrimary, textSecondary, cardBorder),
 
             // Main Scrollable Content
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.brandYellow,
-                backgroundColor: const Color(0xFF1E293B),
-                onRefresh: () => tripsVM.fetchAll(),
+                backgroundColor: cardBg,
+                onRefresh: () async {
+                  await tripsVM.fetchAll();
+                  await _fetchAndZoomCurrentLocation();
+                },
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   children: [
@@ -436,36 +380,34 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     ],
 
                     // 2. HERO BANNER WITH CUSTOM COMMERCIAL TRUCK
-                    _buildHeroBanner(),
+                    _buildHeroBanner(isDark),
                     const SizedBox(height: 12),
 
                     // 3. DUAL STATUS STRIP (READY FOR LOADS + GPS LIVE TRACKING)
-                    _buildStatusCardsRow(),
+                    _buildStatusCardsRow(isDark, cardBorder),
                     const SizedBox(height: 12),
 
                     // 4. SEARCH / ROUTE INTERCEPTION CARD
-                    _buildSearchCard(isMetric),
+                    _buildSearchCard(isDark, cardBg, cardAltBg, cardBorder, textPrimary, textSecondary, textMuted, isMetric),
+                    const SizedBox(height: 14),
+
+                    // 5. INTERACTIVE HIGHWAY RADAR & ROUTE MAP CARD
+                    _buildInteractiveMapCard(isDark, cardBg, cardBorder, textPrimary, textSecondary),
                     const SizedBox(height: 16),
 
-                    // OPTIONAL MAP VIEW IF TOGGLED
-                    if (_showMap) ...[
-                      _buildInteractiveMap(),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // 5. QUICK TOOLS 4-ACTION GRID
-                    _buildQuickToolsGrid(context),
-                    const SizedBox(height: 18),
-
-                    // 6. DRIVE YOUR SUCCESS SECTION
-                    _buildDriveYourSuccess(displayedLoads.length),
+                    // 6. QUICK TOOLS 4-ACTION GRID
+                    _buildQuickToolsGrid(context, isDark, cardBg, cardBorder, textPrimary, textSecondary),
                     const SizedBox(height: 16),
 
-                    // 7. REDO REWARDS BANNER
-                    _buildRewardsBanner(context),
+                    // 7. DRIVE YOUR SUCCESS SECTION
+                    _buildDriveYourSuccess(context, displayedLoads.length, isDark, cardBg, cardAltBg, cardBorder, textPrimary, textSecondary, tripsVM),
+                    const SizedBox(height: 16),
+
+                    // 8. REDO REWARDS BANNER
+                    _buildRewardsBanner(context, isDark),
                     const SizedBox(height: 20),
 
-                    // 8. FEATURED LOADS NEAR YOU HEADER
+                    // 9. FEATURED LOADS NEAR YOU HEADER
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -474,15 +416,29 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                            color: textPrimary,
                           ),
                         ),
-                        Text(
-                          'See All >',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.brandYellow,
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedCategory = 'All Loads';
+                              _selectedTonnage = 'All';
+                              _fromController.clear();
+                              _toController.clear();
+                            });
+                            tripsVM.clearFilters();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Showing all available nationwide loads')),
+                            );
+                          },
+                          child: Text(
+                            'See All >',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.brandYellowDark,
+                            ),
                           ),
                         ),
                       ],
@@ -498,11 +454,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                         ),
                       )
                     else if (displayedLoads.isEmpty)
-                      _buildEmptyLoadsState()
+                      _buildEmptyLoadsState(isDark, cardBg, cardBorder, textPrimary, textSecondary)
                     else
                       ...displayedLoads.map((load) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildLoadCard(load, currency, isMetric),
+                            child: _buildLoadCard(load, currency, isMetric, isDark, cardBg, cardBorder, textPrimary, textSecondary),
                           )),
 
                     const SizedBox(height: 24),
@@ -517,10 +473,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   }
 
   // --- 1. TOP COCKPIT HEADER WITH ORIGINAL "R" LOGO ---
-  Widget _buildTopHeader(BuildContext context) {
+  Widget _buildTopHeader(BuildContext context, bool isDark, Color cardBg, Color textPrimary, Color textSecondary, Color cardBorder) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: const Color(0xFF0B0F19),
+      color: isDark ? const Color(0xFF0B0F19) : Colors.white,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -563,16 +519,16 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        color: Colors.white,
                         letterSpacing: 0.5,
+                        color: textPrimary,
                       ),
                     ),
                     Text(
                       'Move More Together',
                       style: GoogleFonts.inter(
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF94A3B8),
+                        color: textSecondary,
                       ),
                     ),
                   ],
@@ -581,96 +537,80 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             ),
           ),
 
-          // Action Icons: Folded Map Toggle, Notification Bell, Partner Profile Avatar
+          // Right Cockpit Status & Action Icons
           Row(
             children: [
-              // Folded map toggle icon
-              IconButton(
-                icon: Icon(
-                  _showMap ? Icons.view_agenda_outlined : Icons.map_outlined,
-                  color: _showMap ? AppColors.brandYellow : Colors.white,
-                  size: 22,
+              // Metric / Unit Indicator Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: cardBorder),
                 ),
-                tooltip: _showMap ? 'Hide Map' : 'Show Map',
-                onPressed: () => setState(() => _showMap = !_showMap),
-              ),
-
-              // Notification bell with red badge
-              IconButton(
-                icon: Stack(
+                child: Row(
                   children: [
-                    const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 24),
-                    Positioned(
-                      top: 1,
-                      right: 1,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEF4444),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                    const Icon(Icons.currency_rupee, size: 12, color: AppColors.brandYellowDark),
+                    const SizedBox(width: 2),
+                    Text(
+                      'INR • KM',
+                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: textSecondary),
                     ),
                   ],
                 ),
-                onPressed: () => Navigator.push(
+              ),
+              const SizedBox(width: 8),
+
+              // Notifications Icon
+              InkWell(
+                onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const NotificationsScreen()),
                 ),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: cardBorder),
+                  ),
+                  child: Stack(
+                    children: [
+                      Icon(Icons.notifications_none_outlined, size: 18, color: textPrimary),
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
 
-              const SizedBox(width: 4),
-
-              // Partner Avatar with green active dot + "Partner" label
+              // Settings Gear Button
               InkWell(
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const PartnerSettingsScreen()),
                 ),
                 borderRadius: BorderRadius.circular(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Stack(
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.brandYellow, width: 1.5),
-                          ),
-                          child: const CircleAvatar(
-                            backgroundColor: Color(0xFF1E293B),
-                            child: Icon(Icons.person, color: Colors.white, size: 20),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF0B0F19), width: 1.5),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Partner',
-                      style: GoogleFonts.inter(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF94A3B8),
-                      ),
-                    ),
-                  ],
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: cardBorder),
+                  ),
+                  child: Icon(Icons.settings_outlined, size: 18, color: textPrimary),
                 ),
               ),
             ],
@@ -681,80 +621,62 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   }
 
   // --- 2. HERO BANNER WITH CUSTOM COMMERCIAL TRUCK ---
-  Widget _buildHeroBanner() {
-    return Container(
-      height: 132,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1E293B)),
-      ),
+  Widget _buildHeroBanner(bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
       child: Stack(
         children: [
-          // Background Truck Image on right side
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: 220,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.horizontal(right: Radius.circular(16)),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    'assets/images/partner_hero_truck_banner.jpg',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: const Color(0xFF1E293B),
-                      child: const Center(child: Icon(Icons.local_shipping, size: 48, color: AppColors.brandYellow)),
-                    ),
-                  ),
-                  // Left-to-right fade gradient overlay to blend with dark banner
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          const Color(0xFF0F172A),
-                          const Color(0xFF0F172A).withValues(alpha: 0.7),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
+          // Commercial Freight Truck Image Asset
+          Image.asset(
+            'assets/images/partner_hero_truck_banner.jpg',
+            height: 140,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              height: 140,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                ),
+              ),
+            ),
+          ),
+
+          // High Contrast Gradient Overlay
+          Container(
+            height: 140,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Colors.black.withValues(alpha: 0.85),
+                  Colors.black.withValues(alpha: 0.55),
+                  Colors.transparent,
                 ],
               ),
             ),
           ),
 
-          // Left Typography
+          // Left Typography Banner
           Positioned(
-            left: 18,
-            top: 18,
-            bottom: 18,
-            right: 140,
+            left: 16,
+            top: 22,
+            bottom: 22,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'More Loads.',
+                  'More Loads.\nBigger Opportunities.',
                   style: GoogleFonts.inter(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Text(
-                  'Bigger Opportunities.',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.brandYellow,
-                    letterSpacing: -0.5,
+                    height: 1.15,
+                    shadows: [
+                      const Shadow(color: Colors.black, blurRadius: 4),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -762,23 +684,24 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   'Find. Bid. Move. Grow with REDO.',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF94A3B8),
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFCBD5E1),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Right Tagline Script: "Drivers / Partners / A Stronger Tomorrow"
+          // Right Tagline Script
           Positioned(
             right: 14,
             bottom: 12,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: Colors.black.withValues(alpha: 0.75),
                 borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
               ),
               child: Text(
                 'Drivers • Partners\nA Stronger Tomorrow',
@@ -786,7 +709,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 style: GoogleFonts.inter(
                   color: AppColors.brandYellow,
                   fontSize: 9,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   height: 1.2,
                 ),
               ),
@@ -798,7 +721,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   }
 
   // --- 3. DUAL STATUS STRIP (READY FOR LOADS + GPS LIVE TRACKING) ---
-  Widget _buildStatusCardsRow() {
+  Widget _buildStatusCardsRow(bool isDark, Color cardBorder) {
     return Row(
       children: [
         // Left: Ready for Loads
@@ -808,7 +731,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               setState(() => _isReadyForLoads = !_isReadyForLoads);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_isReadyForLoads ? 'You are now visible to shippers' : 'Status set to Offline'),
+                  content: Text(_isReadyForLoads ? 'You are now visible to shippers nationwide' : 'Status set to Offline'),
                   duration: const Duration(seconds: 2),
                 ),
               );
@@ -817,10 +740,12 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: _isReadyForLoads ? const Color(0xFF0C2419) : const Color(0xFF1E293B),
+                color: _isReadyForLoads
+                    ? (isDark ? const Color(0xFF0C2419) : const Color(0xFFDCFCE7))
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _isReadyForLoads ? const Color(0xFF10B981).withValues(alpha: 0.4) : const Color(0xFF334155),
+                  color: _isReadyForLoads ? const Color(0xFF10B981).withValues(alpha: 0.4) : cardBorder,
                 ),
               ),
               child: Row(
@@ -832,11 +757,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       color: _isReadyForLoads ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
                       shape: BoxShape.circle,
                       boxShadow: _isReadyForLoads
-                          ? [BoxShadow(color: const Color(0xFF10B981).withValues(alpha: 0.6), blurRadius: 6)]
-                          : null,
+                          ? [BoxShadow(color: const Color(0xFF10B981).withValues(alpha: 0.6), blurRadius: 6, spreadRadius: 1)]
+                          : [],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -846,15 +771,16 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: _isReadyForLoads ? const Color(0xFF10B981) : Colors.white,
+                            color: _isReadyForLoads ? (isDark ? Colors.white : const Color(0xFF14532D)) : const Color(0xFF94A3B8),
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          _isReadyForLoads ? 'You are visible to shippers' : 'Offline • Tap to activate',
-                          style: GoogleFonts.inter(fontSize: 9, color: const Color(0xFF94A3B8)),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          _isReadyForLoads ? 'Online & Visible' : 'Offline',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: _isReadyForLoads ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                          ),
                         ),
                       ],
                     ),
@@ -864,7 +790,6 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             ),
           ),
         ),
-
         const SizedBox(width: 10),
 
         // Right: GPS Live Tracking
@@ -872,9 +797,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           child: InkWell(
             onTap: () {
               setState(() => _isGpsSharingOn = !_isGpsSharingOn);
+              _fetchAndZoomCurrentLocation(animate: true);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_isGpsSharingOn ? 'GPS Live Tracking Active' : 'GPS Sharing Paused'),
+                  content: Text(_isGpsSharingOn ? 'GPS Live Tracking Active • Pinging highway radar' : 'GPS Tracking Paused'),
                   duration: const Duration(seconds: 2),
                 ),
               );
@@ -883,13 +809,27 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF111827),
+                color: _isGpsSharingOn
+                    ? (isDark ? const Color(0xFF0F1E36) : const Color(0xFFE0F2FE))
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF1E293B)),
+                border: Border.all(
+                  color: _isGpsSharingOn ? const Color(0xFF0284C7).withValues(alpha: 0.4) : cardBorder,
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.near_me_outlined, size: 18, color: Color(0xFF38BDF8)),
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _isGpsSharingOn ? const Color(0xFF0284C7) : const Color(0xFF94A3B8),
+                      shape: BoxShape.circle,
+                      boxShadow: _isGpsSharingOn
+                          ? [BoxShadow(color: const Color(0xFF0284C7).withValues(alpha: 0.6), blurRadius: 6, spreadRadius: 1)]
+                          : [],
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -900,15 +840,16 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: _isGpsSharingOn ? (isDark ? Colors.white : const Color(0xFF0369A1)) : const Color(0xFF94A3B8),
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          _isGpsSharingOn ? 'Location sharing ON' : 'Location sharing OFF',
-                          style: GoogleFonts.inter(fontSize: 9, color: const Color(0xFF94A3B8)),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          _isGpsSharingOn ? 'Live Telemetry' : 'Inactive',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: _isGpsSharingOn ? const Color(0xFF0284C7) : const Color(0xFF64748B),
+                          ),
                         ),
                       ],
                     ),
@@ -924,13 +865,22 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   }
 
   // --- 4. SEARCH / ROUTE INTERCEPTION CARD ---
-  Widget _buildSearchCard(bool isMetric) {
+  Widget _buildSearchCard(
+    bool isDark,
+    Color cardBg,
+    Color cardAltBg,
+    Color cardBorder,
+    Color textPrimary,
+    Color textSecondary,
+    Color textMuted,
+    bool isMetric,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        border: Border.all(color: cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -945,9 +895,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: cardAltBg,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF1E293B)),
+                      border: Border.all(color: cardBorder),
                     ),
                     child: Row(
                       children: [
@@ -958,37 +908,40 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Pickup Location',
-                                style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                'Pickup Location / Current City',
+                                style: GoogleFonts.inter(fontSize: 10, color: textMuted, fontWeight: FontWeight.w600),
                               ),
                               TextField(
                                 controller: _fromController,
                                 onChanged: _onFromChanged,
-                                style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-                                decoration: const InputDecoration(
+                                style: GoogleFonts.inter(color: textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                                decoration: InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
                                   border: InputBorder.none,
-                                  hintText: 'Sector 62, Noida (UP)',
-                                  hintStyle: TextStyle(color: Color(0xFF475569), fontSize: 13),
+                                  hintText: 'Enter origin (e.g. Delhi, Mumbai)',
+                                  hintStyle: TextStyle(color: textMuted, fontSize: 13),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.my_location, size: 18, color: Color(0xFF94A3B8)),
-                          onPressed: () async {
-                            final loc = await RoutingService.getCurrentLocation();
-                            if (loc != null && mounted) {
-                              setState(() {
-                                _fromController.text = loc.city ?? loc.name;
-                                _fromLatLng = loc.latLng;
-                                _fromName = loc.city ?? loc.name;
-                              });
+                        if (_fromController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            color: textMuted,
+                            onPressed: () {
+                              _fromController.clear();
+                              _fromLatLng = null;
                               _updateFilterAndRoute();
-                            }
-                          },
+                            },
+                          ),
+                        IconButton(
+                          icon: _locatingDriver
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brandYellow))
+                              : const Icon(Icons.my_location, size: 18, color: AppColors.brandYellowDark),
+                          tooltip: 'Detect My Location',
+                          onPressed: () => _fetchAndZoomCurrentLocation(animate: true),
                         ),
                         const SizedBox(width: 32), // Space for floating swap button
                       ],
@@ -1002,9 +955,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       alignment: Alignment.centerLeft,
                       child: Column(
                         children: [
-                          Container(width: 2, height: 4, color: const Color(0xFF334155)),
+                          Container(width: 2, height: 4, color: cardBorder),
                           const SizedBox(height: 2),
-                          Container(width: 2, height: 4, color: const Color(0xFF334155)),
+                          Container(width: 2, height: 4, color: cardBorder),
                         ],
                       ),
                     ),
@@ -1014,9 +967,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: cardAltBg,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF1E293B)),
+                      border: Border.all(color: cardBorder),
                     ),
                     child: Row(
                       children: [
@@ -1027,19 +980,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'To City / Destination',
-                                style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                'To City / Destination Hub',
+                                style: GoogleFonts.inter(fontSize: 10, color: textMuted, fontWeight: FontWeight.w600),
                               ),
                               TextField(
                                 controller: _toController,
                                 onChanged: _onToChanged,
-                                style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-                                decoration: const InputDecoration(
+                                style: GoogleFonts.inter(color: textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                                decoration: InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
                                   border: InputBorder.none,
-                                  hintText: 'Search city, state or pincode',
-                                  hintStyle: TextStyle(color: Color(0xFF475569), fontSize: 13),
+                                  hintText: 'Search city or corridor destination',
+                                  hintStyle: TextStyle(color: textMuted, fontSize: 13),
                                 ),
                               ),
                             ],
@@ -1047,11 +1000,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                         ),
                         if (_toController.text.isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.clear, size: 16, color: Color(0xFF94A3B8)),
+                            icon: const Icon(Icons.clear, size: 16),
+                            color: textMuted,
                             onPressed: () {
                               _toController.clear();
                               _toLatLng = null;
-                              _toName = null;
                               _updateFilterAndRoute();
                             },
                           ),
@@ -1072,14 +1025,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: cardAltBg,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF334155)),
+                      border: Border.all(color: cardBorder),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4),
                       ],
                     ),
-                    child: const Icon(Icons.swap_vert, color: AppColors.brandYellow, size: 20),
+                    child: const Icon(Icons.swap_vert, color: AppColors.brandYellowDark, size: 20),
                   ),
                 ),
               ),
@@ -1090,11 +1043,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           if (_fromSuggestions.isNotEmpty || _toSuggestions.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
-              constraints: const BoxConstraints(maxHeight: 160),
+              constraints: const BoxConstraints(maxHeight: 180),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: cardAltBg,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF334155)),
+                border: Border.all(color: cardBorder),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8),
+                ],
               ),
               child: ListView(
                 shrinkWrap: true,
@@ -1103,13 +1059,12 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     ..._fromSuggestions.map((s) => ListTile(
                           dense: true,
                           leading: const Icon(Icons.place, color: Color(0xFF10B981), size: 16),
-                          title: Text(s.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                          subtitle: Text(s.description, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                          title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                          subtitle: Text(s.description, style: TextStyle(color: textSecondary, fontSize: 10)),
                           onTap: () {
                             setState(() {
                               _fromController.text = s.name;
                               _fromLatLng = s.latLng;
-                              _fromName = s.name;
                               _fromSuggestions = [];
                             });
                             _updateFilterAndRoute();
@@ -1119,13 +1074,12 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     ..._toSuggestions.map((s) => ListTile(
                           dense: true,
                           leading: const Icon(Icons.place, color: Color(0xFFEF4444), size: 16),
-                          title: Text(s.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                          subtitle: Text(s.description, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                          title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                          subtitle: Text(s.description, style: TextStyle(color: textSecondary, fontSize: 10)),
                           onTap: () {
                             setState(() {
                               _toController.text = s.name;
                               _toLatLng = s.latLng;
-                              _toName = s.name;
                               _toSuggestions = [];
                             });
                             _updateFilterAndRoute();
@@ -1143,70 +1097,58 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildRouteChip('Delhi ⇄ Mumbai', 'Delhi', 'Mumbai'),
+                _buildRouteChip('Delhi ⇄ Mumbai', 'Delhi', 'Mumbai', cardAltBg, cardBorder, textSecondary),
                 const SizedBox(width: 8),
-                _buildRouteChip('Mumbai ⇄ Pune', 'Mumbai', 'Pune'),
+                _buildRouteChip('Mumbai ⇄ Pune', 'Mumbai', 'Pune', cardAltBg, cardBorder, textSecondary),
                 const SizedBox(width: 8),
-                _buildRouteChip('Bengaluru ⇄ Chennai', 'Bengaluru', 'Chennai'),
+                _buildRouteChip('Bengaluru ⇄ Chennai', 'Bengaluru', 'Chennai', cardAltBg, cardBorder, textSecondary),
                 const SizedBox(width: 8),
-                InkWell(
-                  onTap: () => _selectRoute('Kolkata', 'Patna'),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF334155)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.add, size: 14, color: AppColors.brandYellow),
-                        const SizedBox(width: 4),
-                        Text('More', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildRouteChip('Delhi ⇄ Jaipur', 'Delhi', 'Jaipur', cardAltBg, cardBorder, textSecondary),
+                const SizedBox(width: 8),
+                _buildRouteChip('Ahmedabad ⇄ Surat', 'Ahmedabad', 'Surat', cardAltBg, cardBorder, textSecondary),
               ],
             ),
           ),
 
           const SizedBox(height: 14),
 
-          // Category Filter Tabs (All Loads, Instant, Scheduled, Best Match)
+          // Category Pills: All Loads, Instant, Scheduled, Best Match
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildCategoryTab('All Loads', Icons.local_shipping, isAll: true),
+                _buildCategoryPill('All Loads', cardAltBg, cardBorder, textSecondary),
                 const SizedBox(width: 8),
-                _buildCategoryTab('Instant', Icons.bolt),
+                _buildCategoryPill('Instant', cardAltBg, cardBorder, textSecondary),
                 const SizedBox(width: 8),
-                _buildCategoryTab('Scheduled', Icons.calendar_today),
+                _buildCategoryPill('Scheduled', cardAltBg, cardBorder, textSecondary),
                 const SizedBox(width: 8),
-                _buildCategoryTab('Best Match', Icons.star),
+                _buildCategoryPill('Best Match', cardAltBg, cardBorder, textSecondary),
               ],
             ),
           ),
 
           const SizedBox(height: 12),
 
-          // Tonnage Filter Row
+          // Tonnage Filter Pills: All, < 3T, 3 - 10T, 10T+
           Row(
             children: [
               Text(
                 'Tonnage:',
-                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF94A3B8)),
+                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: textSecondary),
               ),
-              const SizedBox(width: 10),
-              _buildTonnagePill('All'),
-              const SizedBox(width: 6),
-              _buildTonnagePill('< 3T'),
-              const SizedBox(width: 6),
-              _buildTonnagePill('3 - 10T'),
-              const SizedBox(width: 6),
-              _buildTonnagePill('10T+'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildTonnageChip('All', cardAltBg, cardBorder, textSecondary),
+                    _buildTonnageChip('< 3T', cardAltBg, cardBorder, textSecondary),
+                    _buildTonnageChip('3 - 10T', cardAltBg, cardBorder, textSecondary),
+                    _buildTonnageChip('10T+', cardAltBg, cardBorder, textSecondary),
+                  ],
+                ),
+              ),
             ],
           ),
 
@@ -1225,9 +1167,15 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               ),
               onPressed: () {
                 _updateFilterAndRoute();
+                final from = _fromController.text.trim();
+                final to = _toController.text.trim();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Showing loads for ${_fromController.text} → ${_toController.text.isNotEmpty ? _toController.text : "All Destinations"}'),
+                    content: Text(
+                      from.isNotEmpty && to.isNotEmpty
+                          ? 'Searching loads for corridor: $from ➔ $to'
+                          : (from.isNotEmpty ? 'Searching loads around $from' : 'Showing all verified freight loads'),
+                    ),
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -1250,7 +1198,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  Widget _buildRouteChip(String label, String from, String to) {
+  Widget _buildRouteChip(String label, String from, String to, Color cardAltBg, Color cardBorder, Color textSecondary) {
     final isSel = _fromController.text.toLowerCase().contains(from.toLowerCase()) &&
         _toController.text.toLowerCase().contains(to.toLowerCase());
 
@@ -1260,172 +1208,280 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSel ? AppColors.brandYellow.withValues(alpha: 0.15) : const Color(0xFF1E293B),
+          color: isSel ? AppColors.brandYellow.withValues(alpha: 0.2) : cardAltBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSel ? AppColors.brandYellow : const Color(0xFF334155)),
+          border: Border.all(color: isSel ? AppColors.brandYellowDark : cardBorder),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
             fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: isSel ? AppColors.brandYellow : Colors.white,
+            fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+            color: isSel ? AppColors.brandYellowDark : textSecondary,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCategoryTab(String title, IconData icon, {bool isAll = false}) {
-    final isSel = _selectedCategory == title;
+  Widget _buildCategoryPill(String label, Color cardAltBg, Color cardBorder, Color textSecondary) {
+    final isSel = _selectedCategory == label;
     return InkWell(
-      onTap: () => setState(() => _selectedCategory = title),
+      onTap: () => setState(() => _selectedCategory = label),
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSel ? AppColors.brandYellow : const Color(0xFF1E293B),
+          color: isSel ? AppColors.brandYellow : cardAltBg,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isSel ? AppColors.brandYellow : const Color(0xFF334155)),
+          border: Border.all(color: isSel ? AppColors.brandYellow : cardBorder),
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 14, color: isSel ? AppColors.slateDark : Colors.white),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: isSel ? AppColors.slateDark : Colors.white,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+            color: isSel ? AppColors.slateDark : textSecondary,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTonnagePill(String tonnage) {
-    final isSel = _selectedTonnage == tonnage;
+  Widget _buildTonnageChip(String label, Color cardAltBg, Color cardBorder, Color textSecondary) {
+    final isSel = _selectedTonnage == label;
     return InkWell(
-      onTap: () => setState(() => _selectedTonnage = tonnage),
+      onTap: () => setState(() => _selectedTonnage = label),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: isSel ? const Color(0xFF334155) : const Color(0xFF0F172A),
+          color: isSel ? AppColors.brandYellow.withValues(alpha: 0.2) : cardAltBg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSel ? AppColors.brandYellow : const Color(0xFF1E293B)),
+          border: Border.all(color: isSel ? AppColors.brandYellowDark : cardBorder),
         ),
         child: Text(
-          tonnage,
+          label,
           style: GoogleFonts.inter(
             fontSize: 10,
             fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-            color: isSel ? Colors.white : const Color(0xFF94A3B8),
+            color: isSel ? AppColors.brandYellowDark : textSecondary,
           ),
         ),
       ),
     );
   }
 
-  // --- INTERACTIVE MAP PREVIEW ---
-  Widget _buildInteractiveMap() {
+  // --- 5. INTERACTIVE HIGHWAY RADAR & ROUTE MAP CARD ---
+  Widget _buildInteractiveMapCard(bool isDark, Color cardBg, Color cardBorder, Color textPrimary, Color textSecondary) {
     return Container(
-      height: 220,
       decoration: BoxDecoration(
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        border: Border.all(color: cardBorder),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Stack(
-          children: [
-            GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _fromLatLng ?? const LatLng(28.6139, 77.2090),
-                zoom: 5.5,
-              ),
-              polylines: _polylines,
-              markers: _markers,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              onMapCreated: (c) => _mapController = c,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with collapse/expand toggle & Locate Me
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 12, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.radar, size: 18, color: AppColors.brandYellowDark),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Corridor Radar & Live Route',
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => _fetchAndZoomCurrentLocation(animate: true),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.brandYellow.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.my_location, size: 14, color: AppColors.brandYellowDark),
+                            const SizedBox(width: 4),
+                            Text('Locate', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(_showMap ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: textSecondary, size: 20),
+                      onPressed: () => setState(() => _showMap = !_showMap),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            if (_currentRoute != null)
-              Positioned(
-                bottom: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${_currentRoute!.distanceText} • ETA ${_currentRoute!.durationText}',
-                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.brandYellow),
-                  ),
+          ),
+
+          if (_showMap)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
+              child: SizedBox(
+                height: 220,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: _fromLatLng ?? _driverCurrentLatLng ?? const LatLng(28.6139, 77.2090),
+                        zoom: 12.0,
+                      ),
+                      polylines: _polylines,
+                      markers: _markers,
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: false,
+                      zoomControlsEnabled: false,
+                      onMapCreated: (c) {
+                        _mapController = c;
+                        if (_driverCurrentLatLng != null) {
+                          c.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: _driverCurrentLatLng!, zoom: 14.0)));
+                        }
+                      },
+                    ),
+
+                    // Top Right Controls (Recenter Corridor & Recenter GPS)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Column(
+                        children: [
+                          FloatingActionButton.small(
+                            heroTag: 'map_gps_zoom_btn',
+                            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            foregroundColor: AppColors.brandYellowDark,
+                            elevation: 2,
+                            onPressed: () => _fetchAndZoomCurrentLocation(animate: true),
+                            child: const Icon(Icons.gps_fixed, size: 18),
+                          ),
+                          if (_currentRoute != null) ...[
+                            const SizedBox(height: 8),
+                            FloatingActionButton.small(
+                              heroTag: 'map_route_zoom_btn',
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              foregroundColor: textPrimary,
+                              elevation: 2,
+                              onPressed: () {
+                                if (_currentRoute != null && _currentRoute!.points.isNotEmpty) {
+                                  final bounds = _computeBounds(_currentRoute!.points);
+                                  _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+                                }
+                              },
+                              child: const Icon(Icons.alt_route, size: 18),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Bottom Left Route Info Pill (if route is active)
+                    if (_currentRoute != null)
+                      Positioned(
+                        bottom: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.brandYellow.withValues(alpha: 0.5)),
+                          ),
+                          child: Text(
+                            '${_currentRoute!.distanceText} • Est: ${_currentRoute!.durationText}',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.brandYellow),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
 
-  // --- 5. QUICK TOOLS 4-ACTION GRID ---
-  Widget _buildQuickToolsGrid(BuildContext context) {
+  // --- 6. QUICK TOOLS 4-ACTION GRID ---
+  Widget _buildQuickToolsGrid(
+    BuildContext context,
+    bool isDark,
+    Color cardBg,
+    Color cardBorder,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return Row(
       children: [
         _buildToolCard(
           icon: Icons.notifications_active_outlined,
           hasDot: true,
           title: 'Load Alerts',
-          subtitle: 'Get notified first',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Instant Load Proximity Alerts Active for your truck.')),
-            );
-          },
+          subtitle: 'Instant chimes',
+          isDark: isDark,
+          cardBg: cardBg,
+          cardBorder: cardBorder,
+          textPrimary: textPrimary,
+          textSecondary: textSecondary,
+          onTap: () => _showLoadAlertsSheet(context, isDark, cardBg, textPrimary, cardBorder),
         ),
         const SizedBox(width: 8),
         _buildToolCard(
           icon: Icons.alt_route_outlined,
           title: 'Saved Routes',
-          subtitle: 'Quick access',
-          onTap: () => _selectRoute('Delhi', 'Mumbai'),
+          subtitle: 'Fast corridor',
+          isDark: isDark,
+          cardBg: cardBg,
+          cardBorder: cardBorder,
+          textPrimary: textPrimary,
+          textSecondary: textSecondary,
+          onTap: () => _showSavedRoutesSheet(context, isDark, cardBg, textPrimary, cardBorder),
         ),
         const SizedBox(width: 8),
         _buildToolCard(
           icon: Icons.gavel_outlined,
           title: 'My Bids',
-          subtitle: 'Track & manage',
-          onTap: () => widget.onNavigateToTrips?.call(),
+          subtitle: 'Active quotes',
+          isDark: isDark,
+          cardBg: cardBg,
+          cardBorder: cardBorder,
+          textPrimary: textPrimary,
+          textSecondary: textSecondary,
+          onTap: () {
+            widget.onNavigateToTrips?.call();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Switched to My Trips & Bids management')),
+            );
+          },
         ),
         const SizedBox(width: 8),
         _buildToolCard(
           icon: Icons.local_gas_station_outlined,
           title: 'Fuel Prices',
-          subtitle: 'Plan smarter',
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                backgroundColor: const Color(0xFF1E293B),
-                title: Text('Live Diesel Prices (NCR)', style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Colors.white)),
-                content: Text(
-                  'Delhi: ₹87.62/L\nNoida: ₹87.96/L\nMumbai: ₹92.15/L\nJaipur: ₹90.36/L\n\nDirect fuel fleet card discounts apply automatically.',
-                  style: GoogleFonts.inter(fontSize: 13, height: 1.5, color: Colors.white70),
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-                ],
-              ),
-            );
-          },
+          subtitle: 'Daily diesel',
+          isDark: isDark,
+          cardBg: cardBg,
+          cardBorder: cardBorder,
+          textPrimary: textPrimary,
+          textSecondary: textSecondary,
+          onTap: () => _showFuelPricesDialog(context, isDark),
         ),
       ],
     );
@@ -1433,27 +1489,32 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
   Widget _buildToolCard({
     required IconData icon,
-    bool hasDot = false,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required bool isDark,
+    required Color cardBg,
+    required Color cardBorder,
+    required Color textPrimary,
+    required Color textSecondary,
+    bool hasDot = false,
   }) {
     return Expanded(
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF111827),
+            color: cardBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF1E293B)),
+            border: Border.all(color: cardBorder),
           ),
           child: Column(
             children: [
               Stack(
                 children: [
-                  Icon(icon, size: 22, color: Colors.white),
+                  Icon(icon, size: 22, color: textPrimary),
                   if (hasDot)
                     Positioned(
                       top: 0,
@@ -1470,13 +1531,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
+                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: textPrimary),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF94A3B8)),
+                style: GoogleFonts.inter(fontSize: 8, color: textSecondary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1487,14 +1548,24 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  // --- 6. DRIVE YOUR SUCCESS SECTION ---
-  Widget _buildDriveYourSuccess(int loadCount) {
+  // --- 7. DRIVE YOUR SUCCESS SECTION ---
+  Widget _buildDriveYourSuccess(
+    BuildContext context,
+    int loadCount,
+    bool isDark,
+    Color cardBg,
+    Color cardAltBg,
+    Color cardBorder,
+    Color textPrimary,
+    Color textSecondary,
+    PartnerTripsViewModel tripsVM,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        border: Border.all(color: cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1507,18 +1578,25 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   Text(
                     'Drive Your Success',
-                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
+                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Insights to help you earn more',
-                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
+                    style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
                   ),
                 ],
               ),
-              Text(
-                'View All >',
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brandYellow),
+              InkWell(
+                onTap: () => _showDriveYourSuccessModal(context, tripsVM, isDark, textPrimary, cardBg, cardBorder),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Text(
+                    'View All >',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1530,15 +1608,29 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               _buildMetricTile(
                 icon: Icons.trending_up,
                 iconColor: const Color(0xFF10B981),
-                value: '${max(12, loadCount)}',
+                value: '${max(14, loadCount)}',
                 label: 'New Loads Today',
+                cardAltBg: cardAltBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${max(14, loadCount)} verified commercial loads currently available for dispatch')),
+                ),
               ),
               const SizedBox(width: 8),
               _buildMetricTile(
                 icon: Icons.currency_rupee,
                 iconColor: const Color(0xFF38BDF8),
                 value: '₹ 48,500',
-                label: 'Avg. Rate (per trip)',
+                label: 'Avg. Rate (trip)',
+                cardAltBg: cardAltBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Average trip revenue across top national freight corridors')),
+                ),
               ),
               const SizedBox(width: 8),
               _buildMetricTile(
@@ -1546,13 +1638,27 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 iconColor: const Color(0xFFA855F7),
                 value: '95%',
                 label: 'On-time Loadings',
+                cardAltBg: cardAltBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Your commercial on-time dispatch rate is 95% (Gold Tier)')),
+                ),
               ),
               const SizedBox(width: 8),
               _buildMetricTile(
                 icon: Icons.star,
-                iconColor: const Color(0xFFF59E0B),
+                iconColor: AppColors.brandYellow,
                 value: '4.8',
                 label: 'Partner Rating',
+                cardAltBg: cardAltBg,
+                cardBorder: cardBorder,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Verified Transporter Rating: 4.8 / 5.0 (Top 5% Drivers)')),
+                ),
               ),
             ],
           ),
@@ -1566,47 +1672,56 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     required Color iconColor,
     required String value,
     required String label,
+    required Color cardAltBg,
+    required Color cardBorder,
+    required Color textPrimary,
+    required Color textSecondary,
+    required VoidCallback onTap,
   }) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF1E293B)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 14, color: iconColor),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.white),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: cardAltBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 14, color: iconColor),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w900, color: textPrimary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF94A3B8)),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: GoogleFonts.inter(fontSize: 8, color: textSecondary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // --- 7. REDO REWARDS BANNER ---
-  Widget _buildRewardsBanner(BuildContext context) {
+  // --- 8. REDO REWARDS BANNER ---
+  Widget _buildRewardsBanner(BuildContext context, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -1614,6 +1729,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
         children: [
@@ -1629,8 +1747,8 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Complete more trips • Earn rewards • Unlock benefits',
-                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF451A03)),
+                  'Complete more trips • Earn fuel points • Unlock VIP tolls',
+                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF451A03)),
                 ),
               ],
             ),
@@ -1648,11 +1766,17 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  backgroundColor: const Color(0xFF1E293B),
-                  title: Text('REDO Partner Rewards', style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Colors.white)),
+                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  title: Row(
+                    children: [
+                      const Icon(Icons.emoji_events, color: AppColors.brandYellow),
+                      const SizedBox(width: 8),
+                      Text('REDO Rewards Club', style: GoogleFonts.inter(fontWeight: FontWeight.w900)),
+                    ],
+                  ),
                   content: Text(
-                    'Level 1: Silver Tier (5 trips) - ₹1,000 Diesel Voucher\nLevel 2: Gold Tier (15 trips) - Priority Matching + Zero Commission\nLevel 3: Platinum Club (30 trips) - Guaranteed Return Backhaul + Health Insurance',
-                    style: GoogleFonts.inter(fontSize: 12, height: 1.5, color: Colors.white70),
+                    '• Current Tier: Gold Transporter\n• Rewards Balance: 1,450 Fuel Points\n• Free Toll Passes: 4 Highway Fastags\n• Cash redemption rate: 1 pt = ₹1 Fuel Cashback.',
+                    style: GoogleFonts.inter(fontSize: 13, height: 1.5),
                   ),
                   actions: [
                     TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
@@ -1674,16 +1798,25 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  // --- 8. FEATURED LOAD CARD (Matching Uploaded Screenshot) ---
-  Widget _buildLoadCard(AvailableLoad load, NumberFormat currency, bool isMetric) {
+  // --- 9. FEATURED LOAD CARD ---
+  Widget _buildLoadCard(
+    AvailableLoad load,
+    NumberFormat currency,
+    bool isMetric,
+    bool isDark,
+    Color cardBg,
+    Color cardBorder,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     final weightStr = UnitFormatter.formatWeightTons(load.weightTons, isMetric: isMetric);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        border: Border.all(color: cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1699,7 +1832,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w900,
                     fontSize: 16,
-                    color: Colors.white,
+                    color: textPrimary,
                   ),
                 ),
               ),
@@ -1707,13 +1840,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   Text(
                     '2h ago',
-                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                    style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
                   ),
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF064E3B),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
@@ -1743,33 +1876,33 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.inventory_2_outlined, size: 14, color: Color(0xFF94A3B8)),
+                  Icon(Icons.inventory_2_outlined, size: 14, color: textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     load.cargoType,
-                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFE2E8F0), fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(fontSize: 11, color: textPrimary, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
               const SizedBox(width: 16),
               Row(
                 children: [
-                  const Icon(Icons.scale_outlined, size: 14, color: Color(0xFF94A3B8)),
+                  Icon(Icons.scale_outlined, size: 14, color: textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     weightStr,
-                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFE2E8F0), fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(fontSize: 11, color: textPrimary, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
               const SizedBox(width: 16),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF94A3B8)),
+                  Icon(Icons.calendar_today_outlined, size: 14, color: textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     'Today - Tomorrow',
-                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFE2E8F0), fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(fontSize: 11, color: textPrimary, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -1777,7 +1910,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           ),
 
           const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFF1E293B)),
+          Divider(height: 1, color: cardBorder),
           const SizedBox(height: 12),
 
           // Bottom Row: Price + View Details / Accept Action
@@ -1789,14 +1922,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   Text(
                     'Guaranteed Payout',
-                    style: GoogleFonts.inter(fontSize: 9, color: const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(fontSize: 9, color: textSecondary, fontWeight: FontWeight.w600),
                   ),
                   Text(
                     currency.format(load.offeredPriceInr),
                     style: GoogleFonts.inter(
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                      color: const Color(0xFF10B981),
                     ),
                   ),
                 ],
@@ -1811,8 +1944,8 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                         MaterialPageRoute(
                           builder: (_) => DirectChatScreen(
                             bookingId: 'inquiry_${load.cargoId}',
-                            counterpartyName: load.smeName.isNotEmpty ? load.smeName : 'Shipper',
-                            counterpartyRole: 'Verified Shipper',
+                            counterpartyName: load.smeName.isNotEmpty ? load.smeName : 'Verified Shipper',
+                            counterpartyRole: 'Shipper / Cargo Owner',
                             counterpartyPhone: '+91 98765 43210',
                             origin: load.origin,
                             destination: load.destination,
@@ -1824,11 +1957,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF334155)),
+                        border: Border.all(color: cardBorder),
                       ),
-                      child: const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.white),
+                      child: Icon(Icons.chat_bubble_outline, size: 18, color: textPrimary),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1840,11 +1973,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF334155)),
+                        border: Border.all(color: cardBorder),
                       ),
-                      child: const Icon(Icons.map_outlined, size: 18, color: AppColors.brandYellow),
+                      child: const Icon(Icons.map_outlined, size: 18, color: AppColors.brandYellowDark),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1858,7 +1991,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    onPressed: () => _showAcceptLoadModal(load, currency),
+                    onPressed: () => _showAcceptLoadModal(load, currency, isDark),
                     child: Text(
                       'View Details',
                       style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w900),
@@ -1873,10 +2006,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  void _showAcceptLoadModal(AvailableLoad load, NumberFormat currency) {
+  void _showAcceptLoadModal(AvailableLoad load, NumberFormat currency, bool isDark) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF111827),
+      backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1895,7 +2028,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF334155),
+                      color: Colors.grey.shade400,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -1906,36 +2039,34 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   children: [
                     Text(
                       'Load Details & Dispatch',
-                      style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white),
+                      style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF064E3B),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text('Verified Shipper', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF10B981), fontWeight: FontWeight.w800)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
+
+                // Corridor Route
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF1E293B)),
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                   ),
                   child: Column(
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.trip_origin, size: 16, color: Color(0xFF10B981)),
+                          const Icon(Icons.circle, color: Color(0xFF10B981), size: 10),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Pickup: ${load.origin}${load.pickupAddress != null ? " (${load.pickupAddress})" : ""}',
-                              style: GoogleFonts.inter(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700),
+                              'Pickup: ${load.origin}',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13),
                             ),
                           ),
                         ],
@@ -1943,12 +2074,12 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.location_on, size: 16, color: Color(0xFFEF4444)),
-                          const SizedBox(width: 8),
+                          const Icon(Icons.location_on, color: Color(0xFFEF4444), size: 12),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              'Drop: ${load.destination}${load.dropAddress != null ? " (${load.dropAddress})" : ""}',
-                              style: GoogleFonts.inter(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700),
+                              'Destination: ${load.destination}',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13),
                             ),
                           ),
                         ],
@@ -1957,20 +2088,50 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
+
+                // Specifications Grid
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Guaranteed Net Payout', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8))),
-                    Text(
-                      currency.format(load.offeredPriceInr),
-                      style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.brandYellow),
+                    Expanded(
+                      child: _buildDetailSpecTile('Weight', '${load.weightTons} Tons', Icons.scale, isDark),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildDetailSpecTile('Cargo Type', load.cargoType, Icons.inventory_2_outlined, isDark),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDetailSpecTile('Shipper', load.smeName.isNotEmpty ? load.smeName : 'Verified Shipper', Icons.business, isDark),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildDetailSpecTile('Loading', 'Today • Immediate', Icons.access_time, isDark),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // Guaranteed Total Payout
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Guaranteed Net Payout:', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(
+                      currency.format(load.offeredPriceInr),
+                      style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: const Color(0xFF10B981)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Accept CTA Button
                 SizedBox(
                   width: double.infinity,
-                  height: 48,
+                  height: 50,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandYellow,
@@ -1981,35 +2142,41 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                         ? null
                         : () async {
                             setSheetState(() => accepting = true);
-                            final bookingId = await context.read<PartnerTripsViewModel>().acceptLoad(load);
-                            if (!mounted) return;
-                            setSheetState(() => accepting = false);
-                            Navigator.pop(ctx);
+                            final vm = context.read<PartnerTripsViewModel>();
+                            final bookingId = await vm.acceptLoad(load);
 
-                            if (bookingId != null) {
-                              // Online continual learning feedback trigger
-                              SupabaseService.sendRecommendationFeedback(
-                                cargoId: load.cargoId,
-                                action: 'accept_load',
-                                corridorKey: '${load.origin.toLowerCase()}_${load.destination.toLowerCase()}',
-                              );
-                              CorridorMLService().recordInteraction(
-                                '${load.origin.toLowerCase()}_${load.destination.toLowerCase()}',
-                                'accept_load',
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Load Locked! Booking ID: $bookingId')),
-                              );
-                              widget.onNavigateToTrips?.call();
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Failed to accept load. Please try again.')),
-                              );
+                            // Send positive reinforcement to Online Learning Engine
+                            SupabaseService.sendRecommendationFeedback(
+                              truckId: vm.myTrucks.isNotEmpty ? vm.myTrucks.first.truckId : 'trk_active',
+                              cargoId: load.cargoId,
+                              action: 'accept_load',
+                              corridorKey: '${load.origin.toLowerCase()}->${load.destination.toLowerCase()}',
+                            );
+
+                            if (ctx.mounted) Navigator.pop(ctx);
+
+                            if (context.mounted) {
+                              if (bookingId != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('✓ Load Accepted! Assigned Booking: $bookingId'),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                                widget.onNavigateToTrips?.call();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(vm.errorMessage ?? 'Could not accept load. Please try again.'),
+                                    backgroundColor: AppColors.danger,
+                                  ),
+                                );
+                              }
                             }
                           },
                     child: accepting
-                        ? const CircularProgressIndicator(color: AppColors.slateDark)
-                        : Text('Lock & Accept Load', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w900)),
+                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.slateDark))
+                        : Text('Accept Load & Start Trip', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w900)),
                   ),
                 ),
               ],
@@ -2020,27 +2187,291 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  Widget _buildEmptyLoadsState() {
+  Widget _buildDetailSpecTile(String title, String val, IconData icon, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.brandYellowDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.inter(fontSize: 9, color: const Color(0xFF94A3B8))),
+                Text(val, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- MODALS FOR QUICK ACTIONS & INSIGHTS ---
+
+  void _showDriveYourSuccessModal(BuildContext context, PartnerTripsViewModel tripsVM, bool isDark, Color textPrimary, Color cardBg, Color cardBorder) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Market Intelligence & Performance', style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: textPrimary)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Real-time logistics supply-demand analytics across national corridors:',
+              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
+            ),
+            const SizedBox(height: 16),
+            _buildInsightCorridorRow('Delhi NCR ➔ Mumbai', '₹48,500', 'High Volume 🔥', const Color(0xFF10B981)),
+            _buildInsightCorridorRow('Mumbai ➔ Pune', '₹16,200', 'Fast Turnaround ⚡', const Color(0xFF38BDF8)),
+            _buildInsightCorridorRow('Bengaluru ➔ Chennai', '₹24,800', 'Daily Direct 📦', const Color(0xFFA855F7)),
+            _buildInsightCorridorRow('Delhi ➔ Jaipur', '₹18,500', 'Return Match 🔄', const Color(0xFFF59E0B)),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brandYellow,
+                  foregroundColor: AppColors.slateDark,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  widget.onNavigateToTrips?.call();
+                },
+                child: Text('View Full Trips & Bids', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInsightCorridorRow(String corridor, String rate, String badge, Color badgeColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(corridor, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
+          Row(
+            children: [
+              Text(rate, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(badge, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: badgeColor)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLoadAlertsSheet(BuildContext context, bool isDark, Color cardBg, Color textPrimary, Color cardBorder) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Instant Load Proximity Alerts', style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: textPrimary)),
+            const SizedBox(height: 6),
+            Text('Configure radar notifications for high-paying loads near your truck:', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8))),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              value: true,
+              activeColor: AppColors.brandYellow,
+              title: Text('Proximity Radar (Within 50 KM)', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
+              subtitle: Text('Audio chimes when loads are posted near your live GPS', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8))),
+              onChanged: (v) {},
+            ),
+            SwitchListTile(
+              value: true,
+              activeColor: AppColors.brandYellow,
+              title: Text('Return Trip Corridor Alerts', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
+              subtitle: Text('Prioritize backhaul loads returning to your home depot', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8))),
+              onChanged: (v) {},
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandYellow, foregroundColor: AppColors.slateDark),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✓ Highway Radar Alert Preferences Saved!')),
+                  );
+                },
+                child: const Text('Save Preferences'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSavedRoutesSheet(BuildContext context, bool isDark, Color cardBg, Color textPrimary, Color cardBorder) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cardBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text('Saved Commercial Corridors', style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: textPrimary)),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.route, color: AppColors.brandYellowDark),
+              title: const Text('Delhi NCR ⇄ Mumbai'),
+              subtitle: const Text('NH-48 Corridor • 1,420 KM'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.pop(ctx);
+                _selectRoute('Delhi', 'Mumbai');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.route, color: AppColors.brandYellowDark),
+              title: const Text('Mumbai ⇄ Pune Expressway'),
+              subtitle: const Text('Express Highway • 150 KM'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.pop(ctx);
+                _selectRoute('Mumbai', 'Pune');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.route, color: AppColors.brandYellowDark),
+              title: const Text('Bengaluru ⇄ Chennai'),
+              subtitle: const Text('NH-48 Industrial Belt • 350 KM'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.pop(ctx);
+                _selectRoute('Bengaluru', 'Chennai');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFuelPricesDialog(BuildContext context, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        title: Row(
+          children: [
+            const Icon(Icons.local_gas_station, color: AppColors.brandYellowDark),
+            const SizedBox(width: 8),
+            Text('Live State Diesel Rates', style: GoogleFonts.inter(fontWeight: FontWeight.w900)),
+          ],
+        ),
+        content: Text(
+          '• Delhi NCR: ₹87.62 / L\n• Noida (UP): ₹87.96 / L\n• Mumbai (MH): ₹92.15 / L\n• Bengaluru (KA): ₹88.40 / L\n• Chennai (TN): ₹90.20 / L\n• Jaipur (RJ): ₹90.36 / L\n\nREDO Fleet Cardholders get instant ₹2.50/L cashback at all IndianOil & BPCL pumps.',
+          style: GoogleFonts.inter(fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyLoadsState(bool isDark, Color cardBg, Color cardBorder, Color textPrimary, Color textSecondary) {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cardBorder),
       ),
       child: Column(
         children: [
-          const Icon(Icons.inbox_outlined, size: 48, color: Color(0xFF64748B)),
+          const Icon(Icons.search_off_outlined, size: 48, color: AppColors.brandYellowDark),
           const SizedBox(height: 12),
           Text(
-            'No loads matching this criteria',
-            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
+            'No matching loads found',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: textPrimary),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            'Try clearing filters or checking other high-demand corridors.',
+            'Try clearing your search query or switching to "All Loads".',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
+            style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandYellow, foregroundColor: AppColors.slateDark),
+            onPressed: () {
+              setState(() {
+                _selectedCategory = 'All Loads';
+                _selectedTonnage = 'All';
+                _fromController.clear();
+                _toController.clear();
+              });
+              context.read<PartnerTripsViewModel>().clearFilters();
+            },
+            child: const Text('Clear Filters & Show All Loads'),
           ),
         ],
       ),

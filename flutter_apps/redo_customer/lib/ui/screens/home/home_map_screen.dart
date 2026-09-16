@@ -284,9 +284,9 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
       );
       _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
     } else if (vm.origin.isNotEmpty) {
-      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(from, 12));
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(from, 15.0));
     } else if (vm.destination.isNotEmpty) {
-      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(to, 12));
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(to, 15.0));
     }
   }
 
@@ -783,9 +783,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
             child: Stack(
               children: [
                 GoogleMap(
-                  initialCameraPosition: const CameraPosition(
-                    target: LatLng(20.5937, 78.9629), // India center
-                    zoom: 4.5,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  initialCameraPosition: CameraPosition(
+                    target: vm.origin.isNotEmpty ? vm.originLatLng : const LatLng(28.6139, 77.2090),
+                    zoom: vm.origin.isNotEmpty ? 15.0 : 12.0,
                   ),
                   onMapCreated: (ctrl) {
                     _mapController = ctrl;
@@ -838,6 +841,19 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                       ),
                     ),
                   ),
+                Positioned(
+                  bottom: 10,
+                  right: 10,
+                  child: FloatingActionButton.small(
+                    heroTag: 'customer_home_gps_btn',
+                    backgroundColor: AppColors.brandYellow,
+                    foregroundColor: AppColors.slateDark,
+                    elevation: 3,
+                    onPressed: _detectGpsLocation,
+                    tooltip: 'Zoom to Live Location',
+                    child: const Icon(Icons.my_location_rounded, size: 20),
+                  ),
+                ),
               ],
             ),
           ),
