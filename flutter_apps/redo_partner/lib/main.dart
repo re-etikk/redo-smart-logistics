@@ -181,9 +181,9 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
         indicatorColor: AppColors.brandYellow,
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.search_rounded),
-            selectedIcon: const Icon(Icons.search, color: AppColors.slateDark),
-            label: l10n?.searchLoads ?? 'Loads',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home, color: AppColors.slateDark),
+            label: l10n?.home ?? 'Home',
           ),
           NavigationDestination(
             icon: const Icon(Icons.local_shipping_outlined),
@@ -196,8 +196,16 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
             label: l10n?.earnings ?? 'Earnings',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome, color: AppColors.slateDark),
+            icon: Badge(
+              label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+              backgroundColor: Color(0xFFEF4444),
+              child: Icon(Icons.auto_awesome_outlined),
+            ),
+            selectedIcon: Badge(
+              label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+              backgroundColor: Color(0xFFEF4444),
+              child: Icon(Icons.auto_awesome, color: AppColors.slateDark),
+            ),
             label: 'Fleet AI',
           ),
           NavigationDestination(

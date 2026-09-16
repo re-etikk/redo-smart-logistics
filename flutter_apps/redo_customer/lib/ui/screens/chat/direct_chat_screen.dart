@@ -142,7 +142,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           .eq('booking_id', widget.bookingId)
           .order('created_at', ascending: true);
 
-      if (rows is List && rows.isNotEmpty) {
+      if (rows.isNotEmpty) {
         setState(() {
           _messages.clear();
           _messages.addAll(rows.map((e) => DirectChatMessage.fromJson(e, myId)));
@@ -471,10 +471,16 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   CircleAvatar(
                     backgroundColor: AppColors.brandYellow,
                     radius: 20,
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded, size: 18, color: AppColors.slateDark),
-                      onPressed: () => _sendMessage(),
-                    ),
+                    child: _sending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.slateDark),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.send_rounded, size: 18, color: AppColors.slateDark),
+                            onPressed: () => _sendMessage(),
+                          ),
                   ),
                 ],
               ),

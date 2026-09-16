@@ -170,7 +170,6 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
 
     try {
       final pan = _panCtrl.text.trim().toUpperCase();
-      final dl = _gstinOrDlCtrl.text.trim().toUpperCase();
       final address = _addressCtrl.text.trim();
       final name = _nameCtrl.text.trim();
 

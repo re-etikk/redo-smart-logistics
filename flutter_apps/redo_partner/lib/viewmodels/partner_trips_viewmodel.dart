@@ -125,6 +125,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
   String get tonnageFilter => _tonnageFilter;
   AvailableLoad? get instantAlertLoad => _instantAlertLoad;
   int get instantSecondsLeft => _instantSecondsLeft;
+  AvailableLoad? get instantLoadAlert => _instantAlertLoad;
+  int get instantSecondsRemaining => _instantSecondsLeft;
 
   List<AvailableLoad> get allAvailableLoads => _availableLoads;
 
@@ -311,6 +313,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearSearchFilter() => clearFilters();
+
   void triggerInstantAlert(AvailableLoad load) {
     _instantCountdownTimer?.cancel();
     _instantAlertLoad = load;
@@ -335,6 +339,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
     _instantAlertLoad = null;
     notifyListeners();
   }
+
+  void declineInstantLoad() => dismissInstantAlert(declined: true);
 
   void _checkForInstantAlerts() {
     if (_instantAlertLoad != null) return;
