@@ -374,6 +374,54 @@ class _EarningsScreenState extends State<EarningsScreen> {
     Color textMuted,
     AppLocalizations? l10n,
   ) {
+    if (total <= 0) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cardBorder),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n?.revenueBreakdown ?? 'Revenue Breakdown',
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: textPrimary),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandYellow.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'ML Categorized',
+                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Icon(Icons.pie_chart_outline, size: 40, color: textMuted),
+            const SizedBox(height: 10),
+            Text(
+              'No settled revenue yet',
+              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: textPrimary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Complete and settle trips to view your dynamic income breakdown.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 11, color: textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
     final slices = [
       {'name': 'Trip Freight', 'pct': 0.70, 'color': AppColors.brandYellow},
       {'name': 'Return Bonus', 'pct': 0.15, 'color': AppColors.success},
@@ -381,7 +429,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
       {'name': 'Incentives', 'pct': 0.05, 'color': const Color(0xFF38BDF8)},
     ];
 
-    final effectiveTotal = total > 0 ? total : 25000.0;
+    final effectiveTotal = total;
     final selectedSlice = _selectedPieSlice >= 0 && _selectedPieSlice < slices.length
         ? slices[_selectedPieSlice]
         : null;
@@ -523,7 +571,55 @@ class _EarningsScreenState extends State<EarningsScreen> {
     Color textMuted,
     AppLocalizations? l10n,
   ) {
-    final base = total > 0 ? total : 28000.0;
+    if (total <= 0) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cardBorder),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n?.weeklyEarnings ?? 'Weekly Earnings Trend',
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: textPrimary),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(color: AppColors.brandYellow, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 4),
+                    Text('Active Shifts', style: GoogleFonts.inter(fontSize: 11, color: textMuted)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Icon(Icons.bar_chart_outlined, size: 40, color: textMuted),
+            const SizedBox(height: 10),
+            Text(
+              'No active shifts recorded this week',
+              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: textPrimary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Shipments completed this week will dynamically build your weekly trend chart.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 11, color: textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final base = total;
     final dayData = [
       {'day': 'Mon', 'val': base * 0.10},
       {'day': 'Tue', 'val': base * 0.18},

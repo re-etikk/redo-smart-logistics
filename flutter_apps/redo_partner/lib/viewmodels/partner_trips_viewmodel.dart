@@ -22,6 +22,77 @@ class PartnerTripsViewModel extends ChangeNotifier {
     }
   }
 
+  // Live-location-based recommendations (idle-state, i.e. not tied to an
+  // active booking) — periodically refreshed while the app is open.
+  Timer? _locationPingTimer;
+  Map<String, dynamic>? _nearbyRecommendations;
+  bool _loadingRecommendations = false;
+
+  Map<String, dynamic>? get nearbyRecommendations => _nearbyRecommendations;
+  bool get loadingRecommendations => _loadingRecommendations;
+  List<Map<String, dynamic>> get recommendedCorridors =>
+      (_nearbyRecommendations?['recommended_corridors'] as List?)
+          ?.map((e) => Map<String, dynamic>.from(e as Map))
+          .toList() ??
+      const [];
+  List<AvailableLoad> get recommendedLoads =>
+      (_nearbyRecommendations?['top_loads'] as List?)
+          ?.map((e) => AvailableLoad.fromMatchJson(Map<String, dynamic>.from(e as Map)))
+          .toList() ??
+      const [];
+
+  /// Starts a periodic (every 5 min) live-location ping + recommendation
+  /// refresh for the driver's first registered truck — this is what lets
+  /// the app say "you're in Mumbai right now, here's what's nearby" without
+  /// requiring a trip to be declared first. Safe to call multiple times;
+  /// only one timer is ever active.
+  void startLocationAwareRecommendations() {
+    if (_locationPingTimer != null) return;
+    _refreshNearbyRecommendations(); // immediate first fetch
+    _locationPingTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      _refreshNearbyRecommendations();
+    });
+  }
+
+  void stopLocationAwareRecommendations() {
+    _locationPingTimer?.cancel();
+    _locationPingTimer = null;
+  }
+
+  Future<void> _refreshNearbyRecommendations() async {
+    if (_myTrucks.isEmpty) return;
+    final truckId = _myTrucks.first.truckId;
+    _loadingRecommendations = true;
+    notifyListeners();
+    try {
+      final hasPermission = await Geolocator.checkPermission();
+      Position? pos;
+      if (hasPermission == LocationPermission.always || hasPermission == LocationPermission.whileInUse) {
+        try {
+          pos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium,
+          );
+        } catch (_) {}
+      }
+      if (pos != null) {
+        // Persist so it's available even between app sessions / for other
+        // backend consumers, then ask for recommendations scored from it.
+        unawaited(SupabaseService.updateTruckLocation(truckId, pos.latitude, pos.longitude));
+      }
+      _nearbyRecommendations = await SupabaseService.getNearbyRecommendations(
+        truckId,
+        lat: pos?.latitude,
+        lng: pos?.longitude,
+      );
+    } catch (_) {
+      // Leave previous recommendations in place rather than clearing them
+      // on a transient failure (e.g. ML cold start).
+    } finally {
+      _loadingRecommendations = false;
+      notifyListeners();
+    }
+  }
+
   List<AvailableLoad> _availableLoads = [];
   List<ActiveTrip> _activeTrips = [];
   List<TruckModel> _myTrucks = [];
@@ -278,6 +349,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _instantCountdownTimer?.cancel();
+    _locationPingTimer?.cancel();
     _gps?.cancel();
     if (_cargoCh != null) SupabaseService.removeChannel(_cargoCh!);
     if (_bookingsCh != null) SupabaseService.removeChannel(_bookingsCh!);
@@ -289,6 +361,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       _myTrucks = await SupabaseService.getMyTrucks();
+      startLocationAwareRecommendations();
       _availableLoads = await SupabaseService.getAvailableLoads();
       _activeTrips = await SupabaseService.getActiveTrips();
       _errorMessage = null;

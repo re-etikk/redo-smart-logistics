@@ -506,6 +506,48 @@ class SupabaseService {
     }
   }
 
+  /// Live-location ping — updates trucks.current_lat/current_lng so the
+  /// backend's nearby-recommendation endpoint can score loads by real
+  /// distance from where this truck actually is right now.
+  static Future<void> updateTruckLocation(String truckId, double lat, double lng) async {
+    try {
+      await ApiService.patch('/trucks/$truckId', {'current_lat': lat, 'current_lng': lng});
+    } catch (_) {
+      // Best-effort — a missed location ping shouldn't surface as an error;
+      // the next periodic ping will catch up.
+    }
+  }
+
+  /// Live-location + backhaul-aware recommendations for one truck: both
+  /// specific top-matched loads and corridor-level "which city to head
+  /// toward" suggestions. Works even before a trip is declared.
+  static Future<Map<String, dynamic>> getNearbyRecommendations(
+    String truckId, {
+    double? lat,
+    double? lng,
+  }) async {
+    final query = (lat != null && lng != null) ? '?lat=$lat&lng=$lng' : '';
+    final res = await ApiService.get('/recommendations/nearby/$truckId$query');
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  /// Sends interaction feedback to the backend online continual learning model.
+  static Future<void> sendRecommendationFeedback({
+    required String cargoId,
+    String? truckId,
+    required String action,
+    String? corridorKey,
+  }) async {
+    try {
+      await ApiService.post('/recommendations/feedback', {
+        'cargo_id': cargoId,
+        if (truckId != null) 'truck_id': truckId,
+        'action': action,
+        if (corridorKey != null) 'corridor_key': corridorKey,
+      });
+    } catch (_) {}
+  }
+
   static Future<List<ActiveTrip>> getActiveTrips() async {
     try {
       final res = await ApiService.get('/bookings');

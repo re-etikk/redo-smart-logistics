@@ -347,7 +347,6 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   Widget build(BuildContext context) {
     final booking = context.watch<BookingViewModel>();
     final shipments = context.watch<ShipmentsViewModel>();
-    final themeVM = context.watch<ThemeViewModel>();
     final recentBookings = shipments.shipments.take(3).toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

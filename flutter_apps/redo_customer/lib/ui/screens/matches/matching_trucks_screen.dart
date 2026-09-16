@@ -3,8 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme.dart';
+import '../../../core/unit_formatter.dart';
 import '../../../viewmodels/booking_viewmodel.dart';
+import '../../../viewmodels/theme_viewmodel.dart';
 import '../../widgets/ui_components.dart';
+import '../chat/direct_chat_screen.dart';
 import '../shipments/tracking_screen.dart';
 
 class MatchingTrucksScreen extends StatelessWidget {
@@ -13,6 +16,7 @@ class MatchingTrucksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bookingVM = context.watch<BookingViewModel>();
+    final isMetric = context.watch<ThemeViewModel>().isMetric;
     final matches = bookingVM.matches;
     final currency = NumberFormat.currency(
       locale: 'en_IN',
@@ -73,6 +77,11 @@ class MatchingTrucksScreen extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 14),
               itemBuilder: (context, index) {
                 final match = matches[index];
+                final capacityText = UnitFormatter.formatWeightTons(
+                  match.availableCapacityTons,
+                  isMetric: isMetric,
+                );
+
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -163,10 +172,78 @@ class MatchingTrucksScreen extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    'Reg: ${match.registrationNumber ?? "Verified Truck"} • Cap: ${match.availableCapacityTons} Tons',
+                                    'Reg: ${match.registrationNumber ?? "Verified Truck"} • Cap: $capacityText',
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
                                       color: AppColors.inkMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // Driver Rating & Eco-friendly Backhaul Chip
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    size: 13,
+                                    color: Color(0xFFF59E0B),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${match.driverRating.toStringAsFixed(1)} • ${(match.onTimeRate * 100).toInt()}% On-Time',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.slateDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.eco,
+                                    size: 13,
+                                    color: Color(0xFF16A34A),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Zero Empty Haul • Low CO2',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF16A34A),
                                     ),
                                   ),
                                 ],
@@ -179,7 +256,7 @@ class MatchingTrucksScreen extends StatelessWidget {
                         const Divider(height: 1, color: AppColors.border),
                         const SizedBox(height: 14),
 
-                        // Pricing & Departure info
+                        // Pricing, Direct Chat & Book button
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -214,26 +291,66 @@ class MatchingTrucksScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            SizedBox(
-                              width: 130,
-                              child: RedoButton(
-                                title: 'Book Now',
-                                isLoading: bookingVM.isLoading,
-                                onPressed: () async {
-                                  final success = await bookingVM
-                                      .confirmBooking(match);
-                                  if (success && context.mounted) {
-                                    final booking = bookingVM.lastBooking;
-                                    Navigator.pushReplacement(
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) =>
-                                            TrackingScreen(booking: booking),
+                                        builder: (_) => DirectChatScreen(
+                                          bookingId: 'match_${match.truckId}',
+                                          counterpartyName:
+                                              'Carrier (${match.registrationNumber ?? "Verified"})',
+                                          counterpartyRole: 'Driver / Transporter',
+                                          counterpartyPhone: '+91 98765 43210',
+                                          origin: bookingVM.origin,
+                                          destination: bookingVM.destination,
+                                          truckReg: match.registrationNumber,
+                                        ),
                                       ),
                                     );
-                                  }
-                                },
-                              ),
+                                  },
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: AppColors.border,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                      color: AppColors.canvas,
+                                    ),
+                                    child: const Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 20,
+                                      color: AppColors.slateDark,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 110,
+                                  child: RedoButton(
+                                    title: 'Book Now',
+                                    isLoading: bookingVM.isLoading,
+                                    onPressed: () async {
+                                      final success = await bookingVM
+                                          .confirmBooking(match);
+                                      if (success && context.mounted) {
+                                        final booking = bookingVM.lastBooking;
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                TrackingScreen(booking: booking),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

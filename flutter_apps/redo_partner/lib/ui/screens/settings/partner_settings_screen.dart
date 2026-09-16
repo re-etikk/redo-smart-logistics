@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/app_strings.dart';
 import '../../../core/theme.dart';
-import '../../../data/services/supabase_service.dart';
 import '../../../viewmodels/auth_viewmodel.dart';
 import '../../../viewmodels/partner_trips_viewmodel.dart';
 import '../../../viewmodels/theme_viewmodel.dart';
@@ -46,7 +44,6 @@ class _PartnerSettingsScreenState extends State<PartnerSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthViewModel>();
     final themeVM = context.watch<ThemeViewModel>();
     final partnerVM = context.watch<PartnerTripsViewModel>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -56,9 +53,6 @@ class _PartnerSettingsScreenState extends State<PartnerSettingsScreen> {
     final cardBorder = isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0);
     final cardBg = Theme.of(context).cardColor;
 
-    final profile = auth.profile;
-    final name = profile?.fullName ?? '';
-    final email = SupabaseService.currentUser?.email ?? 'driver@redologistics.in';
     final hasTruck = partnerVM.myTrucks.isNotEmpty;
 
     return Scaffold(
@@ -286,7 +280,7 @@ class _PartnerSettingsScreenState extends State<PartnerSettingsScreen> {
                         ),
                       );
                       if (yes == true && context.mounted) {
-                        await auth.signOut();
+                        await context.read<AuthViewModel>().signOut();
                       }
                     },
                     style: OutlinedButton.styleFrom(
