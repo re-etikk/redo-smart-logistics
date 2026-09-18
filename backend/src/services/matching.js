@@ -420,3 +420,19 @@ export function clusterDemandByDestination(openCargo, currentLatLng) {
   }
   return result.sort((a, b) => b.open_load_count - a.open_load_count).slice(0, 8);
 }
+
+/**
+ * Uber-style supply/demand surge multiplier calculation.
+ * If demand > supply, surge scales up to 2.5x.
+ * If demand is 0, surge is 1.0x.
+ * If supply is 0 and demand > 0, caps at 2.0x.
+ */
+export function computeSurgeMultiplier(demandCount, supplyCount) {
+  const demand = Math.max(0, Number(demandCount) || 0);
+  const supply = Math.max(0, Number(supplyCount) || 0);
+  if (demand === 0) return 1.0;
+  if (supply === 0) return 2.0;
+  const excessRatio = Math.max(0, (demand - supply) / supply);
+  const surge = 1 + excessRatio * 0.6;
+  return Math.round(Math.min(2.5, Math.max(1.0, surge)) * 100) / 100;
+}
