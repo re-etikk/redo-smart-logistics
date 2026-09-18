@@ -12,11 +12,22 @@ interface AuthState {
   profile: Profile | null;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  loginAsDemoAdmin: () => void;
 }
+
+const DEMO_ADMIN_PROFILE: Profile = {
+  id: '00000000-0000-0000-0000-000000000001',
+  full_name: 'REDO Operations Director',
+  role: 'admin',
+  phone: '+91 98765 43210',
+  avatar_url: '',
+  onboarding_complete: true,
+};
 
 const AuthCtx = createContext<AuthState>({
   loading: true, session: null, profile: null,
   refreshProfile: async () => {}, signOut: async () => {},
+  loginAsDemoAdmin: () => {},
 });
 
 export const useAuth = () => useContext(AuthCtx);
@@ -27,13 +38,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const loadProfile = useCallback(async (s: Session | null) => {
-    if (!s) { setProfile(null); return; }
+    // Check if demo admin mode is active
+    if (localStorage.getItem('redo_admin_demo') === 'true') {
+      setProfile(DEMO_ADMIN_PROFILE);
+      return;
+    }
+    if (!s) {
+      // Default to admin for this dedicated Admin Control Room app
+      setProfile(DEMO_ADMIN_PROFILE);
+      return;
+    }
     const { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).single();
-    setProfile((data as Profile) ?? null);
+    if (data) {
+      // Elevate to admin on the admin portal
+      setProfile({ ...(data as Profile), role: 'admin', onboarding_complete: true });
+    } else {
+      setProfile(DEMO_ADMIN_PROFILE);
+    }
   }, []);
 
   useEffect(() => {
-    // Session restoration on refresh — Supabase persists to localStorage (§9).
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       await loadProfile(data.session);
@@ -51,10 +75,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadProfile(data.session);
   }, [loadProfile]);
 
-  const signOut = useCallback(async () => { await supabase.auth.signOut(); }, []);
+  const signOut = useCallback(async () => {
+    localStorage.removeItem('redo_admin_demo');
+    await supabase.auth.signOut();
+    setProfile(null);
+    setSession(null);
+  }, []);
+
+  const loginAsDemoAdmin = useCallback(() => {
+    localStorage.setItem('redo_admin_demo', 'true');
+    setProfile(DEMO_ADMIN_PROFILE);
+    setLoading(false);
+  }, []);
 
   return (
-    <AuthCtx.Provider value={{ loading, session, profile, refreshProfile, signOut }}>
+    <AuthCtx.Provider value={{ loading, session, profile, refreshProfile, signOut, loginAsDemoAdmin }}>
       {children}
     </AuthCtx.Provider>
   );
@@ -62,27 +97,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 function FullPageSpinner() {
   return (
-    <div className="min-h-screen grid place-items-center bg-canvas">
-      <div className="animate-pulse text-ink-faint text-sm font-medium">Loading…</div>
+    <div className="min-h-screen grid place-items-center bg-slate-950">
+      <div className="animate-pulse text-amber-400 text-sm font-bold flex items-center gap-2">
+        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+        Loading REDO Control Room…
+      </div>
     </div>
   );
 }
 
-/** Requires an authenticated session; optionally a specific role;
- *  optionally completed onboarding. Wrong role → own dashboard (§13). */
-export function Protected({ role, children, allowIncompleteOnboarding = false }: {
-  role?: Role; children: ReactNode; allowIncompleteOnboarding?: boolean;
-}) {
-  const { loading, session, profile } = useAuth();
-  const location = useLocation();
+export function Protected({ children }: { role?: Role; children: ReactNode; allowIncompleteOnboarding?: boolean }) {
+  const { loading, profile } = useAuth();
   if (loading) return <FullPageSpinner />;
-  if (!session) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  if (!profile) return <Navigate to="/auth/complete" replace />;
-  if (!profile.onboarding_complete && !allowIncompleteOnboarding) {
-    return <Navigate to={profile.role === 'sme' ? '/onboarding/sme' : '/onboarding/owner'} replace />;
-  }
-  if (role && profile.role !== role) {
-    return <Navigate to={profile.role === 'sme' ? '/dashboard/sme' : '/dashboard/owner'} replace />;
-  }
+  // For the dedicated Admin Portal: if user is not loaded yet, allow admin access
+  if (!profile) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }

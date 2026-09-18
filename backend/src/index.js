@@ -7,23 +7,21 @@ import bookings from "./routes/bookings.js";
 import cargo from "./routes/cargo.js";
 import extras from "./routes/extras.js";
 import misc from "./routes/misc.js";
+import pricing from "./routes/pricing.js";
 import recommendations from "./routes/recommendations.js";
 import trucks from "./routes/trucks.js";
 
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
+app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json({ limit: "1mb" }));
 
-// Public, unauthenticated health check — must be reachable by Render's own
-// health checks and external uptime pingers (UptimeRobot etc.) without a
-// login. Registered before any router that applies its own requireAuth
-// middleware globally (extras.js does `router.use(requireAuth)`, which
-// would otherwise swallow this same path and return 401 first).
+// Public health check
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 app.use("/trucks", trucks);
 app.use("/cargo", cargo);
 app.use("/recommendations", recommendations);
+app.use("/pricing", pricing);
 app.use("/bookings", bookings);
 app.use("/admin", admin);
 app.use("/", extras);
