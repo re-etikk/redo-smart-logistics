@@ -42,6 +42,10 @@ const NAV: Record<string, Item[]> = {
   ],
   admin: [
     { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/admin/radar", label: "Fleet Radar", icon: MapPin },
+    { to: "/admin/matching", label: "Matching Control", icon: Route },
+    { to: "/admin/pricing", label: "Dynamic Pricing", icon: IndianRupee },
+    { to: "/admin/disputes", label: "Disputes & Escrow", icon: HelpCircle },
     { to: "/admin/users", label: "Users", icon: Home },
     { to: "/admin/kyc", label: "KYC Verification", icon: FileText },
     { to: "/notifications", label: "Notifications", icon: Bell },

@@ -383,6 +383,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     _buildHeroBanner(isDark),
                     const SizedBox(height: 12),
 
+                    // 2.5 DYNAMIC CAPACITY UTILIZATION GAUGE & 1-TAP FILL MY TRUCK
+                    _buildCapacityUtilizationCard(context, tripsVM, isDark, cardBg, cardBorder, textPrimary, textSecondary, currency),
+                    const SizedBox(height: 12),
+
                     // 3. DUAL STATUS STRIP (READY FOR LOADS + GPS LIVE TRACKING)
                     _buildStatusCardsRow(isDark, cardBorder),
                     const SizedBox(height: 12),
@@ -614,6 +618,274 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // --- 2.5 CAPACITY UTILIZATION GAUGE & 1-TAP FILL MY TRUCK ---
+  Widget _buildCapacityUtilizationCard(
+    BuildContext context,
+    PartnerTripsViewModel tripsVM,
+    bool isDark,
+    Color cardBg,
+    Color cardBorder,
+    Color textPrimary,
+    Color textSecondary,
+    NumberFormat currency,
+  ) {
+    final totalTons = tripsVM.totalCapacityTons;
+    final bookedTons = tripsVM.bookedCapacityTons;
+    final availTons = tripsVM.availableCapacityTons;
+    final utilPct = tripsVM.capacityUtilizationPct;
+    final extraEarnings = tripsVM.potentialExtraEarningsInr;
+    final isFillActive = tripsVM.fillMyCapacityMode;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isFillActive
+              ? AppColors.brandYellow.withValues(alpha: 0.6)
+              : cardBorder,
+          width: isFillActive ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          if (isFillActive)
+            BoxShadow(
+              color: AppColors.brandYellow.withValues(alpha: 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Live Moving Capacity Inventory
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: AppColors.brandYellow.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 18,
+                      color: AppColors.brandYellowDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Live Moving Capacity Inventory',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: textPrimary,
+                        ),
+                      ),
+                      Text(
+                        '${totalTons.toStringAsFixed(1)}T Truck • Real-time Corridor Matching',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${availTons.toStringAsFixed(1)}T Free',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // Visual Progress Bar (Booked vs Available)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              height: 12,
+              child: Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                  ),
+                  FractionallySizedBox(
+                    widthFactor: (utilPct / 100.0).clamp(0.05, 1.0),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF0EA5E9)],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Utilization Metrics Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Booked: ${bookedTons.toStringAsFixed(1)}T (${utilPct.round()}%)',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textSecondary,
+                ),
+              ),
+              Text(
+                'Empty: ${availTons.toStringAsFixed(1)}T Available',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Potential Extra Revenue Callout
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.trending_up, size: 16, color: Color(0xFF10B981)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Potential Empty-Space Revenue:',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '+${currency.format(extraEarnings)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 1-Tap "Fill My Empty Capacity" Action Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isFillActive ? AppColors.brandYellow : (isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A)),
+                foregroundColor: isFillActive ? Colors.black : Colors.white,
+                elevation: isFillActive ? 4 : 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isFillActive ? AppColors.brandYellowDark : Colors.transparent,
+                    width: 1,
+                  ),
+                ),
+              ),
+              onPressed: () {
+                tripsVM.toggleFillMyCapacityMode();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      !isFillActive
+                          ? '⚡ Fill My Truck Mode Activated! Showing loads up to ${availTons.toStringAsFixed(1)}T matching your corridor.'
+                          : 'Showing all loads nationwide.',
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.bolt,
+                    size: 18,
+                    color: isFillActive ? Colors.black : AppColors.brandYellow,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isFillActive
+                        ? '⚡ FILL MY TRUCK: ACTIVE (${availTons.toStringAsFixed(1)}T Free)'
+                        : '⚡ Fill My Empty Capacity (1-Tap)',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -1905,6 +2177,52 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     style: GoogleFonts.inter(fontSize: 11, color: textPrimary, fontWeight: FontWeight.w700),
                   ),
                 ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // Co-load Safety & Corridor Segment Badges
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: AppColors.brandYellow.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.alt_route, size: 11, color: AppColors.brandYellowDark),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Sub-Segment Corridor Match',
+                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.shield_outlined, size: 11, color: Color(0xFF10B981)),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Safety Co-Load Approved',
+                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFF10B981)),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

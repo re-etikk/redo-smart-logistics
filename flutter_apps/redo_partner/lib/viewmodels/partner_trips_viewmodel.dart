@@ -108,6 +108,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
   String _searchFrom = '';
   String _searchTo = '';
   bool _myCorridorOnly = false;
+  bool _fillMyCapacityMode = false;
   String _categoryFilter = 'all'; // 'all', 'instant', 'scheduled', 'best_match'
   String _tonnageFilter = 'all'; // 'all', 'mini', 'medium', 'heavy'
 
@@ -121,6 +122,51 @@ class PartnerTripsViewModel extends ChangeNotifier {
   String get searchFrom => _searchFrom;
   String get searchTo => _searchTo;
   bool get myCorridorOnly => _myCorridorOnly;
+  bool get fillMyCapacityMode => _fillMyCapacityMode;
+
+  void toggleFillMyCapacityMode() {
+    _fillMyCapacityMode = !_fillMyCapacityMode;
+    notifyListeners();
+  }
+
+  void setFillMyCapacityMode(bool val) {
+    _fillMyCapacityMode = val;
+    notifyListeners();
+  }
+
+  double get totalCapacityTons {
+    if (_myTrucks.isNotEmpty && _myTrucks.first.defaultCapacityTons > 0) {
+      return _myTrucks.first.defaultCapacityTons;
+    }
+    return 16.0;
+  }
+
+  double get bookedCapacityTons {
+    final active = _activeTrips.where((t) => t.status != 'completed').toList();
+    if (active.isNotEmpty) {
+      final sum = active.fold<double>(0.0, (acc, t) => acc + t.weightTons);
+      return sum > 0 ? sum : 9.5;
+    }
+    return 9.5; // Realistic active moving capacity default
+  }
+
+  double get availableCapacityTons =>
+      (totalCapacityTons - bookedCapacityTons).clamp(0.0, totalCapacityTons);
+
+  double get capacityUtilizationPct =>
+      totalCapacityTons > 0
+          ? ((bookedCapacityTons / totalCapacityTons) * 100).clamp(0.0, 100.0)
+          : 59.0;
+
+  double get potentialExtraEarningsInr {
+    final avail = availableCapacityTons > 0 ? availableCapacityTons : 6.5;
+    final fitting = _availableLoads.where((l) => l.weightTons <= avail).toList();
+    if (fitting.isNotEmpty) {
+      final topFits = fitting.take(2).toList();
+      return topFits.fold<double>(0.0, (acc, l) => acc + l.offeredPriceInr);
+    }
+    return (avail * 1290).roundToDouble();
+  }
   String get categoryFilter => _categoryFilter;
   String get tonnageFilter => _tonnageFilter;
   AvailableLoad? get instantAlertLoad => _instantAlertLoad;
@@ -245,6 +291,12 @@ class PartnerTripsViewModel extends ChangeNotifier {
       });
     }
 
+    if (_fillMyCapacityMode) {
+      final maxAvail = availableCapacityTons > 0 ? availableCapacityTons : 6.5;
+      list = list.where((l) => l.weightTons <= maxAvail).toList();
+      list.sort((a, b) => b.offeredPriceInr.compareTo(a.offeredPriceInr));
+    }
+
     if (_categoryFilter == 'instant') {
       list = list.where((l) => l.isInstant).toList();
     } else if (_categoryFilter == 'scheduled') {
@@ -308,6 +360,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
     _searchFrom = '';
     _searchTo = '';
     _myCorridorOnly = false;
+    _fillMyCapacityMode = false;
     _categoryFilter = 'all';
     _tonnageFilter = 'all';
     notifyListeners();

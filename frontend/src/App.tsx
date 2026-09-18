@@ -32,6 +32,10 @@ import Support from './pages/Support';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import AdminKyc from './pages/admin/Kyc';
+import FleetRadar from './pages/admin/FleetRadar';
+import MatchingOverseer from './pages/admin/MatchingOverseer';
+import PricingControl from './pages/admin/PricingControl';
+import Disputes from './pages/admin/Disputes';
 import Diagnostics from './pages/Diagnostics';
 
 function Home() {
@@ -80,6 +84,10 @@ export default function App() {
 
             {/* Admin */}
             <Route path="/admin" element={<Protected role="admin"><AdminDashboard /></Protected>} />
+            <Route path="/admin/radar" element={<Protected role="admin"><FleetRadar /></Protected>} />
+            <Route path="/admin/matching" element={<Protected role="admin"><MatchingOverseer /></Protected>} />
+            <Route path="/admin/pricing" element={<Protected role="admin"><PricingControl /></Protected>} />
+            <Route path="/admin/disputes" element={<Protected role="admin"><Disputes /></Protected>} />
             <Route path="/admin/users" element={<Protected role="admin"><AdminUsers /></Protected>} />
             <Route path="/admin/kyc" element={<Protected role="admin"><AdminKyc /></Protected>} />
 

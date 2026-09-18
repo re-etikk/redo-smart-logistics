@@ -1,3 +1,6 @@
+import { calculateDynamicPrice } from './dynamicPricing.js';
+import { matchCorridorSubSegment } from './corridorSegments.js';
+import { checkTruckCoLoadSafety } from './cargoCompatibility.js';
 // Stage-1 hard filters (spec §26). Pure + testable. Stage 2 (ML) lives in ml.js.
 
 export const KNOWN_ROUTES = {
@@ -130,6 +133,52 @@ export function cargoCompatible(acceptedTypes, cargoType) {
   return acceptedTypes.includes(cargoType);
 }
 
+
+/**
+ * Computes the unified ReDo Match Score (0 - 100%)
+ * MatchScore = 0.35 * Route + 0.25 * Capacity + 0.15 * Timing + 0.15 * Safety + 0.10 * Trust
+ */
+export function calculateReDoMatchScore({
+  routeOverlapScore = 1.0,
+  availableCapacityTons = 10.0,
+  cargoWeightTons = 2.0,
+  timeGapHours = 2.0,
+  cargoSafetyScore = 1.0,
+  driverRating = 4.8,
+  onTimeRate = 0.94,
+  cancelRate = 0.04,
+}) {
+  const routeScore = Math.max(0, Math.min(1, Number(routeOverlapScore) || 0.5));
+  
+  const capRatio = Number(cargoWeightTons) / Math.max(0.1, Number(availableCapacityTons));
+  let capacityFit = 0.85;
+  if (capRatio > 1.0) capacityFit = 0.0;
+  else if (capRatio >= 0.40 && capRatio <= 0.95) capacityFit = 1.0;
+  else capacityFit = 0.70 + (capRatio * 0.30);
+
+  const gap = Math.max(0, Number(timeGapHours) || 0);
+  const timingScore = Math.max(0.3, 1.0 - (gap / 48));
+  const safetyScore = Math.max(0, Math.min(1, Number(cargoSafetyScore) || 1.0));
+
+  const ratingNorm = (Math.max(1, Math.min(5, Number(driverRating) || 4.5)) - 1) / 4.0;
+  const trustScore = Math.max(0.2, (ratingNorm * 0.5) + ((Number(onTimeRate) || 0.9) * 0.4) - ((Number(cancelRate) || 0.05) * 0.5));
+
+  const total = (routeScore * 0.35) + (capacityFit * 0.25) + (timingScore * 0.15) + (safetyScore * 0.15) + (trustScore * 0.10);
+  const pct = Math.round(Math.max(0.15, Math.min(0.99, total)) * 100);
+
+  return {
+    scorePct: pct,
+    scoreDecimal: +(pct / 100).toFixed(2),
+    breakdown: {
+      routeScore: +routeScore.toFixed(2),
+      capacityFit: +capacityFit.toFixed(2),
+      timingScore: +timingScore.toFixed(2),
+      safetyScore: +safetyScore.toFixed(2),
+      trustScore: +trustScore.toFixed(2),
+    }
+  };
+}
+
 export function hardFilter(cargo, candidates, opts = {}) {
   const maxGapH = opts.maxTimeGapHours ?? 72; // 3-day flexible backhaul window
   const minSim = opts.minRouteSimilarity ?? 0.4;
@@ -138,24 +187,60 @@ export function hardFilter(cargo, candidates, opts = {}) {
   for (const { truck, trip } of candidates) {
     const reject = (reason) => rejected.push({ truck_id: truck.truck_id, reason });
     if (truck.status !== "available") { reject("truck_unavailable"); continue; }
-    
-    const sim = routeSimilarity(trip, cargo);
+
+    // 1. Sub-Segment & Highway Corridor Matching
+    const subSeg = matchCorridorSubSegment(trip.origin, trip.destination, cargo.origin, cargo.destination);
+    const sim = subSeg.isMatch ? subSeg.overlapScore : routeSimilarity(trip, cargo);
     if (sim < minSim) { reject("route_mismatch"); continue; }
-    
+
+    // 2. Capacity Check
     if (Number(trip.available_capacity_tons) < Number(cargo.cargo_weight_tons)) {
       reject("insufficient_capacity"); continue;
     }
-    
+
+    // 3. Timing Check
     const gap = timeGapHours(trip.departure_at, cargo.pickup_at);
     if (gap !== null && gap > maxGapH) { reject("timing_incompatible"); continue; }
-    
+
+    // 4. Basic Type & Co-Load Safety Matrix Check
     if (!cargoCompatible(trip.accepted_cargo_types, cargo.cargo_type)) {
       reject("cargo_incompatible"); continue;
     }
-    
-    // Resilient distance calculation
-    const distance = Number(cargo.distance_km) || routeDistanceKm(cargo.origin, cargo.destination) || 500;
-    
+    const safety = checkTruckCoLoadSafety(trip.existing_cargo || [], cargo.cargo_type);
+    if (!safety.allowed) {
+      reject("cargo_hazard_incompatible"); continue;
+    }
+
+    // 5. Distance Resolution (Corridor distance preferred)
+    const distance = subSeg.isMatch && subSeg.segmentDistanceKm > 0
+      ? subSeg.segmentDistanceKm
+      : (Number(cargo.distance_km) || routeDistanceKm(cargo.origin, cargo.destination) || 500);
+
+    // 6. Dynamic Pricing Calculation
+    const pricing = calculateDynamicPrice({
+      weightTons: Number(cargo.cargo_weight_tons),
+      volumeCft: Number(cargo.volume_cft) || 0,
+      distanceKm: distance,
+      corridorId: subSeg.isMatch ? subSeg.corridorId : 'default',
+      customBaseRate: trip.price_per_km_ton,
+      cargoType: cargo.cargo_type,
+      truckOccupancyPct: trip.occupancy_pct || 0.65,
+      detourKm: Number(cargo.detour_km) || 0,
+      urgency: cargo.urgency || 'standard',
+    });
+
+    // 7. Unified ReDo Match Score (0 - 100%)
+    const matchScoreObj = calculateReDoMatchScore({
+      routeOverlapScore: sim,
+      availableCapacityTons: Number(trip.available_capacity_tons),
+      cargoWeightTons: Number(cargo.cargo_weight_tons),
+      timeGapHours: gap != null ? gap : 2.0,
+      cargoSafetyScore: safety.riskLevel === 'safe' ? 1.0 : 0.85,
+      driverRating: truck.driver_rating == null ? 4.8 : Number(truck.driver_rating),
+      onTimeRate: truck.on_time_rate == null ? 0.94 : Number(truck.on_time_rate),
+      cancelRate: truck.cancel_rate == null ? 0.04 : Number(truck.cancel_rate),
+    });
+
     eligible.push({
       truck_id: truck.truck_id,
       distance_km: Number(distance),
@@ -171,6 +256,17 @@ export function hardFilter(cargo, candidates, opts = {}) {
       price_per_km_ton: Number(trip.price_per_km_ton ?? 1.05),
       _trip_id: trip.id,
       _departure_at: trip.departure_at,
+
+      // ReDo Match & Live Capacity Marketplace metadata
+      match_score_pct: matchScoreObj.scorePct,
+      match_score_decimal: matchScoreObj.scoreDecimal,
+      match_score_breakdown: matchScoreObj.breakdown,
+      dynamic_pricing: pricing,
+      estimated_price_inr: pricing.customerPrice,
+      driver_earnings_inr: pricing.driverFreight,
+      savings_pct: pricing.savingsPct,
+      corridor_sub_segment: subSeg.isMatch ? subSeg : null,
+      cargo_safety: safety,
     });
   }
   return { eligible, rejected };

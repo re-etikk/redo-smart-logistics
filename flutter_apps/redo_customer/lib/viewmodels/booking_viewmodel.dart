@@ -44,6 +44,7 @@ class BookingViewModel extends ChangeNotifier {
 
   String _cargoType = 'Industrial Goods';
   double _weightTons = 6.0;
+  double _volumeCft = 0.0;
   bool _isLoading = false;
   bool _isRouting = false;
   RouteInfo? _currentRoute;
@@ -69,6 +70,31 @@ class BookingViewModel extends ChangeNotifier {
 
   String get cargoType => _cargoType;
   double get weightTons => _weightTons;
+  double get volumeCft => _volumeCft;
+
+  void setVolumeCft(double cft) {
+    _volumeCft = cft;
+    notifyListeners();
+  }
+
+  double get volumetricWeightTons => _volumeCft > 0 ? (_volumeCft / 120.0) : 0.0;
+  double get billableWeightTons => volumetricWeightTons > _weightTons ? volumetricWeightTons : _weightTons;
+
+  double get estimatedFareInr {
+    final dist = roadDistanceKm > 0 ? roadDistanceKm : 350.0;
+    final w = billableWeightTons > 0 ? billableWeightTons : 2.5;
+    return (dist * w * 2.4 * 1.08).clamp(1800.0, 999999.0).roundToDouble();
+  }
+
+  double get dedicatedTruckBenchmarkInr {
+    final dist = roadDistanceKm > 0 ? roadDistanceKm : 350.0;
+    return (dist * 18.0 + 1500.0).clamp(4500.0, 999999.0).roundToDouble();
+  }
+
+  int get savingsPct {
+    if (dedicatedTruckBenchmarkInr <= estimatedFareInr) return 42;
+    return (((dedicatedTruckBenchmarkInr - estimatedFareInr) / dedicatedTruckBenchmarkInr) * 100).round().clamp(15, 80);
+  }
   bool get isLoading => _isLoading;
   bool get isRouting => _isRouting;
   RouteInfo? get currentRoute => _currentRoute;

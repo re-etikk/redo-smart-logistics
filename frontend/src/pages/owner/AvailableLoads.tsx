@@ -5,6 +5,7 @@ import Layout from "../../components/Layout";
 import { api } from "../../services/api";
 import { Badge, Button, Card, CardSkeleton, EmptyState, SearchInput, SectionHead, useToast } from "../../components/ui";
 import { estimateFromDistance } from "../../lib/pricing";
+import { useRealtimeRefresh } from "../../lib/realtime";
 
 export default function AvailableLoads() {
   const [loads, setLoads] = useState<any[] | null>(null);

@@ -859,6 +859,12 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           ),
           const SizedBox(height: 12),
 
+          // Dynamic Live Quote & Dedicated Truck Savings Callout
+          if (vm.roadDistanceKm > 0) ...[
+            _buildDynamicPriceSavingsCard(vm, textPrimary, textMuted, cardBorder, isDark),
+            const SizedBox(height: 12),
+          ],
+
           // Exact Addresses & GSTIN Form Section
           _buildAddressAndGstinSection(vm, textPrimary, textMuted, cardBorder),
           const SizedBox(height: 16),
@@ -1111,6 +1117,56 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                 const SizedBox(width: 6),
                 _buildWeightPresetChip(35.0, '35 T (Trailer)', vm, cardBorder, textPrimary, textMuted, isDark),
               ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Volumetric Weight Calculator 1-Tap Trigger
+          InkWell(
+            onTap: () => _showVolumetricCalculator(context, vm, isDark, textPrimary, textMuted, cardBorder),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: vm.volumeCft > 0
+                    ? AppColors.brandYellow.withValues(alpha: 0.15)
+                    : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: vm.volumeCft > 0
+                      ? AppColors.brandYellowDark.withValues(alpha: 0.5)
+                      : cardBorder,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.view_in_ar_outlined,
+                        size: 16,
+                        color: vm.volumeCft > 0 ? AppColors.brandYellowDark : textMuted,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        vm.volumeCft > 0
+                            ? 'Volumetric: ${vm.volumeCft.toStringAsFixed(0)} CFT (${vm.volumetricWeightTons.toStringAsFixed(1)}T Billable)'
+                            : 'Calculate Volumetric Weight (CFT / Box Size)',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: vm.volumeCft > 0 ? AppColors.brandYellowDark : textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 11,
+                    color: vm.volumeCft > 0 ? AppColors.brandYellowDark : textMuted,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1789,3 +1845,380 @@ class _PlacePickerState extends State<_PlacePicker> {
     );
   }
 }
+
+
+  // --- DYNAMIC LIVE QUOTE & SAVINGS CARD ---
+  Widget _buildDynamicPriceSavingsCard(
+    BookingViewModel vm,
+    Color textPrimary,
+    Color textMuted,
+    Color cardBorder,
+    bool isDark,
+  ) {
+    final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final estimatedFare = vm.estimatedFareInr;
+    final dedicatedPrice = vm.dedicatedTruckBenchmarkInr;
+    final savingsPct = vm.savingsPct;
+    final savingsAmount = (dedicatedPrice - estimatedFare).clamp(0.0, dedicatedPrice);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFEFCE8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.brandYellowDark.withValues(alpha: 0.5),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.brandYellow.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.bolt, size: 16, color: AppColors.brandYellowDark),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'REDO Moving Capacity Rate',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '⚡ Save $savingsPct%',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Full Dedicated Truck: ${currency.format(dedicatedPrice)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: textMuted,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        currency.format(estimatedFare),
+                        style: GoogleFonts.inter(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '(${vm.billableWeightTons.toStringAsFixed(1)}T Billable)',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Text(
+                'You save ${currency.format(savingsAmount)}',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '⚡ Pay only for the moving capacity your cargo occupies. Zero deadhead surcharge.',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- VOLUMETRIC WEIGHT CALCULATOR DIALOG ---
+  void _showVolumetricCalculator(
+    BuildContext context,
+    BookingViewModel vm,
+    bool isDark,
+    Color textPrimary,
+    Color textMuted,
+    Color cardBorder,
+  ) {
+    final lengthCtrl = TextEditingController(text: '3.0');
+    final widthCtrl = TextEditingController(text: '2.0');
+    final heightCtrl = TextEditingController(text: '2.0');
+    final qtyCtrl = TextEditingController(text: '10');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final l = double.tryParse(lengthCtrl.text) ?? 0.0;
+            final w = double.tryParse(widthCtrl.text) ?? 0.0;
+            final h = double.tryParse(heightCtrl.text) ?? 0.0;
+            final q = int.tryParse(qtyCtrl.text) ?? 1;
+
+            final totalCft = (l * w * h * q);
+            final volTons = totalCft / 120.0; // 120 CFT = 1 Ton standard
+            final actualTons = vm.weightTons;
+            final isVolumetricHigher = volTons > actualTons;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: cardBorder,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.view_in_ar_outlined, color: AppColors.brandYellowDark, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Volumetric Weight Calculator',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Indian Logistics Surface Standard: 120 CFT = 1.0 Metric Ton',
+                    style: GoogleFonts.inter(fontSize: 11, color: textMuted),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Box Dimensions Grid
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: lengthCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: 'Length (ft)',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onChanged: (_) => setModalState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: widthCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: 'Width (ft)',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onChanged: (_) => setModalState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: heightCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: 'Height (ft)',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onChanged: (_) => setModalState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: qtyCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Boxes / Qty',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onChanged: (_) => setModalState(() {}),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Result Container
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total Volume:',
+                              style: GoogleFonts.inter(fontSize: 12, color: textMuted),
+                            ),
+                            Text(
+                              '${totalCft.toStringAsFixed(1)} CFT',
+                              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: textPrimary),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Volumetric Weight:',
+                              style: GoogleFonts.inter(fontSize: 12, color: textMuted),
+                            ),
+                            Text(
+                              '${volTons.toStringAsFixed(2)} Metric Tons',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: isVolumetricHigher ? AppColors.brandYellowDark : const Color(0xFF10B981),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Billable Weight Rule:',
+                              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: textMuted),
+                            ),
+                            Text(
+                              isVolumetricHigher
+                                  ? 'Volumetric Weight Applies (${volTons.toStringAsFixed(2)}T)'
+                                  : 'Actual Weight Applies (${actualTons.toStringAsFixed(1)}T)',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: isVolumetricHigher ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // Apply Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brandYellow,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        vm.setVolumeCft(totalCft);
+                        if (isVolumetricHigher) {
+                          vm.setWeightTons(double.parse(volTons.toStringAsFixed(1)));
+                        }
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Volumetric weight applied: ${totalCft.toStringAsFixed(0)} CFT (${volTons.toStringAsFixed(1)}T billable)',
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Apply Volumetric Weight (${isVolumetricHigher ? volTons.toStringAsFixed(1) : actualTons.toStringAsFixed(1)} T)',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }

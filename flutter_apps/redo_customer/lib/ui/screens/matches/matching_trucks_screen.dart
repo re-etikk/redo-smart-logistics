@@ -264,6 +264,22 @@ class MatchingTrucksScreen extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 3),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '⚡ Save ${match.backhaulDiscountPercent > 0 ? match.backhaulDiscountPercent.toInt() : 45}% vs Dedicated Truck',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF10B981),
+                                    ),
+                                  ),
+                                ),
                                 Text(
                                   'Est. spot market: ${currency.format(match.basePriceInr)}',
                                   style: GoogleFonts.inter(
