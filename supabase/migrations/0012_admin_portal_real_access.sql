@@ -69,56 +69,71 @@ grant execute on function public.promote_to_admin(text) to service_role;
 -- 3. Admin RLS Policies (Allow role='admin' to inspect and manage all tables)
 
 -- Profiles: Admin can view and update all profiles
+drop policy if exists profiles_admin_select on public.profiles;
 create policy profiles_admin_select on public.profiles
   for select using (public.is_admin());
 
+drop policy if exists profiles_admin_update on public.profiles;
 create policy profiles_admin_update on public.profiles
   for update using (public.is_admin());
 
 -- Bookings: Admin can view and manage all bookings
+drop policy if exists bookings_admin_select on public.bookings;
 create policy bookings_admin_select on public.bookings
   for select using (public.is_admin());
 
+drop policy if exists bookings_admin_update on public.bookings;
 create policy bookings_admin_update on public.bookings
   for update using (public.is_admin());
 
 -- Cargo Requests: Admin can view and manage all loads
+drop policy if exists cargo_admin_select on public.cargo_requests;
 create policy cargo_admin_select on public.cargo_requests
   for select using (public.is_admin());
 
+drop policy if exists cargo_admin_update on public.cargo_requests;
 create policy cargo_admin_update on public.cargo_requests
   for update using (public.is_admin());
 
 -- Trucks: Admin can view and manage all trucks
+drop policy if exists trucks_admin_select on public.trucks;
 create policy trucks_admin_select on public.trucks
   for select using (public.is_admin());
 
+drop policy if exists trucks_admin_update on public.trucks;
 create policy trucks_admin_update on public.trucks
   for update using (public.is_admin());
 
 -- KYC Verifications: Admin can view and update documents
+drop policy if exists kyc_admin_select on public.kyc_verifications;
 create policy kyc_admin_select on public.kyc_verifications
   for select using (public.is_admin());
 
+drop policy if exists kyc_admin_update on public.kyc_verifications;
 create policy kyc_admin_update on public.kyc_verifications
   for update using (public.is_admin());
 
 -- Disputes: Admin can view and resolve disputes
+drop policy if exists disputes_admin_select on public.disputes;
 create policy disputes_admin_select on public.disputes
   for select using (public.is_admin());
 
+drop policy if exists disputes_admin_update on public.disputes;
 create policy disputes_admin_update on public.disputes
   for update using (public.is_admin());
 
 -- Pricing Configurations: Admin can read and update pricing rules
+drop policy if exists pricing_admin_all on public.pricing_configurations;
 create policy pricing_admin_all on public.pricing_configurations
   for all using (public.is_admin());
 
 -- Trip Segments: Admin can inspect and update live capacity segments
+drop policy if exists trip_segments_admin_all on public.trip_segments;
 create policy trip_segments_admin_all on public.trip_segments
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- Notifications: Admin can inspect and manage delivery/audit notifications
+drop policy if exists notifications_admin_all on public.notifications;
 create policy notifications_admin_all on public.notifications
   for all using (public.is_admin()) with check (public.is_admin());
 
