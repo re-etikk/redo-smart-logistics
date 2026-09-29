@@ -13,7 +13,6 @@ import '../../../data/services/supabase_service.dart';
 import '../../../core/unit_formatter.dart';
 import '../../../viewmodels/partner_trips_viewmodel.dart';
 import '../../../viewmodels/theme_viewmodel.dart';
-import '../../widgets/instant_load_alert_banner.dart';
 import '../misc/notifications_screen.dart';
 import '../chat/direct_chat_screen.dart';
 import '../settings/partner_settings_screen.dart';
@@ -360,25 +359,6 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   children: [
-                    // Instant load alert banner (if active)
-                    if (tripsVM.instantLoadAlert != null) ...[
-                      InstantLoadAlertBanner(
-                        secondsRemaining: tripsVM.instantSecondsRemaining,
-                        load: tripsVM.instantLoadAlert!,
-                        onAccept: () async {
-                          final load = tripsVM.instantLoadAlert!;
-                          final id = await tripsVM.acceptLoad(load);
-                          if (id != null && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Instant Load Accepted! Booking: $id')),
-                            );
-                          }
-                        },
-                        onDecline: () => tripsVM.declineInstantLoad(),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
                     // 2. HERO BANNER WITH CUSTOM COMMERCIAL TRUCK
                     _buildHeroBanner(isDark),
                     const SizedBox(height: 12),

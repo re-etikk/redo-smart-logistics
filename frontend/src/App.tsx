@@ -9,6 +9,7 @@ import PricingControl from './pages/admin/PricingControl';
 import Disputes from './pages/admin/Disputes';
 import AdminUsers from './pages/admin/Users';
 import AdminKyc from './pages/admin/Kyc';
+import AdminBookings from './pages/admin/Bookings';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
 
             {/* Admin Command Center Routes */}
             <Route path="/admin" element={<Protected><AdminDashboard /></Protected>} />
+            <Route path="/admin/bookings" element={<Protected><AdminBookings /></Protected>} />
             <Route path="/admin/radar" element={<Protected><FleetRadar /></Protected>} />
             <Route path="/admin/matching" element={<Protected><MatchingOverseer /></Protected>} />
             <Route path="/admin/pricing" element={<Protected><PricingControl /></Protected>} />
@@ -30,6 +32,7 @@ export default function App() {
             <Route path="/admin/kyc" element={<Protected><AdminKyc /></Protected>} />
 
             {/* Direct Short Routes */}
+            <Route path="/bookings" element={<Protected><AdminBookings /></Protected>} />
             <Route path="/radar" element={<Protected><FleetRadar /></Protected>} />
             <Route path="/matching" element={<Protected><MatchingOverseer /></Protected>} />
             <Route path="/pricing" element={<Protected><PricingControl /></Protected>} />

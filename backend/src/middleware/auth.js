@@ -58,6 +58,9 @@ export async function requireAuth(req, res, next) {
   }
 
   req.profile = profile;
+  if (profile.status === "suspended") {
+    return res.status(403).json({ error: "ACCOUNT_SUSPENDED", message: "This account has been suspended. Contact REDO support." });
+  }
   next();
 }
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { Button, Card, Field, inputCls } from '../../components/ui';
-import { ShieldCheck, Zap, Lock, Mail, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, KeyRound } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,29 +11,31 @@ export default function Login() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { refreshProfile, loginAsDemoAdmin } = useAuth();
-
-  const handleDemoAccess = () => {
-    loginAsDemoAdmin();
-    navigate('/admin');
-  };
+  const { refreshProfile } = useAuth();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setBusy(true); setError('');
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    setBusy(true);
+    setError('');
+
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
     if (err) {
-      setError(err.message || 'Incorrect email or password.');
+      setError(err.message || 'Incorrect email or password. Please verify your credentials.');
       setBusy(false);
       return;
     }
+
     await refreshProfile();
     navigate('/admin');
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-      {/* Subtle Background Glow */}
+      {/* Background Ambience */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
@@ -47,46 +49,29 @@ export default function Login() {
             Admin Control Room
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-2">
-            Highway Corridor Matching, Fleet Radar & Dynamic Pricing Desk
+            Corridor Fleet Radar, Live Shipments, Dynamic Pricing & KYC Desk
           </p>
         </div>
 
-        {/* 1-Tap Quick Executive Access Card */}
-        <Card className="p-6 bg-slate-900/90 border border-amber-500/30 rounded-2xl shadow-xl shadow-amber-500/5 mb-6 backdrop-blur-xl">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <Zap size={20} />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white">1-Tap Executive Access</h2>
-              <p className="text-[11px] text-slate-400">Instant access for system evaluation & operations</p>
-            </div>
-          </div>
-          <Button
-            onClick={handleDemoAccess}
-            className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
-          >
-            <span>Enter Operations Control Room</span>
-            <ArrowRight size={16} />
-          </Button>
-        </Card>
-
-        {/* Or Authenticate with Credentials */}
-        <div className="relative flex py-2 items-center mb-6">
-          <div className="flex-grow border-t border-slate-800"></div>
-          <span className="flex-shrink mx-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Or Login with Credentials</span>
-          <div className="flex-grow border-t border-slate-800"></div>
+        {/* Security Notice */}
+        <div className="mb-6 p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2.5">
+          <KeyRound size={16} className="text-amber-400 shrink-0 mt-0.5" />
+          <span>
+            Strict role-based access control enabled. Only accounts with verified <strong className="text-amber-400">admin</strong> role can access operations data.
+          </span>
         </div>
 
-        <Card className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-xl">
+        {/* Admin Login Card */}
+        <Card className="p-6 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl backdrop-blur-xl">
           <form onSubmit={submit} className="space-y-4">
             {error && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
-                {error}
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium flex items-start gap-2">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>{error}</span>
               </div>
             )}
 
-            <Field label="Admin Email">
+            <Field label="Administrator Email">
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -95,7 +80,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@redologistics.in"
-                  className={inputCls + " pl-10 bg-slate-950 border-slate-800 text-white placeholder:text-slate-600"}
+                  className={inputCls + " pl-10 bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-amber-400"}
                 />
               </div>
             </Field>
@@ -108,8 +93,8 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={inputCls + " pl-10 bg-slate-950 border-slate-800 text-white placeholder:text-slate-600"}
+                  placeholder="••••••••••••"
+                  className={inputCls + " pl-10 bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-amber-400"}
                 />
               </div>
             </Field>
@@ -117,21 +102,18 @@ export default function Login() {
             <Button
               type="submit"
               disabled={busy}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl border border-slate-700"
+              className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all"
             >
-              {busy ? "Authenticating…" : "Sign In to Operations"}
+              <span>{busy ? "Verifying Credentials…" : "Authenticate & Enter Control Room"}</span>
+              <ArrowRight size={16} />
             </Button>
           </form>
         </Card>
 
         {/* Portals Footnote */}
         <div className="mt-8 text-center text-xs text-slate-500 space-y-1">
-          <p>REDO Transport & Logistics Marketplace</p>
-          <div className="flex justify-center gap-4 text-slate-400 pt-1">
-            <span className="hover:text-amber-400 cursor-pointer">Customer Web: frontend-customer</span>
-            <span>•</span>
-            <span className="hover:text-amber-400 cursor-pointer">Partner Web: frontend-owner</span>
-          </div>
+          <p className="font-semibold text-slate-400">REDO Transport & Logistics Network</p>
+          <p className="text-[11px]">Partner & Customer portals operate as independent applications.</p>
         </div>
       </div>
     </div>

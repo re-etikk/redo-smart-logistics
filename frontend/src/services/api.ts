@@ -1,7 +1,7 @@
 // Single API client: every request carries the real Supabase session token.
 import { supabase } from "../lib/supabase";
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_URL || "https://redo-backend.onrender.com";
 
 export class ApiError extends Error {
   code: string;

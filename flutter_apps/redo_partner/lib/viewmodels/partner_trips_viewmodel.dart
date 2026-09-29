@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/models.dart';
 import '../data/services/supabase_service.dart';
 import '../data/services/corridor_ml_service.dart';
+import '../data/services/dispatch_notification_service.dart';
 
 class PartnerTripsViewModel extends ChangeNotifier {
   // ML Match Results cache per load
@@ -95,6 +97,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   List<AvailableLoad> _availableLoads = [];
   List<ActiveTrip> _activeTrips = [];
+  bool _tripBaselineEstablished = false;
   List<TruckModel> _myTrucks = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -116,6 +119,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
   AvailableLoad? _instantAlertLoad;
   Timer? _instantCountdownTimer;
   int _instantSecondsLeft = 45;
+  bool _appInBackground = false;
+  final Set<String> _backgroundNotifiedCargoIds = {};
   final Set<String> _declinedInstantIds = {};
 
   String get searchFilter => _searchFilter;
@@ -372,6 +377,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
     _instantCountdownTimer?.cancel();
     _instantAlertLoad = load;
     _instantSecondsLeft = 45;
+    _sendDispatchFeedback(load);
     notifyListeners();
 
     _instantCountdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -379,21 +385,44 @@ class PartnerTripsViewModel extends ChangeNotifier {
         _instantSecondsLeft--;
         notifyListeners();
       } else {
-        dismissInstantAlert(declined: true);
+        dismissInstantAlert();
       }
     });
   }
 
-  void dismissInstantAlert({bool declined = true}) {
+  Future<void> _sendDispatchFeedback(AvailableLoad load) async {
+    try {
+      if (_appInBackground) {
+        _showBackgroundDispatchNotification(load);
+      } else {
+        await HapticFeedback.heavyImpact();
+        await SystemSound.play(SystemSoundType.alert);
+      }
+    } catch (_) {}
+  }
+
+  void _showBackgroundDispatchNotification(AvailableLoad load) {
+    if (!_backgroundNotifiedCargoIds.add(load.cargoId)) return;
+    unawaited(DispatchNotificationService.showInstantLoad(load).catchError((_) {}));
+  }
+
+  void setAppInBackground(bool value) {
+    _appInBackground = value;
+    if (value && _instantAlertLoad != null) {
+      _showBackgroundDispatchNotification(_instantAlertLoad!);
+    }
+  }
+
+  void dismissInstantAlert() {
     _instantCountdownTimer?.cancel();
-    if (declined && _instantAlertLoad != null) {
+    if (_instantAlertLoad != null) {
       _declinedInstantIds.add(_instantAlertLoad!.cargoId);
     }
     _instantAlertLoad = null;
     notifyListeners();
   }
 
-  void declineInstantLoad() => dismissInstantAlert(declined: true);
+  void declineInstantLoad() => dismissInstantAlert();
 
   void _checkForInstantAlerts() {
     if (_instantAlertLoad != null) return;
@@ -423,6 +452,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
       startLocationAwareRecommendations();
       _availableLoads = await SupabaseService.getAvailableLoads();
       _activeTrips = await SupabaseService.getActiveTrips();
+      _tripBaselineEstablished = true;
       _errorMessage = null;
       _checkForInstantAlerts();
     } catch (e) {
@@ -442,7 +472,32 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   Future<void> _refreshTrips() async {
     try {
-      _activeTrips = await SupabaseService.getActiveTrips();
+      final trips = await SupabaseService.getActiveTrips();
+      if (_tripBaselineEstablished) {
+        final previousIds = _activeTrips.map((trip) => trip.bookingId).toSet();
+        for (final trip in trips) {
+          if (!previousIds.contains(trip.bookingId) &&
+              trip.status == 'pending' && trip.isInstant) {
+            triggerInstantAlert(AvailableLoad(
+              cargoId: trip.cargoId,
+              bookingId: trip.bookingId,
+              smeName: trip.shipperName,
+              origin: trip.origin,
+              destination: trip.destination,
+              cargoType: trip.cargoType,
+              weightTons: trip.weightTons,
+              offeredPriceInr: trip.payoutInr,
+              distanceKm: 0,
+              pickupWindow: 'Immediate pickup',
+              urgency: 'instant',
+              isInstant: true,
+            ));
+            break;
+          }
+        }
+      }
+      _activeTrips = trips;
+      _tripBaselineEstablished = true;
       notifyListeners();
     } catch (_) {}
   }
@@ -457,6 +512,15 @@ class PartnerTripsViewModel extends ChangeNotifier {
     }
     if (_myTrucks.isEmpty) {
       return 'Register your truck first (Profile → complete onboarding).';
+    }
+    if (load.bookingId != null) {
+      try {
+        await SupabaseService.updateTripStatus(load.bookingId!, 'accepted');
+        await _refreshTrips();
+        return null;
+      } catch (e) {
+        return e.toString().replaceAll('Exception: ', '');
+      }
     }
     final match = _matchResults[load.cargoId];
     if (match != null) {

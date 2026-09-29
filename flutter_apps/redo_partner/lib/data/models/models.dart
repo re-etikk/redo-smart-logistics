@@ -175,6 +175,7 @@ class AvailableLoad {
   // UI should hide the score badge rather than show a fabricated number.
   final bool hasRealMatchScore;
   final List<String> matchReasons;
+  final String? bookingId;
 
   AvailableLoad({
     required this.cargoId,
@@ -195,6 +196,7 @@ class AvailableLoad {
     this.matchScore = 0,
     this.hasRealMatchScore = false,
     this.matchReasons = const [],
+    this.bookingId,
   });
 
   factory AvailableLoad.fromJson(Map<String, dynamic> json) {

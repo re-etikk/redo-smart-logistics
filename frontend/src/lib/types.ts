@@ -3,6 +3,7 @@ export type Role = "truck_owner" | "sme" | "admin";
 export interface Profile {
   id: string; full_name: string; phone?: string; role: Role;
   company_name?: string; avatar_url?: string; onboarding_complete: boolean;
+  status?: "active" | "suspended";
 }
 
 export interface Recommendation {

@@ -12,7 +12,9 @@ import { calculateReDoMatchScore } from '../services/matching.js';
 export const adminRouter = Router();
 adminRouter.use(requireAuth);
 adminRouter.use((req, _res, next) => {
-  if (req.profile?.role !== 'admin') return next(apiError(403, 'FORBIDDEN', 'Admin access required.'));
+  if (req.profile?.role !== 'admin' || req.profile?.status === 'suspended') {
+    return next(apiError(403, 'FORBIDDEN', 'Active administrator access required.'));
+  }
   next();
 });
 
@@ -26,22 +28,30 @@ adminRouter.get('/stats', async (_req, res, next) => {
       if (error) throw apiError(500, 'DB_ERROR', error.message);
       return c ?? 0;
     };
-    const [users, shippers, owners, trucks, bookings, completed, kyc_pending] = await Promise.all([
+    const [users, shippers, owners, trucks, bookings, completed, kyc_pending, verifiedTrucks] = await Promise.all([
       count('profiles'),
       count('profiles', (q) => q.eq('role', 'sme')),
       count('profiles', (q) => q.eq('role', 'truck_owner')),
       count('trucks'),
       count('bookings'),
-      count('bookings', (q) => q.eq('status', 'completed')),
+      count('bookings', (q) => q.in('status', ['delivered', 'completed'])),
       count('kyc_verifications', (q) => q.eq('verification_status', 'pending')),
+      count('trucks', (q) => q.eq('verified_documents', true)),
     ]);
 
-    // Active live corridor capacity
-    const { data: activeTrucks } = await supabaseAdmin.from('trucks')
+    const [{ data: activeTrucks, error: truckError }, { data: completedBookings, error: bookingError }] = await Promise.all([
+      supabaseAdmin.from('trucks')
       .select('default_capacity_tons, status')
-      .in('status', ['available', 'in_transit']);
+      .in('status', ['available', 'in_transit']),
+      supabaseAdmin.from('bookings')
+        .select('agreed_price_inr')
+        .in('status', ['delivered', 'completed']),
+    ]);
+    if (truckError) throw apiError(500, 'DB_ERROR', truckError.message);
+    if (bookingError) throw apiError(500, 'DB_ERROR', bookingError.message);
 
     const totalCapacityTons = (activeTrucks || []).reduce((acc, t) => acc + (Number(t.default_capacity_tons) || 0), 0);
+    const platformGmvInr = (completedBookings || []).reduce((acc, booking) => acc + (Number(booking.agreed_price_inr) || 0), 0);
 
     res.json({
       users,
@@ -51,9 +61,10 @@ adminRouter.get('/stats', async (_req, res, next) => {
       bookings,
       completed,
       kyc_pending,
+      verified_drivers: verifiedTrucks,
+      platform_gmv_inr: platformGmvInr,
       active_corridor_trucks: (activeTrucks || []).length,
       network_capacity_tons: Math.round(totalCapacityTons),
-      avg_utilization_pct: 78.4,
     });
   } catch (e) { next(e); }
 });
@@ -62,18 +73,17 @@ adminRouter.get('/stats', async (_req, res, next) => {
 adminRouter.get('/radar', async (_req, res, next) => {
   try {
     const { data: trucks, error } = await supabaseAdmin.from('trucks')
-      .select('truck_id, registration_number, truck_type, body_type, home_origin, default_capacity_tons, driver_rating, status, current_lat, current_lng, owner:profiles!trucks_owner_id_fkey(full_name, phone)')
+      .select('truck_id, registration_number, truck_type, body_type, home_origin, default_capacity_tons, driver_rating, status, current_lat, current_lng, verified_documents, owner:profiles!trucks_owner_id_fkey(full_name, phone)')
       .in('status', ['available', 'in_transit'])
       .limit(100);
 
     if (error) throw apiError(500, 'DB_ERROR', error.message);
 
     // Map trucks to active corridors and compute live occupancy
-    const radarData = (trucks || []).map((t, idx) => {
-      // Determine pseudo corridor based on home origin or default
+    const radarData = (trucks || []).map((t) => {
       const home = (t.home_origin || 'Delhi').toLowerCase();
-      let corridor = 'delhi_patna';
-      let corridorName = 'Delhi - Agra - Kanpur - Lucknow - Patna';
+      let corridor = 'unassigned';
+      let corridorName = t.home_origin || 'Route not reported';
       if (home.includes('mumbai') || home.includes('pune')) {
         corridor = 'mumbai_bengaluru';
         corridorName = 'Mumbai - Pune - Kolhapur - Bengaluru';
@@ -82,31 +92,29 @@ adminRouter.get('/radar', async (_req, res, next) => {
         corridorName = 'Delhi - Jaipur - Ahmedabad - Surat - Mumbai';
       }
 
-      // Live mock/active occupancy percentage for visualization
       const totalCap = Number(t.default_capacity_tons) || 16.0;
-      const occupiedCap = +(totalCap * (0.55 + (idx % 4) * 0.12)).toFixed(1);
-      const availableCap = +Math.max(1.0, totalCap - occupiedCap).toFixed(1);
-      const occupancyPct = Math.round((occupiedCap / totalCap) * 100);
 
       return {
         truck_id: t.truck_id,
-        registration_number: t.registration_number || `NL-01-${1000 + idx}`,
+        registration_number: t.registration_number || t.truck_id,
         truck_type: t.truck_type,
-        body_type: t.body_type || 'Closed Container',
+        body_type: t.body_type,
         owner_name: t.owner?.full_name || 'Fleet Operator',
-        driver_phone: t.owner?.phone || '+91 98765 43210',
-        driver_rating: t.driver_rating ?? 4.8,
+        driver_phone: t.owner?.phone || null,
+        driver_rating: t.driver_rating,
         status: t.status,
+        verified_documents: Boolean(t.verified_documents),
+        home_origin: t.home_origin,
         corridor_id: corridor,
         corridor_name: corridorName,
-        current_lat: t.current_lat || (26.5 + (idx % 5) * 0.4),
-        current_lng: t.current_lng || (80.2 + (idx % 5) * 0.8),
+        current_lat: t.current_lat,
+        current_lng: t.current_lng,
         total_capacity_tons: totalCap,
-        occupied_capacity_tons: occupiedCap,
-        available_capacity_tons: availableCap,
-        occupancy_pct: occupancyPct,
-        active_sub_segment: 'Kanpur ➔ Lucknow',
-        next_halt: 'Unnao Highway Toll',
+        occupied_capacity_tons: null,
+        available_capacity_tons: null,
+        occupancy_pct: null,
+        active_sub_segment: null,
+        next_halt: null,
       };
     });
 
@@ -307,10 +315,13 @@ adminRouter.patch('/disputes/:id/resolve', async (req, res, next) => {
 adminRouter.get('/users', async (_req, res, next) => {
   try {
     const { data, error } = await supabaseAdmin.from('profiles')
-      .select('id, full_name, company_name, role, phone, status, created_at')
+      .select('id, full_name, company_name, role, admin_previous_role, phone, status, created_at')
       .order('created_at', { ascending: false }).limit(200);
     if (error) throw apiError(500, 'DB_ERROR', error.message);
-    res.json(data);
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (authError) throw apiError(500, 'AUTH_ADMIN_ERROR', authError.message);
+    const emailsById = new Map((authData.users || []).map((user) => [user.id, user.email || null]));
+    res.json((data || []).map((profile) => ({ ...profile, email: emailsById.get(profile.id) || null })));
   } catch (e) { next(e); }
 });
 
@@ -318,33 +329,146 @@ adminRouter.get('/users', async (_req, res, next) => {
 adminRouter.get('/kyc', async (_req, res, next) => {
   try {
     const { data, error } = await supabaseAdmin.from('kyc_verifications')
-      .select('id, user_id, document_type, document_reference_masked, verification_status, created_at, owner:profiles!kyc_verifications_user_id_fkey(full_name, company_name)')
+      .select('id, user_id, document_type, document_reference_masked, verification_status, rejection_reason, created_at, owner:profiles!kyc_verifications_user_id_fkey(full_name, company_name, phone)')
       .eq('verification_status', 'pending').order('created_at');
     if (error) throw apiError(500, 'DB_ERROR', error.message);
     res.json(data.map((r) => ({
       id: r.id, user_id: r.user_id, document_type: r.document_type,
       document_reference_masked: r.document_reference_masked, created_at: r.created_at,
       owner_name: r.owner?.company_name || r.owner?.full_name || 'User',
+      phone: r.owner?.phone || null,
+      rejection_reason: r.rejection_reason || null,
     })));
   } catch (e) { next(e); }
 });
 
-adminRouter.patch('/kyc/:id', async (req, res, next) => {
+const updateKycDecision = async (req, res, next) => {
   try {
-    const { status } = req.body ?? {};
+    const { status, rejection_reason } = req.body ?? {};
     if (!['verified', 'rejected'].includes(status)) {
       throw apiError(400, 'VALIDATION_ERROR', "status must be 'verified' or 'rejected'.");
     }
+    if (status === 'rejected' && !String(rejection_reason || '').trim()) {
+      throw apiError(400, 'VALIDATION_ERROR', 'A rejection reason is required.');
+    }
     const { data, error } = await supabaseAdmin.from('kyc_verifications')
-      .update({ verification_status: status, verified_at: status === 'verified' ? new Date().toISOString() : null })
+      .update({
+        verification_status: status,
+        verified_at: status === 'verified' ? new Date().toISOString() : null,
+        rejection_reason: status === 'rejected' ? String(rejection_reason).trim() : null,
+      })
       .eq('id', req.params.id).select().single();
     if (error || !data) throw apiError(404, 'NOT_FOUND', 'KYC record not found.');
     await supabaseAdmin.from('notifications').insert({
       user_id: data.user_id, type: 'kyc_decision',
       title: status === 'verified' ? 'Document verified' : 'Document rejected',
-      body: `Your ${data.document_type.replaceAll('_', ' ')} was ${status} by the Redo team.`,
+      message: status === 'verified'
+        ? `Your ${data.document_type.replaceAll('_', ' ')} was verified by the Redo team.`
+        : `Your ${data.document_type.replaceAll('_', ' ')} was rejected: ${String(rejection_reason).trim()}`,
     });
+    // When driver documents are verified, update their registered trucks to verified_documents = true
+    if (status === 'verified') {
+      await supabaseAdmin.from('trucks').update({ verified_documents: true }).eq('owner_id', data.user_id);
+    }
     res.json(data);
+  } catch (e) { next(e); }
+};
+
+adminRouter.patch('/kyc/:id/verify', updateKycDecision);
+adminRouter.patch('/kyc/:id', updateKycDecision);
+
+// 9. User Role & Status Modification (Admin Privileges Grant/Revoke)
+adminRouter.patch('/users/:id/role', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role, status } = req.body || {};
+    if (role !== undefined && !['admin', 'truck_owner', 'sme'].includes(role)) {
+      throw apiError(400, 'VALIDATION_ERROR', 'Invalid role.');
+    }
+    if (status !== undefined && !['active', 'suspended'].includes(status)) {
+      throw apiError(400, 'VALIDATION_ERROR', 'Invalid account status.');
+    }
+    if (id === req.user?.id && ((role && role !== 'admin') || status === 'suspended')) {
+      throw apiError(400, 'VALIDATION_ERROR', 'You cannot revoke or suspend your own active admin account.');
+    }
+
+    const updates = {};
+    if (role) {
+      const { data: current, error: currentError } = await supabaseAdmin.from('profiles')
+        .select('role, admin_previous_role').eq('id', id).maybeSingle();
+      if (currentError) throw apiError(500, 'DB_ERROR', currentError.message);
+      if (!current) throw apiError(404, 'NOT_FOUND', 'User profile not found.');
+      updates.role = role;
+      if (role === 'admin') updates.onboarding_complete = true;
+      updates.admin_previous_role = role === 'admin'
+        ? (current.role === 'admin' ? current.admin_previous_role : current.role)
+        : null;
+    }
+    if (status) updates.status = status;
+
+    if (Object.keys(updates).length === 0) {
+      throw apiError(400, 'VALIDATION_ERROR', 'No valid fields provided to update.');
+    }
+
+    const { data, error } = await supabaseAdmin.from('profiles')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) throw apiError(404, 'NOT_FOUND', 'User profile not found.');
+    res.json({ success: true, profile: data });
+  } catch (e) { next(e); }
+});
+
+// 10. Live Bookings & Shipments Operations Desk
+adminRouter.get('/bookings', async (req, res, next) => {
+  try {
+    const { status, limit = 100 } = req.query;
+    let query = supabaseAdmin.from('bookings')
+      .select(`
+        id, match_score, agreed_price_inr, status, created_at,
+        cargo:cargo_requests(cargo_id, origin, destination, distance_km, cargo_type, cargo_weight_tons, pickup_date, urgency, special_handling, sme:profiles!cargo_requests_sme_id_fkey(id, full_name, phone, company_name)),
+        truck:trucks(truck_id, registration_number, truck_type, body_type, default_capacity_tons, owner:profiles!trucks_owner_id_fkey(id, full_name, phone))
+      `)
+      .order('created_at', { ascending: false })
+      .limit(Number(limit) || 100);
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+    if (error) throw apiError(500, 'DB_ERROR', error.message);
+    res.json(data || []);
+  } catch (e) { next(e); }
+});
+
+adminRouter.patch('/bookings/:id/status', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body || {};
+    const valid = ['pending', 'accepted', 'confirmed', 'pickup_ready', 'picked_up', 'in_transit', 'delivered', 'completed', 'cancelled', 'disputed'];
+    if (!valid.includes(status)) {
+      throw apiError(400, 'VALIDATION_ERROR', `Invalid status. Must be one of ${valid.join(', ')}`);
+    }
+
+    const { data, error } = await supabaseAdmin.from('bookings')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) throw apiError(404, 'NOT_FOUND', 'Booking not found.');
+
+    // Log booking transition
+    await supabaseAdmin.from('booking_events').insert({
+      booking_id: id,
+      to_status: status,
+      actor_id: req.user?.id,
+    });
+
+    res.json({ success: true, booking: data, reason });
   } catch (e) { next(e); }
 });
 

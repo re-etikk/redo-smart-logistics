@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, MapPin, Route, IndianRupee, HelpCircle,
-  Home, FileText, Bell, LogOut, Menu, X, ShieldCheck
+  Home, FileText, Bell, LogOut, Menu, X, ShieldCheck, Package
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -12,6 +12,7 @@ type Item = { to: string; label: string; icon: any };
 
 const ADMIN_NAV: Item[] = [
   { to: "/admin", label: "Executive Dashboard", icon: LayoutDashboard },
+  { to: "/admin/bookings", label: "Live Shipments & Bookings", icon: Package },
   { to: "/admin/radar", label: "Live Fleet Radar", icon: MapPin },
   { to: "/admin/matching", label: "Corridor Matching", icon: Route },
   { to: "/admin/pricing", label: "Dynamic Pricing Engine", icon: IndianRupee },
@@ -21,7 +22,7 @@ const ADMIN_NAV: Item[] = [
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { profile, signOut } = useAuth();
+  const { profile, session, signOut } = useAuth();
   const navigate = useNavigate();
   const [drawer, setDrawer] = useState(false);
 
@@ -99,8 +100,8 @@ export default function Layout({ children }: { children: ReactNode }) {
             {/* Admin Profile */}
             <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
               <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-bold text-slate-200">{profile?.full_name || "Operations Director"}</span>
-                <span className="text-[10px] text-amber-400 font-semibold">Super Admin</span>
+                <span className="text-xs font-bold text-slate-200">{session?.user.email || profile?.full_name || "Administrator"}</span>
+                <span className="text-[10px] text-amber-400 font-semibold">{profile?.role || "admin"}</span>
               </div>
               <button
                 onClick={handleSignOut}

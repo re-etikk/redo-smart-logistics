@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config.dart';
 import 'core/theme.dart';
 import 'data/services/api_service.dart';
+import 'data/services/dispatch_notification_service.dart';
+import 'data/models/models.dart';
 import 'data/services/voice_assistant_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/partner_trips_viewmodel.dart';
@@ -17,6 +20,7 @@ import 'ui/screens/profile/profile_screen.dart';
 import 'ui/screens/ai/partner_ai_assistant_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'ui/widgets/voice_assistant_widget.dart';
+import 'ui/widgets/instant_load_dispatch_sheet.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +34,9 @@ void main() async {
   );
 
   ApiService.warmup();
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await DispatchNotificationService.initialize();
+  }
   runApp(const RedoPartnerApp());
 }
 
@@ -94,18 +101,42 @@ class PartnerMainTabs extends StatefulWidget {
   State<PartnerMainTabs> createState() => _PartnerMainTabsState();
 }
 
-class _PartnerMainTabsState extends State<PartnerMainTabs> {
+class _PartnerMainTabsState extends State<PartnerMainTabs> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Register once: fires for BOTH the mic and the AI text chat sheet, the
     // moment an action is parsed — not after some unrelated future resolves.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<VoiceAssistantService>().onActionReady = _handleVoiceAction;
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    context.read<PartnerTripsViewModel>().setAppInBackground(
+          state != AppLifecycleState.resumed,
+        );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _acceptInstantLoad(
+    PartnerTripsViewModel tripsVM,
+    AvailableLoad load,
+  ) async {
+    final error = await tripsVM.acceptLoad(load);
+    if (error != null) throw Exception(error);
+    tripsVM.dismissInstantAlert();
+    if (mounted) setState(() => _currentIndex = 1);
   }
 
   void _handleVoiceAction(VoiceAssistantAction action) {
@@ -150,51 +181,68 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> {
       const ProfileScreen(),
     ];
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
-      floatingActionButton: _currentIndex == 3 ? null : const VoiceAssistantFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
-        indicatorColor: AppColors.brandYellow,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home, color: AppColors.slateDark),
-            label: l10n?.home ?? 'Home',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.local_shipping_outlined),
-            selectedIcon: const Icon(Icons.local_shipping, color: AppColors.slateDark),
-            label: l10n?.myTrips ?? 'My Trips',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: const Icon(Icons.account_balance_wallet, color: AppColors.slateDark),
-            label: l10n?.earnings ?? 'Earnings',
-          ),
-          const NavigationDestination(
-            icon: Badge(
-              label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
-              backgroundColor: Color(0xFFEF4444),
-              child: Icon(Icons.auto_awesome_outlined),
+    return Consumer<PartnerTripsViewModel>(
+      builder: (context, tripsVM, _) => Stack(
+        fit: StackFit.expand,
+        children: [
+          Scaffold(
+            body: IndexedStack(
+              index: _currentIndex,
+              children: screens,
             ),
-            selectedIcon: Badge(
-              label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
-              backgroundColor: Color(0xFFEF4444),
-              child: Icon(Icons.auto_awesome, color: AppColors.slateDark),
+            floatingActionButton: _currentIndex == 3 ? null : const VoiceAssistantFab(),
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
+              indicatorColor: AppColors.brandYellow,
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home, color: AppColors.slateDark),
+                  label: l10n?.home ?? 'Home',
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.local_shipping_outlined),
+                  selectedIcon: const Icon(Icons.local_shipping, color: AppColors.slateDark),
+                  label: l10n?.myTrips ?? 'My Trips',
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.account_balance_wallet_outlined),
+                  selectedIcon: const Icon(Icons.account_balance_wallet, color: AppColors.slateDark),
+                  label: l10n?.earnings ?? 'Earnings',
+                ),
+                const NavigationDestination(
+                  icon: Badge(
+                    label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+                    backgroundColor: Color(0xFFEF4444),
+                    child: Icon(Icons.auto_awesome_outlined),
+                  ),
+                  selectedIcon: Badge(
+                    label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+                    backgroundColor: Color(0xFFEF4444),
+                    child: Icon(Icons.auto_awesome, color: AppColors.slateDark),
+                  ),
+                  label: 'Fleet AI',
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.person_outline),
+                  selectedIcon: const Icon(Icons.person, color: AppColors.slateDark),
+                  label: l10n?.profile ?? 'Profile',
+                ),
+              ],
             ),
-            label: 'Fleet AI',
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person, color: AppColors.slateDark),
-            label: l10n?.profile ?? 'Profile',
-          ),
+          if (tripsVM.instantLoadAlert case final load?)
+            Positioned.fill(
+              child: InstantLoadDispatchSheet(
+                key: ValueKey(load.cargoId),
+                load: load,
+                secondsRemaining: tripsVM.instantSecondsRemaining,
+                onAccept: () => _acceptInstantLoad(tripsVM, load),
+                onDecline: tripsVM.declineInstantLoad,
+              ),
+            ),
         ],
       ),
     );
