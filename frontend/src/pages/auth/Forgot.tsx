@@ -11,9 +11,8 @@ export default function Forgot() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    // Real Supabase reset email (spec §10) — no fake success screens.
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + "/login",
+      redirectTo: window.location.origin + "/reset-password",
     });
     if (err) setError(err.message); else setSent(true);
   };

@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, Protected } from './hooks/useAuth';
 import { ToastProvider } from './components/ui';
 import Login from './pages/auth/Login';
+import Forgot from './pages/auth/Forgot';
+import ResetPassword from './pages/auth/ResetPassword';
 import AdminDashboard from './pages/admin/Dashboard';
 import FleetRadar from './pages/admin/FleetRadar';
 import MatchingOverseer from './pages/admin/MatchingOverseer';
@@ -20,6 +22,8 @@ export default function App() {
             {/* Direct Admin Root */}
             <Route path="/" element={<Protected><AdminDashboard /></Protected>} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<Forgot />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Admin Command Center Routes */}
             <Route path="/admin" element={<Protected><AdminDashboard /></Protected>} />

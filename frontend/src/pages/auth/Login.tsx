@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { Button, Card, Field, inputCls } from '../../components/ui';
@@ -98,6 +98,12 @@ export default function Login() {
                 />
               </div>
             </Field>
+
+            <div className="-mt-2 text-right">
+              <Link to="/forgot-password" className="text-xs font-semibold text-amber-400 hover:text-amber-300">
+                Forgot password?
+              </Link>
+            </div>
 
             <Button
               type="submit"
