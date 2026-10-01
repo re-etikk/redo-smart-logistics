@@ -48,7 +48,9 @@ class DriverProfile {
       companyName: json['company_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       onboardingComplete: json['onboarding_complete'] as bool? ?? false,
-      partnerOnboardingComplete: (json['partner_onboarding_complete'] as bool?) ?? (json['onboarding_complete'] as bool? ?? false),
+      partnerOnboardingComplete:
+          (json['partner_onboarding_complete'] as bool?) ??
+          (json['onboarding_complete'] as bool? ?? false),
       dlNumber: json['dl_number'] as String?,
       dlVerified: json['dl_verified'] as bool? ?? false,
       panNumber: json['pan_number'] as String?,
@@ -121,7 +123,8 @@ class TruckModel {
       registrationNumber: json['registration_number'] as String? ?? '',
       bodyType: json['body_type'] as String? ?? '',
       homeOrigin: json['home_origin'] as String? ?? '',
-      defaultCapacityTons: (json['default_capacity_tons'] as num?)?.toDouble() ?? 0,
+      defaultCapacityTons:
+          (json['default_capacity_tons'] as num?)?.toDouble() ?? 0,
       status: json['status'] as String? ?? 'available',
       rcVerified: json['rc_verified'] as bool? ?? true,
       insurancePolicy: json['insurance_policy'] as String?,
@@ -176,6 +179,8 @@ class AvailableLoad {
   final bool hasRealMatchScore;
   final List<String> matchReasons;
   final String? bookingId;
+  final String? dispatchOfferId;
+  final double? distanceFromDriverKm;
 
   AvailableLoad({
     required this.cargoId,
@@ -197,6 +202,8 @@ class AvailableLoad {
     this.hasRealMatchScore = false,
     this.matchReasons = const [],
     this.bookingId,
+    this.dispatchOfferId,
+    this.distanceFromDriverKm,
   });
 
   factory AvailableLoad.fromJson(Map<String, dynamic> json) {
@@ -247,6 +254,9 @@ class AvailableLoad {
       pickupAddress: pAddr,
       dropAddress: dAddr,
       gstin: gst,
+      dispatchOfferId: json['dispatch_offer_id'] as String?,
+      distanceFromDriverKm: (json['distance_from_driver_km'] as num?)
+          ?.toDouble(),
       // No ML match score in this flat/unfiltered listing (it isn't scored
       // against any specific truck/trip) — hasRealMatchScore stays false so
       // the UI doesn't show a fabricated percentage.
@@ -268,7 +278,8 @@ class AvailableLoad {
       parsedPickup = DateTime.tryParse(json['pickup_at'].toString())?.toLocal();
     }
     String window = 'Flexible pickup';
-    if (parsedPickup != null) window = DateFormat('EEE, d MMM - h:mm a').format(parsedPickup);
+    if (parsedPickup != null)
+      window = DateFormat('EEE, d MMM - h:mm a').format(parsedPickup);
 
     return AvailableLoad(
       cargoId: json['cargo_id'] as String,
@@ -287,7 +298,8 @@ class AvailableLoad {
       // whole-number percentage.
       matchScore: (((json['match_score'] as num?) ?? 0) * 100).round(),
       hasRealMatchScore: true,
-      matchReasons: (json['reasons'] as List?)?.map((e) => '$e').toList() ?? const [],
+      matchReasons:
+          (json['reasons'] as List?)?.map((e) => '$e').toList() ?? const [],
     );
   }
 }
@@ -347,18 +359,21 @@ class ActiveTrip {
       } catch (_) {}
     }
 
-    final isInst = (cargo?['urgency'] as String? ?? '').toLowerCase() == 'instant';
+    final isInst =
+        (cargo?['urgency'] as String? ?? '').toLowerCase() == 'instant';
 
     return ActiveTrip(
       bookingId: json['id'] as String,
-      cargoId: json['cargo_id'] as String? ?? cargo?['cargo_id'] as String? ?? '',
+      cargoId:
+          json['cargo_id'] as String? ?? cargo?['cargo_id'] as String? ?? '',
       origin: cargo?['origin'] as String? ?? '',
       destination: cargo?['destination'] as String? ?? '',
       cargoType: cargo?['cargo_type'] as String? ?? '',
       weightTons: (cargo?['cargo_weight_tons'] as num?)?.toDouble() ?? 0,
       payoutInr: (json['agreed_price_inr'] as num?)?.toDouble() ?? 0,
       status: json['status'] as String? ?? 'pending',
-      shipperName: sme?['company_name'] ?? sme?['full_name'] ?? 'Verified Shipper',
+      shipperName:
+          sme?['company_name'] ?? sme?['full_name'] ?? 'Verified Shipper',
       shipperPhone: sme?['phone'] as String?,
       podUrl: json['pod_url'] as String?,
       pickupAt: pDate,

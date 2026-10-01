@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config.dart';
 import 'core/theme.dart';
 import 'data/services/api_service.dart';
 import 'data/services/dispatch_notification_service.dart';
+import 'data/services/fcm_service.dart';
 import 'data/models/models.dart';
 import 'data/services/voice_assistant_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
@@ -33,11 +37,21 @@ void main() async {
     ),
   );
 
-  ApiService.warmup();
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    await DispatchNotificationService.initialize();
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
+
+  ApiService.warmup();
   runApp(const RedoPartnerApp());
+
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    unawaited(
+      FcmService.initialize().catchError((Object error) {
+        debugPrint('FCM initialization failed: $error');
+      }),
+    );
+  }
 }
 
 class RedoPartnerApp extends StatelessWidget {
@@ -101,13 +115,31 @@ class PartnerMainTabs extends StatefulWidget {
   State<PartnerMainTabs> createState() => _PartnerMainTabsState();
 }
 
-class _PartnerMainTabsState extends State<PartnerMainTabs> with WidgetsBindingObserver {
+class _PartnerMainTabsState extends State<PartnerMainTabs>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
+  StreamSubscription<DispatchNotificationAction>? _dispatchActionSubscription;
+  StreamSubscription<RemoteMessage>? _fcmMessageSubscription;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _dispatchActionSubscription = DispatchNotificationService.actions.listen(
+      _handleDispatchNotificationAction,
+    );
+    _fcmMessageSubscription = FcmService.foregroundMessages.listen((message) {
+      if (message.data['type'] == 'dispatch_offer') {
+        unawaited(
+          context.read<PartnerTripsViewModel>().refreshDispatchOffers(),
+        );
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final action in DispatchNotificationService.takePendingActions()) {
+        _handleDispatchNotificationAction(action);
+      }
+    });
     // Register once: fires for BOTH the mic and the AI text chat sheet, the
     // moment an action is parsed — not after some unrelated future resolves.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,14 +151,34 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> with WidgetsBindingOb
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     context.read<PartnerTripsViewModel>().setAppInBackground(
-          state != AppLifecycleState.resumed,
-        );
+      state != AppLifecycleState.resumed,
+    );
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _dispatchActionSubscription?.cancel();
+    _fcmMessageSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _handleDispatchNotificationAction(
+    DispatchNotificationAction action,
+  ) async {
+    final tripsVM = context.read<PartnerTripsViewModel>();
+    final error = await tripsVM.handleDispatchNotificationAction(
+      action.offerId,
+      action.action,
+    );
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+    } else if (action.action == 'dispatch_accept') {
+      setState(() => _currentIndex = 1);
+    }
   }
 
   Future<void> _acceptInstantLoad(
@@ -135,16 +187,17 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> with WidgetsBindingOb
   ) async {
     final error = await tripsVM.acceptLoad(load);
     if (error != null) throw Exception(error);
-    tripsVM.dismissInstantAlert();
+    tripsVM.dismissInstantAlert(skipOffer: false);
     if (mounted) setState(() => _currentIndex = 1);
   }
 
   void _handleVoiceAction(VoiceAssistantAction action) {
     switch (action.type) {
       case 'search_route':
-        final query = [action.fromCity, action.toCity]
-            .where((c) => c != null && c.trim().isNotEmpty)
-            .join(' ');
+        final query = [
+          action.fromCity,
+          action.toCity,
+        ].where((c) => c != null && c.trim().isNotEmpty).join(' ');
         if (query.isNotEmpty) {
           context.read<PartnerTripsViewModel>().setSearchFilter(query);
         }
@@ -174,10 +227,16 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> with WidgetsBindingOb
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final screens = [
-      AvailableLoadsScreen(onNavigateToTrips: () => setState(() => _currentIndex = 1)),
-      ActiveTripsScreen(onFindLoadsPressed: () => setState(() => _currentIndex = 0)),
+      AvailableLoadsScreen(
+        onNavigateToTrips: () => setState(() => _currentIndex = 1),
+      ),
+      ActiveTripsScreen(
+        onFindLoadsPressed: () => setState(() => _currentIndex = 0),
+      ),
       const EarningsScreen(),
-      PartnerAiAssistantScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
+      PartnerAiAssistantScreen(
+        onTabChangeRequested: (idx) => setState(() => _currentIndex = idx),
+      ),
       const ProfileScreen(),
     ];
 
@@ -186,40 +245,63 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> with WidgetsBindingOb
         fit: StackFit.expand,
         children: [
           Scaffold(
-            body: IndexedStack(
-              index: _currentIndex,
-              children: screens,
-            ),
-            floatingActionButton: _currentIndex == 3 ? null : const VoiceAssistantFab(),
+            body: IndexedStack(index: _currentIndex, children: screens),
+            floatingActionButton: _currentIndex == 3
+                ? null
+                : const VoiceAssistantFab(),
             floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
             bottomNavigationBar: NavigationBar(
               selectedIndex: _currentIndex,
-              onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
+              onDestinationSelected: (idx) =>
+                  setState(() => _currentIndex = idx),
               indicatorColor: AppColors.brandYellow,
               destinations: [
                 NavigationDestination(
                   icon: const Icon(Icons.home_outlined),
-                  selectedIcon: const Icon(Icons.home, color: AppColors.slateDark),
+                  selectedIcon: const Icon(
+                    Icons.home,
+                    color: AppColors.slateDark,
+                  ),
                   label: l10n?.home ?? 'Home',
                 ),
                 NavigationDestination(
                   icon: const Icon(Icons.local_shipping_outlined),
-                  selectedIcon: const Icon(Icons.local_shipping, color: AppColors.slateDark),
+                  selectedIcon: const Icon(
+                    Icons.local_shipping,
+                    color: AppColors.slateDark,
+                  ),
                   label: l10n?.myTrips ?? 'My Trips',
                 ),
                 NavigationDestination(
                   icon: const Icon(Icons.account_balance_wallet_outlined),
-                  selectedIcon: const Icon(Icons.account_balance_wallet, color: AppColors.slateDark),
+                  selectedIcon: const Icon(
+                    Icons.account_balance_wallet,
+                    color: AppColors.slateDark,
+                  ),
                   label: l10n?.earnings ?? 'Earnings',
                 ),
                 const NavigationDestination(
                   icon: Badge(
-                    label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+                    label: Text(
+                      'New',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
                     backgroundColor: Color(0xFFEF4444),
                     child: Icon(Icons.auto_awesome_outlined),
                   ),
                   selectedIcon: Badge(
-                    label: Text('New', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+                    label: Text(
+                      'New',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
                     backgroundColor: Color(0xFFEF4444),
                     child: Icon(Icons.auto_awesome, color: AppColors.slateDark),
                   ),
@@ -227,7 +309,10 @@ class _PartnerMainTabsState extends State<PartnerMainTabs> with WidgetsBindingOb
                 ),
                 NavigationDestination(
                   icon: const Icon(Icons.person_outline),
-                  selectedIcon: const Icon(Icons.person, color: AppColors.slateDark),
+                  selectedIcon: const Icon(
+                    Icons.person,
+                    color: AppColors.slateDark,
+                  ),
                   label: l10n?.profile ?? 'Profile',
                 ),
               ],

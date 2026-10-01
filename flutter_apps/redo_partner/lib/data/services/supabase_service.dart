@@ -90,9 +90,16 @@ class SupabaseService {
     final uid = currentUser?.id;
     if (uid == null) return;
     try {
-      final res = await client.from('profiles').select('role').eq('id', uid).maybeSingle();
+      final res = await client
+          .from('profiles')
+          .select('role')
+          .eq('id', uid)
+          .maybeSingle();
       if (res != null && res['role'] != 'truck_owner') {
-        await client.from('profiles').update({'role': 'truck_owner'}).eq('id', uid);
+        await client
+            .from('profiles')
+            .update({'role': 'truck_owner'})
+            .eq('id', uid);
       }
     } catch (_) {
       // Non-fatal — worst case the next checkProfileStatus retries this.
@@ -105,7 +112,11 @@ class SupabaseService {
     if (uid == null) return null;
     Map<String, dynamic> data = {};
     try {
-      final res = await client.from('profiles').select().eq('id', uid).maybeSingle();
+      final res = await client
+          .from('profiles')
+          .select()
+          .eq('id', uid)
+          .maybeSingle();
       if (res != null) {
         data = Map<String, dynamic>.from(res);
       }
@@ -124,14 +135,30 @@ class SupabaseService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final pPrefix = 'partner_profile_${uid}_';
-      final cachedName = prefs.getString('${pPrefix}full_name') ?? prefs.getString('partner_saved_name');
-      final cachedPhone = prefs.getString('${pPrefix}phone') ?? prefs.getString('partner_saved_phone');
-      final cachedCity = prefs.getString('${pPrefix}city') ?? prefs.getString('partner_saved_city');
-      final cachedAvatar = prefs.getString('${pPrefix}avatar') ?? prefs.getString('partner_saved_avatar');
-      final cachedDl = prefs.getString('${pPrefix}dl') ?? prefs.getString('partner_saved_dl');
-      final cachedBankAcc = prefs.getString('${pPrefix}bank_acc') ?? prefs.getString('partner_saved_bank_acc');
-      final cachedBankIfsc = prefs.getString('${pPrefix}bank_ifsc') ?? prefs.getString('partner_saved_bank_ifsc');
-      final cachedBiometric = prefs.getBool('${pPrefix}biometric') ?? prefs.getBool('partner_saved_biometric');
+      final cachedName =
+          prefs.getString('${pPrefix}full_name') ??
+          prefs.getString('partner_saved_name');
+      final cachedPhone =
+          prefs.getString('${pPrefix}phone') ??
+          prefs.getString('partner_saved_phone');
+      final cachedCity =
+          prefs.getString('${pPrefix}city') ??
+          prefs.getString('partner_saved_city');
+      final cachedAvatar =
+          prefs.getString('${pPrefix}avatar') ??
+          prefs.getString('partner_saved_avatar');
+      final cachedDl =
+          prefs.getString('${pPrefix}dl') ??
+          prefs.getString('partner_saved_dl');
+      final cachedBankAcc =
+          prefs.getString('${pPrefix}bank_acc') ??
+          prefs.getString('partner_saved_bank_acc');
+      final cachedBankIfsc =
+          prefs.getString('${pPrefix}bank_ifsc') ??
+          prefs.getString('partner_saved_bank_ifsc');
+      final cachedBiometric =
+          prefs.getBool('${pPrefix}biometric') ??
+          prefs.getBool('partner_saved_biometric');
 
       if (data.isEmpty) {
         if (cachedName != null || cachedPhone != null) {
@@ -144,25 +171,35 @@ class SupabaseService {
         }
       }
 
-      if ((data['full_name'] == null || data['full_name'].toString().isEmpty) && cachedName != null) {
+      if ((data['full_name'] == null || data['full_name'].toString().isEmpty) &&
+          cachedName != null) {
         data['full_name'] = cachedName;
       }
-      if ((data['phone'] == null || data['phone'].toString().isEmpty) && cachedPhone != null) {
+      if ((data['phone'] == null || data['phone'].toString().isEmpty) &&
+          cachedPhone != null) {
         data['phone'] = cachedPhone;
       }
-      if ((data['company_name'] == null || data['company_name'].toString().isEmpty) && cachedCity != null) {
+      if ((data['company_name'] == null ||
+              data['company_name'].toString().isEmpty) &&
+          cachedCity != null) {
         data['company_name'] = cachedCity;
       }
-      if ((data['avatar_url'] == null || data['avatar_url'].toString().isEmpty) && cachedAvatar != null) {
+      if ((data['avatar_url'] == null ||
+              data['avatar_url'].toString().isEmpty) &&
+          cachedAvatar != null) {
         data['avatar_url'] = cachedAvatar;
       }
-      if ((data['dl_number'] == null || data['dl_number'].toString().isEmpty) && cachedDl != null) {
+      if ((data['dl_number'] == null || data['dl_number'].toString().isEmpty) &&
+          cachedDl != null) {
         data['dl_number'] = cachedDl;
       }
-      if ((data['bank_account_number'] == null || data['bank_account_number'].toString().isEmpty) && cachedBankAcc != null) {
+      if ((data['bank_account_number'] == null ||
+              data['bank_account_number'].toString().isEmpty) &&
+          cachedBankAcc != null) {
         data['bank_account_number'] = cachedBankAcc;
       }
-      if ((data['bank_ifsc'] == null || data['bank_ifsc'].toString().isEmpty) && cachedBankIfsc != null) {
+      if ((data['bank_ifsc'] == null || data['bank_ifsc'].toString().isEmpty) &&
+          cachedBankIfsc != null) {
         data['bank_ifsc'] = cachedBankIfsc;
       }
       if (data['face_biometric_verified'] != true && cachedBiometric == true) {
@@ -205,15 +242,27 @@ class SupabaseService {
       }
       if (dlNumber != null && dlNumber.trim().isNotEmpty) {
         await prefs.setString('${pPrefix}dl', dlNumber.trim().toUpperCase());
-        await prefs.setString('partner_saved_dl', dlNumber.trim().toUpperCase());
+        await prefs.setString(
+          'partner_saved_dl',
+          dlNumber.trim().toUpperCase(),
+        );
       }
       if (bankAccountNumber != null && bankAccountNumber.trim().isNotEmpty) {
         await prefs.setString('${pPrefix}bank_acc', bankAccountNumber.trim());
-        await prefs.setString('partner_saved_bank_acc', bankAccountNumber.trim());
+        await prefs.setString(
+          'partner_saved_bank_acc',
+          bankAccountNumber.trim(),
+        );
       }
       if (bankIfsc != null && bankIfsc.trim().isNotEmpty) {
-        await prefs.setString('${pPrefix}bank_ifsc', bankIfsc.trim().toUpperCase());
-        await prefs.setString('partner_saved_bank_ifsc', bankIfsc.trim().toUpperCase());
+        await prefs.setString(
+          '${pPrefix}bank_ifsc',
+          bankIfsc.trim().toUpperCase(),
+        );
+        await prefs.setString(
+          'partner_saved_bank_ifsc',
+          bankIfsc.trim().toUpperCase(),
+        );
       }
       if (faceBiometricVerified != null) {
         await prefs.setBool('${pPrefix}biometric', faceBiometricVerified);
@@ -254,7 +303,8 @@ class SupabaseService {
       await client.from('profiles').upsert(data);
     } catch (e) {
       final err = e.toString();
-      if (err.contains('partner_onboarding_complete') || err.contains('PGRST204')) {
+      if (err.contains('partner_onboarding_complete') ||
+          err.contains('PGRST204')) {
         data.remove('partner_onboarding_complete');
         data['onboarding_complete'] = true;
         try {
@@ -294,8 +344,10 @@ class SupabaseService {
           await ApiService.post('/trucks/${created['truck_id']}/trips', {
             'origin': emptyReturnFrom,
             'destination': homeOrigin,
-            'departure_at':
-                DateTime.now().add(const Duration(hours: 6)).toUtc().toIso8601String(),
+            'departure_at': DateTime.now()
+                .add(const Duration(hours: 6))
+                .toUtc()
+                .toIso8601String(),
             'available_capacity_tons': capacityTons,
           });
         } catch (_) {}
@@ -331,12 +383,18 @@ class SupabaseService {
     required Uint8List fileBytes,
   }) async {
     final uid = currentUser?.id ?? 'anonymous';
-    final fileName = '$uid/$docType-${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final fileName =
+        '$uid/$docType-${DateTime.now().millisecondsSinceEpoch}.jpg';
     try {
-      await client.storage.from('kyc-documents').uploadBinary(
+      await client.storage
+          .from('kyc-documents')
+          .uploadBinary(
             fileName,
             fileBytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
           );
     } catch (_) {}
 
@@ -374,9 +432,15 @@ class SupabaseService {
     final uid = currentUser?.id;
     if (uid == null) return;
     try {
-      await client.from('profiles').update({'partner_onboarding_complete': true}).eq('id', uid);
+      await client
+          .from('profiles')
+          .update({'partner_onboarding_complete': true})
+          .eq('id', uid);
     } catch (_) {
-      await client.from('profiles').update({'onboarding_complete': true}).eq('id', uid);
+      await client
+          .from('profiles')
+          .update({'onboarding_complete': true})
+          .eq('id', uid);
     }
   }
 
@@ -386,7 +450,9 @@ class SupabaseService {
     try {
       final res = await ApiService.get('/trucks');
       if (res is List && res.isNotEmpty) {
-        final list = res.map((r) => TruckModel.fromJson(Map<String, dynamic>.from(r))).toList();
+        final list = res
+            .map((r) => TruckModel.fromJson(Map<String, dynamic>.from(r)))
+            .toList();
         try {
           final prefs = await SharedPreferences.getInstance();
           final raw = jsonEncode(list.map((t) => t.toJson()).toList());
@@ -400,11 +466,15 @@ class SupabaseService {
     // Fallback to local cache so registered truck NEVER vanishes!
     try {
       final prefs = await SharedPreferences.getInstance();
-      String? cached = uid != null ? prefs.getString('partner_trucks_$uid') : null;
+      String? cached = uid != null
+          ? prefs.getString('partner_trucks_$uid')
+          : null;
       cached ??= prefs.getString('partner_trucks_latest');
       if (cached != null && cached.isNotEmpty) {
         final decoded = jsonDecode(cached) as List;
-        return decoded.map((r) => TruckModel.fromJson(Map<String, dynamic>.from(r))).toList();
+        return decoded
+            .map((r) => TruckModel.fromJson(Map<String, dynamic>.from(r)))
+            .toList();
       }
     } catch (_) {}
 
@@ -422,7 +492,9 @@ class SupabaseService {
       if (trucks.isNotEmpty) {
         for (final truck in trucks) {
           try {
-            final res = await ApiService.get('/recommendations/cargo/${truck.truckId}');
+            final res = await ApiService.get(
+              '/recommendations/cargo/${truck.truckId}',
+            );
             if (res is Map && res['note'] == 'NO_OPEN_TRIP') continue;
             final recs = (res['recommendations'] as List?) ?? [];
             for (final raw in recs) {
@@ -454,7 +526,12 @@ class SupabaseService {
 
     // 3. Fallback: Query Supabase cargo_requests directly
     try {
-      final rows = await client.from('cargo_requests').select('*').eq('status', 'open').order('created_at', ascending: false).limit(25);
+      final rows = await client
+          .from('cargo_requests')
+          .select('*')
+          .eq('status', 'open')
+          .order('created_at', ascending: false)
+          .limit(25);
       if (rows.isNotEmpty) {
         for (final raw in rows) {
           final r = Map<String, dynamic>.from(raw);
@@ -492,7 +569,8 @@ class SupabaseService {
       });
       return '${res['id']}';
     } catch (_) {
-      final bkId = 'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
+      final bkId =
+          'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
       try {
         await client.from('bookings').upsert({
           'id': bkId,
@@ -506,12 +584,66 @@ class SupabaseService {
     }
   }
 
+  static Future<List<AvailableLoad>> getDispatchOffers() async {
+    final response = await ApiService.get('/dispatch/offers');
+    if (response is! List) return const [];
+    return response.map((raw) {
+      final offer = Map<String, dynamic>.from(raw as Map);
+      final cargo = Map<String, dynamic>.from(
+        offer['cargo'] as Map? ?? const {},
+      );
+      return AvailableLoad.fromJson({
+        ...cargo,
+        'dispatch_offer_id': offer['id'],
+        'distance_from_driver_km': offer['distance_km'],
+      });
+    }).toList();
+  }
+
+  static Future<String> acceptDispatchOffer(String offerId) async {
+    final response = await ApiService.post('/dispatch/offers/$offerId/accept');
+    final result = Map<String, dynamic>.from(response as Map);
+    final booking = Map<String, dynamic>.from(result['booking'] as Map);
+    return '${booking['id']}';
+  }
+
+  static Future<void> skipDispatchOffer(String offerId) async {
+    await ApiService.post('/dispatch/offers/$offerId/skip');
+  }
+
+  static RealtimeChannel subscribeDispatchOffers(
+    String driverId,
+    void Function() onChange,
+  ) {
+    final channel = client.channel('dispatch-offers-$driverId');
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'dispatch_offers',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'driver_id',
+        value: driverId,
+      ),
+      callback: (_) => onChange(),
+    );
+    channel.subscribe();
+    return channel;
+  }
+
   /// Live-location ping — updates trucks.current_lat/current_lng so the
   /// backend's nearby-recommendation endpoint can score loads by real
   /// distance from where this truck actually is right now.
-  static Future<void> updateTruckLocation(String truckId, double lat, double lng) async {
+  static Future<void> updateTruckLocation(
+    String truckId,
+    double lat,
+    double lng,
+  ) async {
     try {
-      await ApiService.patch('/trucks/$truckId', {'current_lat': lat, 'current_lng': lng});
+      await ApiService.patch('/trucks/$truckId', {
+        'current_lat': lat,
+        'current_lng': lng,
+      });
     } catch (_) {
       // Best-effort — a missed location ping shouldn't surface as an error;
       // the next periodic ping will catch up.
@@ -552,14 +684,18 @@ class SupabaseService {
     try {
       final res = await ApiService.get('/bookings');
       if (res is List) {
-        return res.map((r) => ActiveTrip.fromJson(Map<String, dynamic>.from(r))).toList();
+        return res
+            .map((r) => ActiveTrip.fromJson(Map<String, dynamic>.from(r)))
+            .toList();
       }
     } catch (_) {}
 
     try {
       final rows = await client.from('bookings').select('*').limit(10);
       if (rows.isNotEmpty) {
-        return (rows as List).map((r) => ActiveTrip.fromJson(Map<String, dynamic>.from(r))).toList();
+        return (rows as List)
+            .map((r) => ActiveTrip.fromJson(Map<String, dynamic>.from(r)))
+            .toList();
       }
     } catch (_) {}
 
@@ -581,8 +717,11 @@ class SupabaseService {
   }) async {
     final uid = currentUser!.id;
     final bucket = proofType == 'pickup' ? 'pickup-proofs' : 'delivery-proofs';
-    final path = '$uid/$bookingId-$proofType-${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await client.storage.from(bucket).uploadBinary(
+    final path =
+        '$uid/$bookingId-$proofType-${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await client.storage
+        .from(bucket)
+        .uploadBinary(
           path,
           photoBytes,
           fileOptions: const FileOptions(contentType: 'image/jpeg'),
@@ -637,17 +776,37 @@ class SupabaseService {
 
       final rows = await client
           .from('bookings')
-          .select('id, cargo_id, status, agreed_price_inr, created_at, cargo:cargo_requests(origin, destination), truck:trucks(owner_id)')
+          .select(
+            'id, cargo_id, status, agreed_price_inr, created_at, cargo:cargo_requests(origin, destination), truck:trucks(owner_id)',
+          )
           .order('created_at', ascending: false);
 
-      final list = (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
-      final partnerRows = list.where((b) => b['truck'] != null && b['truck']['owner_id'] == uid).toList();
+      final list = (rows as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      final partnerRows = list
+          .where((b) => b['truck'] != null && b['truck']['owner_id'] == uid)
+          .toList();
 
-      const activeStatuses = ['confirmed', 'pickup_ready', 'picked_up', 'in_transit', 'delivered'];
-      final done = partnerRows.where((b) => b['status'] == 'completed').toList();
-      final active = partnerRows.where((b) => activeStatuses.contains(b['status'])).toList();
+      const activeStatuses = [
+        'confirmed',
+        'pickup_ready',
+        'picked_up',
+        'in_transit',
+        'delivered',
+      ];
+      final done = partnerRows
+          .where((b) => b['status'] == 'completed')
+          .toList();
+      final active = partnerRows
+          .where((b) => activeStatuses.contains(b['status']))
+          .toList();
 
-      double sum(List<Map<String, dynamic>> r) => r.fold(0.0, (prev, el) => prev + ((el['agreed_price_inr'] as num?)?.toDouble() ?? 0.0));
+      double sum(List<Map<String, dynamic>> r) => r.fold(
+        0.0,
+        (prev, el) =>
+            prev + ((el['agreed_price_inr'] as num?)?.toDouble() ?? 0.0),
+      );
 
       final compInr = sum(done);
       final pendInr = sum(active);
@@ -658,7 +817,9 @@ class SupabaseService {
         return {
           'booking_id': b['id'],
           'cargo_id': b['cargo_id'],
-          'route': cargo != null ? '${cargo['origin']} → ${cargo['destination']}' : '—',
+          'route': cargo != null
+              ? '${cargo['origin']} → ${cargo['destination']}'
+              : '—',
           'amount_inr': (b['agreed_price_inr'] as num?)?.toDouble() ?? 0.0,
           'settled': b['status'] == 'completed',
           'date': b['created_at'],
@@ -705,7 +866,9 @@ class SupabaseService {
   }
 
   static RealtimeChannel subscribeBookings(void Function() onChange) {
-    final ch = client.channel('bookings-${DateTime.now().microsecondsSinceEpoch}');
+    final ch = client.channel(
+      'bookings-${DateTime.now().microsecondsSinceEpoch}',
+    );
     ch.onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
@@ -746,8 +909,11 @@ class SupabaseService {
   }
 
   static Future<void> createSupportTicket(String subject, String description) =>
-      ApiService.post('/support/tickets',
-          {'subject': subject, 'description': description, 'category': 'Partner App'});
+      ApiService.post('/support/tickets', {
+        'subject': subject,
+        'description': description,
+        'category': 'Partner App',
+      });
 
   /// Post an extra empty RETURN TRIP on any corridor — this is what makes the
   /// truck matchable again after each run (the heart of the backhaul model).
@@ -761,8 +927,12 @@ class SupabaseService {
     await ApiService.post('/trucks/$truckId/trips', {
       'origin': origin,
       'destination': destination,
-      'departure_at':
-          DateTime(d.year, d.month, d.day, 10).toUtc().toIso8601String(),
+      'departure_at': DateTime(
+        d.year,
+        d.month,
+        d.day,
+        10,
+      ).toUtc().toIso8601String(),
       'available_capacity_tons': capacityTons,
     });
   }
@@ -799,22 +969,22 @@ class SupabaseService {
     return results;
   }
 
-
   /// Secure handover: driver enters the OTP the shipper shares at the dock.
   /// Backend refuses picked_up/delivered until the matching OTP is verified.
   static Future<void> verifyOtp({
     required String bookingId,
     required String type, // 'pickup' | 'delivery'
     required String otp,
-  }) =>
-      ApiService.post('/bookings/$bookingId/verify-otp', {'type': type, 'otp': otp});
+  }) => ApiService.post('/bookings/$bookingId/verify-otp', {
+    'type': type,
+    'otp': otp,
+  });
 
   static Future<void> verifyTripOtp({
     required String bookingId,
     required String type,
     required String otp,
-  }) =>
-      verifyOtp(bookingId: bookingId, type: type, otp: otp);
+  }) => verifyOtp(bookingId: bookingId, type: type, otp: otp);
 
   /// Two-way trust: the driver rates the shipper too (same ratings ledger).
   static Future<void> submitRating(String bookingId, int score) =>

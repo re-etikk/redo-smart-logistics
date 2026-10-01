@@ -2,6 +2,8 @@ import { Router } from "express";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { apiError } from "../middleware/error.js";
 import { routeDistanceKm, normCity } from "../services/matching.js";
+import { selectNearbyDispatchTrucks, DISPATCH_WINDOW_SECONDS } from "../services/dispatchOffers.js";
+import { sendDispatchOfferPush } from "../services/fcm.js";
 
 const r = Router();
 
@@ -98,7 +100,9 @@ r.post("/", async (req, res, next) => {
       drop_address,
       gstin,
       pickup_date,
-      pickup_hour
+      pickup_hour,
+      pickup_lat,
+      pickup_lng,
     } = req.body || {};
 
     if (!origin || !destination || !cargo_type || !cargo_weight_tons) {
@@ -114,6 +118,16 @@ r.post("/", async (req, res, next) => {
     const calculatedDist = Number(distance_km) || routeDistanceKm(origin, destination) || 500;
     const resolvedPickupAt = pickup_at || new Date(Date.now() + 3600000 * 2).toISOString();
     const cargo_id = req.body.cargo_id || ("CR-" + Date.now().toString().slice(-5));
+    const pickupLat = pickup_lat !== null && pickup_lat !== undefined && pickup_lat !== ''
+      ? Number(pickup_lat)
+      : null;
+    const pickupLng = pickup_lng !== null && pickup_lng !== undefined && pickup_lng !== ''
+      ? Number(pickup_lng)
+      : null;
+    const validPickupCoordinates = Number.isFinite(pickupLat) &&
+      Number.isFinite(pickupLng) &&
+      pickupLat >= -90 && pickupLat <= 90 &&
+      pickupLng >= -180 && pickupLng <= 180;
 
     let resolvedDate = pickup_date || null;
     let resolvedHour = Number(pickup_hour) || 10;
@@ -145,6 +159,8 @@ r.post("/", async (req, res, next) => {
       cargo_type: cargo_type.trim(),
       cargo_weight_tons: Number(cargo_weight_tons),
       pickup_at: resolvedPickupAt,
+      pickup_lat: validPickupCoordinates ? pickupLat : null,
+      pickup_lng: validPickupCoordinates ? pickupLng : null,
       pickup_date: resolvedDate,
       pickup_hour: resolvedHour,
       urgency: urgency || "normal",
@@ -173,6 +189,8 @@ r.post("/", async (req, res, next) => {
         cargo_type: cargoRecord.cargo_type,
         cargo_weight_tons: cargoRecord.cargo_weight_tons,
         pickup_at: resolvedPickupAt,
+        pickup_lat: cargoRecord.pickup_lat,
+        pickup_lng: cargoRecord.pickup_lng,
         pickup_date: resolvedDate,
         pickup_hour: resolvedHour,
         urgency: urgency || "normal",
@@ -182,6 +200,43 @@ r.post("/", async (req, res, next) => {
 
       if (!error && dbData) {
         activeCargoPool.set(cargo_id, { ...cargoRecord, ...dbData });
+        if (cargoRecord.pickup_lat != null && cargoRecord.pickup_lng != null) {
+          const { data: trucks } = await supabaseAdmin.from('trucks')
+            .select('truck_id, owner_id, current_lat, current_lng, status, default_capacity_tons')
+            .eq('status', 'available')
+            .not('current_lat', 'is', null)
+            .not('current_lng', 'is', null);
+          const nearby = selectNearbyDispatchTrucks(cargoRecord, trucks || []);
+          if (nearby.length) {
+            const expiresAt = new Date(Date.now() + DISPATCH_WINDOW_SECONDS * 1000).toISOString();
+            const offers = nearby.map(({ truck, distanceKm }) => ({
+              cargo_id,
+              driver_id: truck.owner_id,
+              truck_id: truck.truck_id,
+              distance_km: Number(distanceKm.toFixed(3)),
+              expires_at: expiresAt,
+            }));
+            const { data: persistedOffers, error: offerError } = await supabaseAdmin.from('dispatch_offers').upsert(offers, {
+              onConflict: 'cargo_id,truck_id',
+              ignoreDuplicates: true,
+            }).select('id, driver_id, truck_id, distance_km, expires_at');
+            if (offerError) console.error('Nearby dispatch offers were not persisted:', offerError.message);
+            else if (persistedOffers?.length) {
+              try {
+                const pushResult = await sendDispatchOfferPush(
+                  persistedOffers.map((offer) => offer.driver_id),
+                  cargoRecord,
+                  persistedOffers,
+                );
+                if (!pushResult.configured) {
+                  console.info('FCM service account not configured; dispatch remains available through Supabase Realtime.');
+                }
+              } catch (pushError) {
+                console.error('Nearby dispatch FCM fan-out failed:', pushError.message);
+              }
+            }
+          }
+        }
       }
     } catch (_) {
       // Supabase permission or network issue: in-memory pool guarantees zero downtime

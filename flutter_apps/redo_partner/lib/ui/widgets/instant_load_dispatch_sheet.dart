@@ -83,7 +83,7 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'INSTANT LOAD DISPATCH',
+                            'NEARBY LOAD OFFER',
                             style: GoogleFonts.inter(
                               color: AppColors.brandYellow,
                               fontSize: 12,
@@ -139,20 +139,30 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
                     const SizedBox(height: 18),
                     Row(
                       children: [
-                        const Icon(Icons.trip_origin, color: Colors.greenAccent, size: 18),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(load.origin, style: _routeStyle),
+                        const Icon(
+                          Icons.trip_origin,
+                          color: Colors.greenAccent,
+                          size: 18,
                         ),
+                        const SizedBox(width: 9),
+                        Expanded(child: Text(load.origin, style: _routeStyle)),
                       ],
                     ),
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: Container(width: 2, height: 17, color: Colors.white24),
+                      child: Container(
+                        width: 2,
+                        height: 17,
+                        color: Colors.white24,
+                      ),
                     ),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: Colors.redAccent, size: 18),
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.redAccent,
+                          size: 18,
+                        ),
                         const SizedBox(width: 9),
                         Expanded(
                           child: Text(load.destination, style: _routeStyle),
@@ -160,7 +170,10 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
                         if (load.distanceKm > 0)
                           Text(
                             '${load.distanceKm.round()} km',
-                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                            style: GoogleFonts.inter(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
                           ),
                       ],
                     ),
@@ -171,6 +184,8 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
                       children: [
                         _detailChip('${load.weightTons.toStringAsFixed(1)} T'),
                         _detailChip(load.cargoType),
+                        if (load.distanceFromDriverKm != null)
+                          _detailChip('${load.distanceFromDriverKm!.toStringAsFixed(1)} km away'),
                         _detailChip(load.pickupWindow),
                       ],
                     ),
@@ -178,7 +193,10 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
                       const SizedBox(height: 14),
                       Text(
                         _error!,
-                        style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 12),
+                        style: GoogleFonts.inter(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 22),
@@ -186,7 +204,10 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
                       children: [
                         TextButton(
                           onPressed: _accepting ? null : widget.onDecline,
-                          child: Text('Decline', style: GoogleFonts.inter(color: Colors.white70)),
+                          child: Text(
+                            'Decline',
+                            style: GoogleFonts.inter(color: Colors.white70),
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -196,17 +217,23 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
                               backgroundColor: AppColors.brandYellow,
                               foregroundColor: AppColors.slateDark,
                               padding: const EdgeInsets.symmetric(vertical: 15),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
                             icon: _accepting
                                 ? const SizedBox.square(
                                     dimension: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.check_circle),
                             label: Text(
                               _accepting ? 'ACCEPTING…' : 'ACCEPT LOAD',
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
                         ),
@@ -223,21 +250,25 @@ class _InstantLoadDispatchSheetState extends State<InstantLoadDispatchSheet> {
   }
 
   TextStyle get _routeStyle => GoogleFonts.inter(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.w800,
-      );
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: FontWeight.w800,
+  );
 
   Widget _detailChip(String value) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Text(
-          value,
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.white12),
+    ),
+    child: Text(
+      value,
+      style: GoogleFonts.inter(
+        color: Colors.white,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }

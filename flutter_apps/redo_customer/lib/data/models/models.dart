@@ -68,6 +68,8 @@ class CargoRequest {
   final String status;
   final String createdAt;
   final String? pickupAddress;
+  final double? pickupLat;
+  final double? pickupLng;
   final String? dropAddress;
   final String? gstin;
 
@@ -85,6 +87,8 @@ class CargoRequest {
     required this.status,
     required this.createdAt,
     this.pickupAddress,
+    this.pickupLat,
+    this.pickupLng,
     this.dropAddress,
     this.gstin,
   });
@@ -115,8 +119,11 @@ class CargoRequest {
       pickupAt: json['pickup_at'] as String?,
       urgency: json['urgency'] as String? ?? 'normal',
       status: json['status'] as String? ?? 'open',
-      createdAt: json['created_at'] as String? ?? DateTime.now().toIso8601String(),
+      createdAt:
+          json['created_at'] as String? ?? DateTime.now().toIso8601String(),
       pickupAddress: pAddr ?? json['pickup_address'] as String?,
+      pickupLat: (json['pickup_lat'] as num?)?.toDouble(),
+      pickupLng: (json['pickup_lng'] as num?)?.toDouble(),
       dropAddress: dAddr ?? json['drop_address'] as String?,
       gstin: gNum ?? json['gstin'] as String?,
     );
@@ -136,6 +143,8 @@ class CargoRequest {
     'status': status,
     'created_at': createdAt,
     if (pickupAddress != null) 'pickup_address': pickupAddress,
+    if (pickupLat != null) 'pickup_lat': pickupLat,
+    if (pickupLng != null) 'pickup_lng': pickupLng,
     if (dropAddress != null) 'drop_address': dropAddress,
     if (gstin != null) 'gstin': gstin,
   };
@@ -247,14 +256,15 @@ class BookingItem {
           json['cargo_id'] as String? ?? cargo?['cargo_id'] as String? ?? '',
       truckId:
           json['truck_id'] as String? ?? truck?['truck_id'] as String? ?? '',
-      origin:
-          cargo?['origin'] as String? ?? json['origin'] as String? ?? '',
+      origin: cargo?['origin'] as String? ?? json['origin'] as String? ?? '',
       destination:
           cargo?['destination'] as String? ??
           json['destination'] as String? ??
           '',
       cargoType:
-          cargo?['cargo_type'] as String? ?? json['cargo_type'] as String? ?? '',
+          cargo?['cargo_type'] as String? ??
+          json['cargo_type'] as String? ??
+          '',
       weightTons:
           (cargo?['cargo_weight_tons'] as num?)?.toDouble() ??
           (json['weight_tons'] as num?)?.toDouble() ??
@@ -267,9 +277,13 @@ class BookingItem {
       currentLng:
           (truck?['current_lng'] as num?)?.toDouble() ??
           (json['current_lng'] as num?)?.toDouble(),
-      driverName: owner?['full_name'] as String? ?? json['driver_name'] as String?,
-      driverPhone: owner?['phone'] as String? ?? json['driver_phone'] as String?,
-      truckReg: truck?['registration_number'] as String? ?? json['truck_reg'] as String?,
+      driverName:
+          owner?['full_name'] as String? ?? json['driver_name'] as String?,
+      driverPhone:
+          owner?['phone'] as String? ?? json['driver_phone'] as String?,
+      truckReg:
+          truck?['registration_number'] as String? ??
+          json['truck_reg'] as String?,
       createdAt:
           json['created_at'] as String? ?? DateTime.now().toIso8601String(),
     );

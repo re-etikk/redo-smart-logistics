@@ -72,7 +72,8 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   bool _isGpsSharingOn = true;
 
   // Category filter
-  String _selectedCategory = 'All Loads'; // 'All Loads', 'Instant', 'Scheduled', 'Best Match'
+  String _selectedCategory =
+      'All Loads'; // 'All Loads', 'Instant', 'Scheduled', 'Best Match'
   String _selectedTonnage = 'All'; // 'All', '< 3T', '3 - 10T', '10T+'
 
   @override
@@ -92,12 +93,18 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     try {
       Position? pos;
       final hasPerm = await Geolocator.checkPermission();
-      if (hasPerm == LocationPermission.always || hasPerm == LocationPermission.whileInUse) {
-        pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).timeout(const Duration(seconds: 4));
+      if (hasPerm == LocationPermission.always ||
+          hasPerm == LocationPermission.whileInUse) {
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        ).timeout(const Duration(seconds: 4));
       } else {
         final req = await Geolocator.requestPermission();
-        if (req == LocationPermission.always || req == LocationPermission.whileInUse) {
-          pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).timeout(const Duration(seconds: 4));
+        if (req == LocationPermission.always ||
+            req == LocationPermission.whileInUse) {
+          pos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          ).timeout(const Duration(seconds: 4));
         }
       }
 
@@ -111,8 +118,12 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             Marker(
               markerId: const MarkerId('driver_live'),
               position: driverLoc,
-              infoWindow: const InfoWindow(title: 'Your Truck Live Location (GPS)'),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+              infoWindow: const InfoWindow(
+                title: 'Your Truck Live Location (GPS)',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueAzure,
+              ),
             ),
           );
         });
@@ -223,7 +234,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     final to = _toController.text.trim();
     if (from.isEmpty && to.isEmpty) return;
 
-    final start = _fromLatLng ?? (from.isNotEmpty ? _resolveCoord(from) : (_driverCurrentLatLng ?? const LatLng(28.6139, 77.2090)));
+    final start =
+        _fromLatLng ??
+        (from.isNotEmpty
+            ? _resolveCoord(from)
+            : (_driverCurrentLatLng ?? const LatLng(28.6139, 77.2090)));
     final end = _toLatLng ?? (to.isNotEmpty ? _resolveCoord(to) : start);
 
     if (from.isNotEmpty && to.isNotEmpty) {
@@ -244,19 +259,25 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               markerId: const MarkerId('driver_live'),
               position: _driverCurrentLatLng!,
               infoWindow: const InfoWindow(title: 'Your Truck Live Location'),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueAzure,
+              ),
             ),
           Marker(
             markerId: const MarkerId('origin'),
             position: start,
             infoWindow: InfoWindow(title: 'Pickup: $from'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueGreen,
+            ),
           ),
           Marker(
             markerId: const MarkerId('destination'),
             position: end,
             infoWindow: InfoWindow(title: 'Drop: $to'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueRed,
+            ),
           ),
         };
 
@@ -268,7 +289,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
         if (_mapController != null && route.points.isNotEmpty) {
           final bounds = _computeBounds([start, end, ...route.points]);
-          _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+          _mapController!.animateCamera(
+            CameraUpdate.newLatLngBounds(bounds, 50),
+          );
         }
       } catch (_) {}
     } else if (_mapController != null) {
@@ -313,11 +336,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     // Theme-Aware Dynamic Palette
     final bgColor = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
     final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
-    final cardAltBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
-    final cardBorder = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final cardAltBg = isDark
+        ? const Color(0xFF0F172A)
+        : const Color(0xFFF1F5F9);
+    final cardBorder = isDark
+        ? const Color(0xFF1E293B)
+        : const Color(0xFFE2E8F0);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final textMuted = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+    final textSecondary = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF64748B)
+        : const Color(0xFF94A3B8);
 
     // Filter loads according to Category & Tonnage
     List<AvailableLoad> displayedLoads = tripsVM.availableLoads;
@@ -326,18 +357,28 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     } else if (_selectedCategory == 'Scheduled') {
       displayedLoads = displayedLoads.where((l) => !l.isInstant).toList();
     } else if (_selectedCategory == 'Best Match') {
-      displayedLoads = displayedLoads.where((l) => l.matchScore >= 70 || l.hasRealMatchScore).toList();
+      displayedLoads = displayedLoads
+          .where((l) => l.matchScore >= 70 || l.hasRealMatchScore)
+          .toList();
     }
 
     if (_selectedTonnage == '< 3T') {
       displayedLoads = displayedLoads.where((l) => l.weightTons < 3.0).toList();
     } else if (_selectedTonnage == '3 - 10T') {
-      displayedLoads = displayedLoads.where((l) => l.weightTons >= 3.0 && l.weightTons <= 10.0).toList();
+      displayedLoads = displayedLoads
+          .where((l) => l.weightTons >= 3.0 && l.weightTons <= 10.0)
+          .toList();
     } else if (_selectedTonnage == '10T+') {
-      displayedLoads = displayedLoads.where((l) => l.weightTons > 10.0).toList();
+      displayedLoads = displayedLoads
+          .where((l) => l.weightTons > 10.0)
+          .toList();
     }
 
-    final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -345,7 +386,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
         child: Column(
           children: [
             // 1. TOP COCKPIT HEADER WITH ORIGINAL "R" LOGO
-            _buildTopHeader(context, isDark, cardBg, textPrimary, textSecondary, cardBorder),
+            _buildTopHeader(
+              context,
+              isDark,
+              cardBg,
+              textPrimary,
+              textSecondary,
+              cardBorder,
+            ),
 
             // Main Scrollable Content
             Expanded(
@@ -357,14 +405,26 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   await _fetchAndZoomCurrentLocation();
                 },
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   children: [
                     // 2. HERO BANNER WITH CUSTOM COMMERCIAL TRUCK
                     _buildHeroBanner(isDark),
                     const SizedBox(height: 12),
 
                     // 2.5 DYNAMIC CAPACITY UTILIZATION GAUGE & 1-TAP FILL MY TRUCK
-                    _buildCapacityUtilizationCard(context, tripsVM, isDark, cardBg, cardBorder, textPrimary, textSecondary, currency),
+                    _buildCapacityUtilizationCard(
+                      context,
+                      tripsVM,
+                      isDark,
+                      cardBg,
+                      cardBorder,
+                      textPrimary,
+                      textSecondary,
+                      currency,
+                    ),
                     const SizedBox(height: 12),
 
                     // 3. DUAL STATUS STRIP (READY FOR LOADS + GPS LIVE TRACKING)
@@ -372,19 +432,51 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     const SizedBox(height: 12),
 
                     // 4. SEARCH / ROUTE INTERCEPTION CARD
-                    _buildSearchCard(isDark, cardBg, cardAltBg, cardBorder, textPrimary, textSecondary, textMuted, isMetric),
+                    _buildSearchCard(
+                      isDark,
+                      cardBg,
+                      cardAltBg,
+                      cardBorder,
+                      textPrimary,
+                      textSecondary,
+                      textMuted,
+                      isMetric,
+                    ),
                     const SizedBox(height: 14),
 
                     // 5. INTERACTIVE HIGHWAY RADAR & ROUTE MAP CARD
-                    _buildInteractiveMapCard(isDark, cardBg, cardBorder, textPrimary, textSecondary),
+                    _buildInteractiveMapCard(
+                      isDark,
+                      cardBg,
+                      cardBorder,
+                      textPrimary,
+                      textSecondary,
+                    ),
                     const SizedBox(height: 16),
 
                     // 6. QUICK TOOLS 4-ACTION GRID
-                    _buildQuickToolsGrid(context, isDark, cardBg, cardBorder, textPrimary, textSecondary),
+                    _buildQuickToolsGrid(
+                      context,
+                      isDark,
+                      cardBg,
+                      cardBorder,
+                      textPrimary,
+                      textSecondary,
+                    ),
                     const SizedBox(height: 16),
 
                     // 7. DRIVE YOUR SUCCESS SECTION
-                    _buildDriveYourSuccess(context, displayedLoads.length, isDark, cardBg, cardAltBg, cardBorder, textPrimary, textSecondary, tripsVM),
+                    _buildDriveYourSuccess(
+                      context,
+                      displayedLoads.length,
+                      isDark,
+                      cardBg,
+                      cardAltBg,
+                      cardBorder,
+                      textPrimary,
+                      textSecondary,
+                      tripsVM,
+                    ),
                     const SizedBox(height: 16),
 
                     // 8. REDO REWARDS BANNER
@@ -413,7 +505,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                             });
                             tripsVM.clearFilters();
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Showing all available nationwide loads')),
+                              const SnackBar(
+                                content: Text(
+                                  'Showing all available nationwide loads',
+                                ),
+                              ),
                             );
                           },
                           child: Text(
@@ -434,16 +530,35 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       const Center(
                         child: Padding(
                           padding: EdgeInsets.all(32.0),
-                          child: CircularProgressIndicator(color: AppColors.brandYellow),
+                          child: CircularProgressIndicator(
+                            color: AppColors.brandYellow,
+                          ),
                         ),
                       )
                     else if (displayedLoads.isEmpty)
-                      _buildEmptyLoadsState(isDark, cardBg, cardBorder, textPrimary, textSecondary)
+                      _buildEmptyLoadsState(
+                        isDark,
+                        cardBg,
+                        cardBorder,
+                        textPrimary,
+                        textSecondary,
+                      )
                     else
-                      ...displayedLoads.map((load) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildLoadCard(load, currency, isMetric, isDark, cardBg, cardBorder, textPrimary, textSecondary),
-                          )),
+                      ...displayedLoads.map(
+                        (load) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildLoadCard(
+                            load,
+                            currency,
+                            isMetric,
+                            isDark,
+                            cardBg,
+                            cardBorder,
+                            textPrimary,
+                            textSecondary,
+                          ),
+                        ),
+                      ),
 
                     const SizedBox(height: 24),
                   ],
@@ -457,7 +572,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   }
 
   // --- 1. TOP COCKPIT HEADER WITH ORIGINAL "R" LOGO ---
-  Widget _buildTopHeader(BuildContext context, bool isDark, Color cardBg, Color textPrimary, Color textSecondary, Color cardBorder) {
+  Widget _buildTopHeader(
+    BuildContext context,
+    bool isDark,
+    Color cardBg,
+    Color textPrimary,
+    Color textSecondary,
+    Color cardBorder,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       color: isDark ? const Color(0xFF0B0F19) : Colors.white,
@@ -487,7 +609,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       child: const Center(
                         child: Text(
                           'R',
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
                     ),
@@ -528,17 +654,27 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: cardBorder),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.currency_rupee, size: 12, color: AppColors.brandYellowDark),
+                    const Icon(
+                      Icons.currency_rupee,
+                      size: 12,
+                      color: AppColors.brandYellowDark,
+                    ),
                     const SizedBox(width: 2),
                     Text(
                       'INR • KM',
-                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: textSecondary),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -549,19 +685,27 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               InkWell(
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
                 ),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9),
                     shape: BoxShape.circle,
                     border: Border.all(color: cardBorder),
                   ),
                   child: Stack(
                     children: [
-                      Icon(Icons.notifications_none_outlined, size: 18, color: textPrimary),
+                      Icon(
+                        Icons.notifications_none_outlined,
+                        size: 18,
+                        color: textPrimary,
+                      ),
                       Positioned(
                         right: 0,
                         top: 0,
@@ -584,17 +728,25 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               InkWell(
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const PartnerSettingsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const PartnerSettingsScreen(),
+                  ),
                 ),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9),
                     shape: BoxShape.circle,
                     border: Border.all(color: cardBorder),
                   ),
-                  child: Icon(Icons.settings_outlined, size: 18, color: textPrimary),
+                  child: Icon(
+                    Icons.settings_outlined,
+                    size: 18,
+                    color: textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -603,7 +755,6 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       ),
     );
   }
-
 
   // --- 2.5 CAPACITY UTILIZATION GAUGE & 1-TAP FILL MY TRUCK ---
   Widget _buildCapacityUtilizationCard(
@@ -731,7 +882,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   Container(
                     width: double.infinity,
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFE2E8F0),
                   ),
                   FractionallySizedBox(
                     widthFactor: (utilPct / 100.0).clamp(0.05, 1.0),
@@ -788,7 +941,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.trending_up, size: 16, color: Color(0xFF10B981)),
+                    const Icon(
+                      Icons.trending_up,
+                      size: 16,
+                      color: Color(0xFF10B981),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Potential Empty-Space Revenue:',
@@ -819,14 +976,20 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isFillActive ? AppColors.brandYellow : (isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A)),
+                backgroundColor: isFillActive
+                    ? AppColors.brandYellow
+                    : (isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFF0F172A)),
                 foregroundColor: isFillActive ? Colors.black : Colors.white,
                 elevation: isFillActive ? 4 : 0,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: isFillActive ? AppColors.brandYellowDark : Colors.transparent,
+                    color: isFillActive
+                        ? AppColors.brandYellowDark
+                        : Colors.transparent,
                     width: 1,
                   ),
                 ),
@@ -926,9 +1089,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
                     height: 1.15,
-                    shadows: [
-                      const Shadow(color: Colors.black, blurRadius: 4),
-                    ],
+                    shadows: [const Shadow(color: Colors.black, blurRadius: 4)],
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -983,7 +1144,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               setState(() => _isReadyForLoads = !_isReadyForLoads);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_isReadyForLoads ? 'You are now visible to shippers nationwide' : 'Status set to Offline'),
+                  content: Text(
+                    _isReadyForLoads
+                        ? 'You are now visible to shippers nationwide'
+                        : 'Status set to Offline',
+                  ),
                   duration: const Duration(seconds: 2),
                 ),
               );
@@ -993,11 +1158,17 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: _isReadyForLoads
-                    ? (isDark ? const Color(0xFF0C2419) : const Color(0xFFDCFCE7))
-                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                    ? (isDark
+                          ? const Color(0xFF0C2419)
+                          : const Color(0xFFDCFCE7))
+                    : (isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF1F5F9)),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _isReadyForLoads ? const Color(0xFF10B981).withValues(alpha: 0.4) : cardBorder,
+                  color: _isReadyForLoads
+                      ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                      : cardBorder,
                 ),
               ),
               child: Row(
@@ -1006,10 +1177,20 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: _isReadyForLoads ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                      color: _isReadyForLoads
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFF94A3B8),
                       shape: BoxShape.circle,
                       boxShadow: _isReadyForLoads
-                          ? [BoxShadow(color: const Color(0xFF10B981).withValues(alpha: 0.6), blurRadius: 6, spreadRadius: 1)]
+                          ? [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF10B981,
+                                ).withValues(alpha: 0.6),
+                                blurRadius: 6,
+                                spreadRadius: 1,
+                              ),
+                            ]
                           : [],
                     ),
                   ),
@@ -1023,7 +1204,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: _isReadyForLoads ? (isDark ? Colors.white : const Color(0xFF14532D)) : const Color(0xFF94A3B8),
+                            color: _isReadyForLoads
+                                ? (isDark
+                                      ? Colors.white
+                                      : const Color(0xFF14532D))
+                                : const Color(0xFF94A3B8),
                           ),
                         ),
                         Text(
@@ -1031,7 +1216,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
-                            color: _isReadyForLoads ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                            color: _isReadyForLoads
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -1052,7 +1239,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               _fetchAndZoomCurrentLocation(animate: true);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_isGpsSharingOn ? 'GPS Live Tracking Active • Pinging highway radar' : 'GPS Tracking Paused'),
+                  content: Text(
+                    _isGpsSharingOn
+                        ? 'GPS Live Tracking Active • Pinging highway radar'
+                        : 'GPS Tracking Paused',
+                  ),
                   duration: const Duration(seconds: 2),
                 ),
               );
@@ -1062,11 +1253,17 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: _isGpsSharingOn
-                    ? (isDark ? const Color(0xFF0F1E36) : const Color(0xFFE0F2FE))
-                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                    ? (isDark
+                          ? const Color(0xFF0F1E36)
+                          : const Color(0xFFE0F2FE))
+                    : (isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF1F5F9)),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _isGpsSharingOn ? const Color(0xFF0284C7).withValues(alpha: 0.4) : cardBorder,
+                  color: _isGpsSharingOn
+                      ? const Color(0xFF0284C7).withValues(alpha: 0.4)
+                      : cardBorder,
                 ),
               ),
               child: Row(
@@ -1075,10 +1272,20 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: _isGpsSharingOn ? const Color(0xFF0284C7) : const Color(0xFF94A3B8),
+                      color: _isGpsSharingOn
+                          ? const Color(0xFF0284C7)
+                          : const Color(0xFF94A3B8),
                       shape: BoxShape.circle,
                       boxShadow: _isGpsSharingOn
-                          ? [BoxShadow(color: const Color(0xFF0284C7).withValues(alpha: 0.6), blurRadius: 6, spreadRadius: 1)]
+                          ? [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF0284C7,
+                                ).withValues(alpha: 0.6),
+                                blurRadius: 6,
+                                spreadRadius: 1,
+                              ),
+                            ]
                           : [],
                     ),
                   ),
@@ -1092,7 +1299,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: _isGpsSharingOn ? (isDark ? Colors.white : const Color(0xFF0369A1)) : const Color(0xFF94A3B8),
+                            color: _isGpsSharingOn
+                                ? (isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0369A1))
+                                : const Color(0xFF94A3B8),
                           ),
                         ),
                         Text(
@@ -1100,13 +1311,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
-                            color: _isGpsSharingOn ? const Color(0xFF0284C7) : const Color(0xFF64748B),
+                            color: _isGpsSharingOn
+                                ? const Color(0xFF0284C7)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, size: 16, color: Color(0xFF64748B)),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
                 ],
               ),
             ),
@@ -1145,7 +1362,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   // Pickup Location Row
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: cardAltBg,
                       borderRadius: BorderRadius.circular(12),
@@ -1153,7 +1373,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.radio_button_checked, size: 16, color: Color(0xFF10B981)),
+                        const Icon(
+                          Icons.radio_button_checked,
+                          size: 16,
+                          color: Color(0xFF10B981),
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -1161,18 +1385,29 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                             children: [
                               Text(
                                 'Pickup Location / Current City',
-                                style: GoogleFonts.inter(fontSize: 10, color: textMuted, fontWeight: FontWeight.w600),
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  color: textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               TextField(
                                 controller: _fromController,
                                 onChanged: _onFromChanged,
-                                style: GoogleFonts.inter(color: textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                                style: GoogleFonts.inter(
+                                  color: textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 decoration: InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
                                   border: InputBorder.none,
                                   hintText: 'Enter origin (e.g. Delhi, Mumbai)',
-                                  hintStyle: TextStyle(color: textMuted, fontSize: 13),
+                                  hintStyle: TextStyle(
+                                    color: textMuted,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1190,12 +1425,26 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                           ),
                         IconButton(
                           icon: _locatingDriver
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brandYellow))
-                              : const Icon(Icons.my_location, size: 18, color: AppColors.brandYellowDark),
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.brandYellow,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.my_location,
+                                  size: 18,
+                                  color: AppColors.brandYellowDark,
+                                ),
                           tooltip: 'Detect My Location',
-                          onPressed: () => _fetchAndZoomCurrentLocation(animate: true),
+                          onPressed: () =>
+                              _fetchAndZoomCurrentLocation(animate: true),
                         ),
-                        const SizedBox(width: 32), // Space for floating swap button
+                        const SizedBox(
+                          width: 32,
+                        ), // Space for floating swap button
                       ],
                     ),
                   ),
@@ -1217,7 +1466,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
                   // Destination Row
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: cardAltBg,
                       borderRadius: BorderRadius.circular(12),
@@ -1225,7 +1477,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.location_on, size: 18, color: Color(0xFFEF4444)),
+                        const Icon(
+                          Icons.location_on,
+                          size: 18,
+                          color: Color(0xFFEF4444),
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -1233,18 +1489,30 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                             children: [
                               Text(
                                 'To City / Destination Hub',
-                                style: GoogleFonts.inter(fontSize: 10, color: textMuted, fontWeight: FontWeight.w600),
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  color: textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               TextField(
                                 controller: _toController,
                                 onChanged: _onToChanged,
-                                style: GoogleFonts.inter(color: textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                                style: GoogleFonts.inter(
+                                  color: textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 decoration: InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
                                   border: InputBorder.none,
-                                  hintText: 'Search city or corridor destination',
-                                  hintStyle: TextStyle(color: textMuted, fontSize: 13),
+                                  hintText:
+                                      'Search city or corridor destination',
+                                  hintStyle: TextStyle(
+                                    color: textMuted,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1260,7 +1528,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                               _updateFilterAndRoute();
                             },
                           ),
-                        const SizedBox(width: 32), // Space for floating swap button
+                        const SizedBox(
+                          width: 32,
+                        ), // Space for floating swap button
                       ],
                     ),
                   ),
@@ -1281,10 +1551,17 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: cardBorder),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 4,
+                        ),
                       ],
                     ),
-                    child: const Icon(Icons.swap_vert, color: AppColors.brandYellowDark, size: 20),
+                    child: const Icon(
+                      Icons.swap_vert,
+                      color: AppColors.brandYellowDark,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -1301,42 +1578,77 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: cardBorder),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                  ),
                 ],
               ),
               child: ListView(
                 shrinkWrap: true,
                 children: [
                   if (_fromSuggestions.isNotEmpty)
-                    ..._fromSuggestions.map((s) => ListTile(
-                          dense: true,
-                          leading: const Icon(Icons.place, color: Color(0xFF10B981), size: 16),
-                          title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
-                          subtitle: Text(s.description, style: TextStyle(color: textSecondary, fontSize: 10)),
-                          onTap: () {
-                            setState(() {
-                              _fromController.text = s.name;
-                              _fromLatLng = s.latLng;
-                              _fromSuggestions = [];
-                            });
-                            _updateFilterAndRoute();
-                          },
-                        )),
+                    ..._fromSuggestions.map(
+                      (s) => ListTile(
+                        dense: true,
+                        leading: const Icon(
+                          Icons.place,
+                          color: Color(0xFF10B981),
+                          size: 16,
+                        ),
+                        title: Text(
+                          s.name,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          s.description,
+                          style: TextStyle(color: textSecondary, fontSize: 10),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _fromController.text = s.name;
+                            _fromLatLng = s.latLng;
+                            _fromSuggestions = [];
+                          });
+                          _updateFilterAndRoute();
+                        },
+                      ),
+                    ),
                   if (_toSuggestions.isNotEmpty)
-                    ..._toSuggestions.map((s) => ListTile(
-                          dense: true,
-                          leading: const Icon(Icons.place, color: Color(0xFFEF4444), size: 16),
-                          title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
-                          subtitle: Text(s.description, style: TextStyle(color: textSecondary, fontSize: 10)),
-                          onTap: () {
-                            setState(() {
-                              _toController.text = s.name;
-                              _toLatLng = s.latLng;
-                              _toSuggestions = [];
-                            });
-                            _updateFilterAndRoute();
-                          },
-                        )),
+                    ..._toSuggestions.map(
+                      (s) => ListTile(
+                        dense: true,
+                        leading: const Icon(
+                          Icons.place,
+                          color: Color(0xFFEF4444),
+                          size: 16,
+                        ),
+                        title: Text(
+                          s.name,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          s.description,
+                          style: TextStyle(color: textSecondary, fontSize: 10),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _toController.text = s.name;
+                            _toLatLng = s.latLng;
+                            _toSuggestions = [];
+                          });
+                          _updateFilterAndRoute();
+                        },
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1349,15 +1661,50 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildRouteChip('Delhi ⇄ Mumbai', 'Delhi', 'Mumbai', cardAltBg, cardBorder, textSecondary),
+                _buildRouteChip(
+                  'Delhi ⇄ Mumbai',
+                  'Delhi',
+                  'Mumbai',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
                 const SizedBox(width: 8),
-                _buildRouteChip('Mumbai ⇄ Pune', 'Mumbai', 'Pune', cardAltBg, cardBorder, textSecondary),
+                _buildRouteChip(
+                  'Mumbai ⇄ Pune',
+                  'Mumbai',
+                  'Pune',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
                 const SizedBox(width: 8),
-                _buildRouteChip('Bengaluru ⇄ Chennai', 'Bengaluru', 'Chennai', cardAltBg, cardBorder, textSecondary),
+                _buildRouteChip(
+                  'Bengaluru ⇄ Chennai',
+                  'Bengaluru',
+                  'Chennai',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
                 const SizedBox(width: 8),
-                _buildRouteChip('Delhi ⇄ Jaipur', 'Delhi', 'Jaipur', cardAltBg, cardBorder, textSecondary),
+                _buildRouteChip(
+                  'Delhi ⇄ Jaipur',
+                  'Delhi',
+                  'Jaipur',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
                 const SizedBox(width: 8),
-                _buildRouteChip('Ahmedabad ⇄ Surat', 'Ahmedabad', 'Surat', cardAltBg, cardBorder, textSecondary),
+                _buildRouteChip(
+                  'Ahmedabad ⇄ Surat',
+                  'Ahmedabad',
+                  'Surat',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
               ],
             ),
           ),
@@ -1369,13 +1716,33 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildCategoryPill('All Loads', cardAltBg, cardBorder, textSecondary),
+                _buildCategoryPill(
+                  'All Loads',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
                 const SizedBox(width: 8),
-                _buildCategoryPill('Instant', cardAltBg, cardBorder, textSecondary),
+                _buildCategoryPill(
+                  'Instant',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
                 const SizedBox(width: 8),
-                _buildCategoryPill('Scheduled', cardAltBg, cardBorder, textSecondary),
+                _buildCategoryPill(
+                  'Scheduled',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
                 const SizedBox(width: 8),
-                _buildCategoryPill('Best Match', cardAltBg, cardBorder, textSecondary),
+                _buildCategoryPill(
+                  'Best Match',
+                  cardAltBg,
+                  cardBorder,
+                  textSecondary,
+                ),
               ],
             ),
           ),
@@ -1387,17 +1754,41 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             children: [
               Text(
                 'Tonnage:',
-                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: textSecondary),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textSecondary,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildTonnageChip('All', cardAltBg, cardBorder, textSecondary),
-                    _buildTonnageChip('< 3T', cardAltBg, cardBorder, textSecondary),
-                    _buildTonnageChip('3 - 10T', cardAltBg, cardBorder, textSecondary),
-                    _buildTonnageChip('10T+', cardAltBg, cardBorder, textSecondary),
+                    _buildTonnageChip(
+                      'All',
+                      cardAltBg,
+                      cardBorder,
+                      textSecondary,
+                    ),
+                    _buildTonnageChip(
+                      '< 3T',
+                      cardAltBg,
+                      cardBorder,
+                      textSecondary,
+                    ),
+                    _buildTonnageChip(
+                      '3 - 10T',
+                      cardAltBg,
+                      cardBorder,
+                      textSecondary,
+                    ),
+                    _buildTonnageChip(
+                      '10T+',
+                      cardAltBg,
+                      cardBorder,
+                      textSecondary,
+                    ),
                   ],
                 ),
               ),
@@ -1415,7 +1806,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 backgroundColor: AppColors.brandYellow,
                 foregroundColor: AppColors.slateDark,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               onPressed: () {
                 _updateFilterAndRoute();
@@ -1426,7 +1819,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     content: Text(
                       from.isNotEmpty && to.isNotEmpty
                           ? 'Searching loads for corridor: $from ➔ $to'
-                          : (from.isNotEmpty ? 'Searching loads around $from' : 'Showing all verified freight loads'),
+                          : (from.isNotEmpty
+                                ? 'Searching loads around $from'
+                                : 'Showing all verified freight loads'),
                     ),
                     duration: const Duration(seconds: 2),
                   ),
@@ -1435,11 +1830,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.search, size: 20, color: AppColors.slateDark),
+                  const Icon(
+                    Icons.search,
+                    size: 20,
+                    color: AppColors.slateDark,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Search Loads',
-                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.slateDark),
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.slateDark,
+                    ),
                   ),
                 ],
               ),
@@ -1450,8 +1853,16 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  Widget _buildRouteChip(String label, String from, String to, Color cardAltBg, Color cardBorder, Color textSecondary) {
-    final isSel = _fromController.text.toLowerCase().contains(from.toLowerCase()) &&
+  Widget _buildRouteChip(
+    String label,
+    String from,
+    String to,
+    Color cardAltBg,
+    Color cardBorder,
+    Color textSecondary,
+  ) {
+    final isSel =
+        _fromController.text.toLowerCase().contains(from.toLowerCase()) &&
         _toController.text.toLowerCase().contains(to.toLowerCase());
 
     return InkWell(
@@ -1460,9 +1871,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSel ? AppColors.brandYellow.withValues(alpha: 0.2) : cardAltBg,
+          color: isSel
+              ? AppColors.brandYellow.withValues(alpha: 0.2)
+              : cardAltBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSel ? AppColors.brandYellowDark : cardBorder),
+          border: Border.all(
+            color: isSel ? AppColors.brandYellowDark : cardBorder,
+          ),
         ),
         child: Text(
           label,
@@ -1476,7 +1891,12 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  Widget _buildCategoryPill(String label, Color cardAltBg, Color cardBorder, Color textSecondary) {
+  Widget _buildCategoryPill(
+    String label,
+    Color cardAltBg,
+    Color cardBorder,
+    Color textSecondary,
+  ) {
     final isSel = _selectedCategory == label;
     return InkWell(
       onTap: () => setState(() => _selectedCategory = label),
@@ -1500,7 +1920,12 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  Widget _buildTonnageChip(String label, Color cardAltBg, Color cardBorder, Color textSecondary) {
+  Widget _buildTonnageChip(
+    String label,
+    Color cardAltBg,
+    Color cardBorder,
+    Color textSecondary,
+  ) {
     final isSel = _selectedTonnage == label;
     return InkWell(
       onTap: () => setState(() => _selectedTonnage = label),
@@ -1508,9 +1933,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: isSel ? AppColors.brandYellow.withValues(alpha: 0.2) : cardAltBg,
+          color: isSel
+              ? AppColors.brandYellow.withValues(alpha: 0.2)
+              : cardAltBg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSel ? AppColors.brandYellowDark : cardBorder),
+          border: Border.all(
+            color: isSel ? AppColors.brandYellowDark : cardBorder,
+          ),
         ),
         child: Text(
           label,
@@ -1525,7 +1954,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
   }
 
   // --- 5. INTERACTIVE HIGHWAY RADAR & ROUTE MAP CARD ---
-  Widget _buildInteractiveMapCard(bool isDark, Color cardBg, Color cardBorder, Color textPrimary, Color textSecondary) {
+  Widget _buildInteractiveMapCard(
+    bool isDark,
+    Color cardBg,
+    Color cardBorder,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
@@ -1543,11 +1978,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.radar, size: 18, color: AppColors.brandYellowDark),
+                    const Icon(
+                      Icons.radar,
+                      size: 18,
+                      color: AppColors.brandYellowDark,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Corridor Radar & Live Route',
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: textPrimary,
+                      ),
                     ),
                   ],
                 ),
@@ -1557,23 +2000,43 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       onTap: () => _fetchAndZoomCurrentLocation(animate: true),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.brandYellow.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.my_location, size: 14, color: AppColors.brandYellowDark),
+                            const Icon(
+                              Icons.my_location,
+                              size: 14,
+                              color: AppColors.brandYellowDark,
+                            ),
                             const SizedBox(width: 4),
-                            Text('Locate', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark)),
+                            Text(
+                              'Locate',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.brandYellowDark,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: Icon(_showMap ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: textSecondary, size: 20),
+                      icon: Icon(
+                        _showMap
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        color: textSecondary,
+                        size: 20,
+                      ),
                       onPressed: () => setState(() => _showMap = !_showMap),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -1586,7 +2049,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
           if (_showMap)
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(18),
+              ),
               child: SizedBox(
                 height: 220,
                 width: double.infinity,
@@ -1594,7 +2059,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   children: [
                     GoogleMap(
                       initialCameraPosition: CameraPosition(
-                        target: _fromLatLng ?? _driverCurrentLatLng ?? const LatLng(28.6139, 77.2090),
+                        target:
+                            _fromLatLng ??
+                            _driverCurrentLatLng ??
+                            const LatLng(28.6139, 77.2090),
                         zoom: 12.0,
                       ),
                       polylines: _polylines,
@@ -1605,7 +2073,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       onMapCreated: (c) {
                         _mapController = c;
                         if (_driverCurrentLatLng != null) {
-                          c.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: _driverCurrentLatLng!, zoom: 14.0)));
+                          c.animateCamera(
+                            CameraUpdate.newCameraPosition(
+                              CameraPosition(
+                                target: _driverCurrentLatLng!,
+                                zoom: 14.0,
+                              ),
+                            ),
+                          );
                         }
                       },
                     ),
@@ -1618,23 +2093,33 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                         children: [
                           FloatingActionButton.small(
                             heroTag: 'map_gps_zoom_btn',
-                            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            backgroundColor: isDark
+                                ? const Color(0xFF1E293B)
+                                : Colors.white,
                             foregroundColor: AppColors.brandYellowDark,
                             elevation: 2,
-                            onPressed: () => _fetchAndZoomCurrentLocation(animate: true),
+                            onPressed: () =>
+                                _fetchAndZoomCurrentLocation(animate: true),
                             child: const Icon(Icons.gps_fixed, size: 18),
                           ),
                           if (_currentRoute != null) ...[
                             const SizedBox(height: 8),
                             FloatingActionButton.small(
                               heroTag: 'map_route_zoom_btn',
-                              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              backgroundColor: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
                               foregroundColor: textPrimary,
                               elevation: 2,
                               onPressed: () {
-                                if (_currentRoute != null && _currentRoute!.points.isNotEmpty) {
-                                  final bounds = _computeBounds(_currentRoute!.points);
-                                  _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+                                if (_currentRoute != null &&
+                                    _currentRoute!.points.isNotEmpty) {
+                                  final bounds = _computeBounds(
+                                    _currentRoute!.points,
+                                  );
+                                  _mapController?.animateCamera(
+                                    CameraUpdate.newLatLngBounds(bounds, 50),
+                                  );
                                 }
                               },
                               child: const Icon(Icons.alt_route, size: 18),
@@ -1650,15 +2135,26 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                         bottom: 12,
                         left: 12,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.brandYellow.withValues(alpha: 0.5)),
+                            border: Border.all(
+                              color: AppColors.brandYellow.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
                           ),
                           child: Text(
                             '${_currentRoute!.distanceText} • Est: ${_currentRoute!.durationText}',
-                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.brandYellow),
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.brandYellow,
+                            ),
                           ),
                         ),
                       ),
@@ -1692,7 +2188,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           cardBorder: cardBorder,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
-          onTap: () => _showLoadAlertsSheet(context, isDark, cardBg, textPrimary, cardBorder),
+          onTap: () => _showLoadAlertsSheet(
+            context,
+            isDark,
+            cardBg,
+            textPrimary,
+            cardBorder,
+          ),
         ),
         const SizedBox(width: 8),
         _buildToolCard(
@@ -1704,7 +2206,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           cardBorder: cardBorder,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
-          onTap: () => _showSavedRoutesSheet(context, isDark, cardBg, textPrimary, cardBorder),
+          onTap: () => _showSavedRoutesSheet(
+            context,
+            isDark,
+            cardBg,
+            textPrimary,
+            cardBorder,
+          ),
         ),
         const SizedBox(width: 8),
         _buildToolCard(
@@ -1719,7 +2227,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           onTap: () {
             widget.onNavigateToTrips?.call();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Switched to My Trips & Bids management')),
+              const SnackBar(
+                content: Text('Switched to My Trips & Bids management'),
+              ),
             );
           },
         ),
@@ -1774,7 +2284,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       child: Container(
                         width: 6,
                         height: 6,
-                        decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                 ],
@@ -1783,7 +2296,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: textPrimary),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: textPrimary,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -1830,23 +2347,44 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   Text(
                     'Drive Your Success',
-                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: textPrimary),
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Insights to help you earn more',
-                    style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: textSecondary,
+                    ),
                   ),
                 ],
               ),
               InkWell(
-                onTap: () => _showDriveYourSuccessModal(context, tripsVM, isDark, textPrimary, cardBg, cardBorder),
+                onTap: () => _showDriveYourSuccessModal(
+                  context,
+                  tripsVM,
+                  isDark,
+                  textPrimary,
+                  cardBg,
+                  cardBorder,
+                ),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
                   child: Text(
                     'View All >',
-                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.brandYellowDark,
+                    ),
                   ),
                 ),
               ),
@@ -1867,7 +2405,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${max(14, loadCount)} verified commercial loads currently available for dispatch')),
+                  SnackBar(
+                    content: Text(
+                      '${max(14, loadCount)} verified commercial loads currently available for dispatch',
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1881,7 +2423,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Average trip revenue across top national freight corridors')),
+                  const SnackBar(
+                    content: Text(
+                      'Average trip revenue across top national freight corridors',
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1895,7 +2441,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Your commercial on-time dispatch rate is 95% (Gold Tier)')),
+                  const SnackBar(
+                    content: Text(
+                      'Your commercial on-time dispatch rate is 95% (Gold Tier)',
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1909,7 +2459,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Verified Transporter Rating: 4.8 / 5.0 (Top 5% Drivers)')),
+                  const SnackBar(
+                    content: Text(
+                      'Verified Transporter Rating: 4.8 / 5.0 (Top 5% Drivers)',
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1951,7 +2505,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   Expanded(
                     child: Text(
                       value,
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w900, color: textPrimary),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: textPrimary,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1982,7 +2540,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -1995,12 +2557,20 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               children: [
                 Text(
                   'REDO Rewards',
-                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A)),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Complete more trips • Earn fuel points • Unlock VIP tolls',
-                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF451A03)),
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF451A03),
+                  ),
                 ),
               ],
             ),
@@ -2012,18 +2582,28 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  backgroundColor: isDark
+                      ? const Color(0xFF1E293B)
+                      : Colors.white,
                   title: Row(
                     children: [
-                      const Icon(Icons.emoji_events, color: AppColors.brandYellow),
+                      const Icon(
+                        Icons.emoji_events,
+                        color: AppColors.brandYellow,
+                      ),
                       const SizedBox(width: 8),
-                      Text('REDO Rewards Club', style: GoogleFonts.inter(fontWeight: FontWeight.w900)),
+                      Text(
+                        'REDO Rewards Club',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                      ),
                     ],
                   ),
                   content: Text(
@@ -2031,7 +2611,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     style: GoogleFonts.inter(fontSize: 13, height: 1.5),
                   ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Got it'),
+                    ),
                   ],
                 ),
               );
@@ -2039,7 +2622,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Know More', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800)),
+                Text(
+                  'Know More',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(width: 2),
                 const Icon(Icons.chevron_right, size: 14),
               ],
@@ -2061,7 +2650,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     Color textPrimary,
     Color textSecondary,
   ) {
-    final weightStr = UnitFormatter.formatWeightTons(load.weightTons, isMetric: isMetric);
+    final weightStr = UnitFormatter.formatWeightTons(
+      load.weightTons,
+      isMetric: isMetric,
+    );
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2092,18 +2684,28 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   Text(
                     '2h ago',
-                    style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: textSecondary,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle, size: 12, color: Color(0xFF10B981)),
+                        const Icon(
+                          Icons.check_circle,
+                          size: 12,
+                          color: Color(0xFF10B981),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Verified',
@@ -2128,11 +2730,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.inventory_2_outlined, size: 14, color: textSecondary),
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 14,
+                    color: textSecondary,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     load.cargoType,
-                    style: GoogleFonts.inter(fontSize: 11, color: textPrimary, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -2143,18 +2753,30 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   const SizedBox(width: 4),
                   Text(
                     weightStr,
-                    style: GoogleFonts.inter(fontSize: 11, color: textPrimary, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(width: 16),
               Row(
                 children: [
-                  Icon(Icons.calendar_today_outlined, size: 14, color: textSecondary),
+                  Icon(
+                    Icons.calendar_today_outlined,
+                    size: 14,
+                    color: textSecondary,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'Today - Tomorrow',
-                    style: GoogleFonts.inter(fontSize: 11, color: textPrimary, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -2169,7 +2791,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             runSpacing: 4,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2.5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.brandYellow.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -2177,17 +2802,28 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.alt_route, size: 11, color: AppColors.brandYellowDark),
+                    const Icon(
+                      Icons.alt_route,
+                      size: 11,
+                      color: AppColors.brandYellowDark,
+                    ),
                     const SizedBox(width: 3),
                     Text(
                       'Sub-Segment Corridor Match',
-                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.brandYellowDark),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.brandYellowDark,
+                      ),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2.5,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
@@ -2195,11 +2831,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.shield_outlined, size: 11, color: Color(0xFF10B981)),
+                    const Icon(
+                      Icons.shield_outlined,
+                      size: 11,
+                      color: Color(0xFF10B981),
+                    ),
                     const SizedBox(width: 3),
                     Text(
                       'Safety Co-Load Approved',
-                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFF10B981)),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF10B981),
+                      ),
                     ),
                   ],
                 ),
@@ -2220,7 +2864,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 children: [
                   Text(
                     'Guaranteed Payout',
-                    style: GoogleFonts.inter(fontSize: 9, color: textSecondary, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(
+                      fontSize: 9,
+                      color: textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Text(
                     currency.format(load.offeredPriceInr),
@@ -2242,7 +2890,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                         MaterialPageRoute(
                           builder: (_) => DirectChatScreen(
                             bookingId: 'inquiry_${load.cargoId}',
-                            counterpartyName: load.smeName.isNotEmpty ? load.smeName : 'Verified Shipper',
+                            counterpartyName: load.smeName.isNotEmpty
+                                ? load.smeName
+                                : 'Verified Shipper',
                             counterpartyRole: 'Shipper / Cargo Owner',
                             counterpartyPhone: '+91 98765 43210',
                             origin: load.origin,
@@ -2255,11 +2905,17 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: cardBorder),
                       ),
-                      child: Icon(Icons.chat_bubble_outline, size: 18, color: textPrimary),
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        size: 18,
+                        color: textPrimary,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -2271,11 +2927,17 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: cardBorder),
                       ),
-                      child: const Icon(Icons.map_outlined, size: 18, color: AppColors.brandYellowDark),
+                      child: const Icon(
+                        Icons.map_outlined,
+                        size: 18,
+                        color: AppColors.brandYellowDark,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -2285,14 +2947,23 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandYellow,
                       foregroundColor: AppColors.slateDark,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       elevation: 0,
                     ),
-                    onPressed: () => _showAcceptLoadModal(load, currency, isDark),
+                    onPressed: () =>
+                        _showAcceptLoadModal(load, currency, isDark),
                     child: Text(
                       'View Details',
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w900),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],
@@ -2304,7 +2975,11 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  void _showAcceptLoadModal(AvailableLoad load, NumberFormat currency, bool isDark) {
+  void _showAcceptLoadModal(
+    AvailableLoad load,
+    NumberFormat currency,
+    bool isDark,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
@@ -2337,7 +3012,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   children: [
                     Text(
                       'Load Details & Dispatch',
-                      style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900),
+                      style: GoogleFonts.inter(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close),
@@ -2351,20 +3029,33 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0),
+                    ),
                   ),
                   child: Column(
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.circle, color: Color(0xFF10B981), size: 10),
+                          const Icon(
+                            Icons.circle,
+                            color: Color(0xFF10B981),
+                            size: 10,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Pickup: ${load.origin}',
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ],
@@ -2372,12 +3063,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.location_on, color: Color(0xFFEF4444), size: 12),
+                          const Icon(
+                            Icons.location_on,
+                            color: Color(0xFFEF4444),
+                            size: 12,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'Destination: ${load.destination}',
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ],
@@ -2391,11 +3089,21 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildDetailSpecTile('Weight', '${load.weightTons} Tons', Icons.scale, isDark),
+                      child: _buildDetailSpecTile(
+                        'Weight',
+                        '${load.weightTons} Tons',
+                        Icons.scale,
+                        isDark,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _buildDetailSpecTile('Cargo Type', load.cargoType, Icons.inventory_2_outlined, isDark),
+                      child: _buildDetailSpecTile(
+                        'Cargo Type',
+                        load.cargoType,
+                        Icons.inventory_2_outlined,
+                        isDark,
+                      ),
                     ),
                   ],
                 ),
@@ -2403,11 +3111,23 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildDetailSpecTile('Shipper', load.smeName.isNotEmpty ? load.smeName : 'Verified Shipper', Icons.business, isDark),
+                      child: _buildDetailSpecTile(
+                        'Shipper',
+                        load.smeName.isNotEmpty
+                            ? load.smeName
+                            : 'Verified Shipper',
+                        Icons.business,
+                        isDark,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _buildDetailSpecTile('Loading', 'Today • Immediate', Icons.access_time, isDark),
+                      child: _buildDetailSpecTile(
+                        'Loading',
+                        'Today • Immediate',
+                        Icons.access_time,
+                        isDark,
+                      ),
                     ),
                   ],
                 ),
@@ -2417,10 +3137,20 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Guaranteed Net Payout:', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(
+                      'Guaranteed Net Payout:',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
                     Text(
                       currency.format(load.offeredPriceInr),
-                      style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: const Color(0xFF10B981)),
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF10B981),
+                      ),
                     ),
                   ],
                 ),
@@ -2434,7 +3164,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandYellow,
                       foregroundColor: AppColors.slateDark,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: accepting
                         ? null
@@ -2445,10 +3177,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
                             // Send positive reinforcement to Online Learning Engine
                             SupabaseService.sendRecommendationFeedback(
-                              truckId: vm.myTrucks.isNotEmpty ? vm.myTrucks.first.truckId : 'trk_active',
+                              truckId: vm.myTrucks.isNotEmpty
+                                  ? vm.myTrucks.first.truckId
+                                  : 'trk_active',
                               cargoId: load.cargoId,
                               action: 'accept_load',
-                              corridorKey: '${load.origin.toLowerCase()}->${load.destination.toLowerCase()}',
+                              corridorKey:
+                                  '${load.origin.toLowerCase()}->${load.destination.toLowerCase()}',
                             );
 
                             if (ctx.mounted) Navigator.pop(ctx);
@@ -2457,7 +3192,9 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                               if (bookingId != null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('✓ Load Accepted! Assigned Booking: $bookingId'),
+                                    content: Text(
+                                      '✓ Load Accepted! Assigned Booking: $bookingId',
+                                    ),
                                     backgroundColor: AppColors.success,
                                   ),
                                 );
@@ -2465,7 +3202,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(vm.errorMessage ?? 'Could not accept load. Please try again.'),
+                                    content: Text(
+                                      vm.errorMessage ??
+                                          'Could not accept load. Please try again.',
+                                    ),
                                     backgroundColor: AppColors.danger,
                                   ),
                                 );
@@ -2473,8 +3213,21 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                             }
                           },
                     child: accepting
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.slateDark))
-                        : Text('Accept Load & Start Trip', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w900)),
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: AppColors.slateDark,
+                            ),
+                          )
+                        : Text(
+                            'Accept Load & Start Trip',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -2485,13 +3238,20 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  Widget _buildDetailSpecTile(String title, String val, IconData icon, bool isDark) {
+  Widget _buildDetailSpecTile(
+    String title,
+    String val,
+    IconData icon,
+    bool isDark,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
         children: [
@@ -2501,8 +3261,22 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.inter(fontSize: 9, color: const Color(0xFF94A3B8))),
-                Text(val, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                ),
+                Text(
+                  val,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -2513,7 +3287,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
 
   // --- MODALS FOR QUICK ACTIONS & INSIGHTS ---
 
-  void _showDriveYourSuccessModal(BuildContext context, PartnerTripsViewModel tripsVM, bool isDark, Color textPrimary, Color cardBg, Color cardBorder) {
+  void _showDriveYourSuccessModal(
+    BuildContext context,
+    PartnerTripsViewModel tripsVM,
+    bool isDark,
+    Color textPrimary,
+    Color cardBg,
+    Color cardBorder,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2531,27 +3312,63 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               child: Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Market Intelligence & Performance', style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: textPrimary)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                Text(
+                  'Market Intelligence & Performance',
+                  style: GoogleFonts.inter(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: textPrimary,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               'Real-time logistics supply-demand analytics across national corridors:',
-              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: const Color(0xFF94A3B8),
+              ),
             ),
             const SizedBox(height: 16),
-            _buildInsightCorridorRow('Delhi NCR ➔ Mumbai', '₹48,500', 'High Volume 🔥', const Color(0xFF10B981)),
-            _buildInsightCorridorRow('Mumbai ➔ Pune', '₹16,200', 'Fast Turnaround ⚡', const Color(0xFF38BDF8)),
-            _buildInsightCorridorRow('Bengaluru ➔ Chennai', '₹24,800', 'Daily Direct 📦', const Color(0xFFA855F7)),
-            _buildInsightCorridorRow('Delhi ➔ Jaipur', '₹18,500', 'Return Match 🔄', const Color(0xFFF59E0B)),
+            _buildInsightCorridorRow(
+              'Delhi NCR ➔ Mumbai',
+              '₹48,500',
+              'High Volume 🔥',
+              const Color(0xFF10B981),
+            ),
+            _buildInsightCorridorRow(
+              'Mumbai ➔ Pune',
+              '₹16,200',
+              'Fast Turnaround ⚡',
+              const Color(0xFF38BDF8),
+            ),
+            _buildInsightCorridorRow(
+              'Bengaluru ➔ Chennai',
+              '₹24,800',
+              'Daily Direct 📦',
+              const Color(0xFFA855F7),
+            ),
+            _buildInsightCorridorRow(
+              'Delhi ➔ Jaipur',
+              '₹18,500',
+              'Return Match 🔄',
+              const Color(0xFFF59E0B),
+            ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -2560,13 +3377,18 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.brandYellow,
                   foregroundColor: AppColors.slateDark,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: () {
                   Navigator.pop(ctx);
                   widget.onNavigateToTrips?.call();
                 },
-                child: Text('View Full Trips & Bids', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+                child: Text(
+                  'View Full Trips & Bids',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ],
@@ -2575,16 +3397,30 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  Widget _buildInsightCorridorRow(String corridor, String rate, String badge, Color badgeColor) {
+  Widget _buildInsightCorridorRow(
+    String corridor,
+    String rate,
+    String badge,
+    Color badgeColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(corridor, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
+          Text(
+            corridor,
+            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
           Row(
             children: [
-              Text(rate, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800)),
+              Text(
+                rate,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -2592,7 +3428,14 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                   color: badgeColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(badge, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: badgeColor)),
+                child: Text(
+                  badge,
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: badgeColor,
+                  ),
+                ),
               ),
             ],
           ),
@@ -2601,7 +3444,13 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  void _showLoadAlertsSheet(BuildContext context, bool isDark, Color cardBg, Color textPrimary, Color cardBorder) {
+  void _showLoadAlertsSheet(
+    BuildContext context,
+    bool isDark,
+    Color cardBg,
+    Color textPrimary,
+    Color cardBorder,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: cardBg,
@@ -2618,26 +3467,66 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               child: Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            Text('Instant Load Proximity Alerts', style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: textPrimary)),
+            Text(
+              'Instant Load Proximity Alerts',
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                color: textPrimary,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text('Configure radar notifications for high-paying loads near your truck:', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8))),
+            Text(
+              'Configure radar notifications for high-paying loads near your truck:',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
             const SizedBox(height: 16),
             SwitchListTile(
               value: true,
               activeColor: AppColors.brandYellow,
-              title: Text('Proximity Radar (Within 50 KM)', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
-              subtitle: Text('Audio chimes when loads are posted near your live GPS', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8))),
+              title: Text(
+                'Proximity Radar (Within 50 KM)',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              subtitle: Text(
+                'Audio chimes when loads are posted near your live GPS',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: const Color(0xFF94A3B8),
+                ),
+              ),
               onChanged: (v) {},
             ),
             SwitchListTile(
               value: true,
               activeColor: AppColors.brandYellow,
-              title: Text('Return Trip Corridor Alerts', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
-              subtitle: Text('Prioritize backhaul loads returning to your home depot', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8))),
+              title: Text(
+                'Return Trip Corridor Alerts',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              subtitle: Text(
+                'Prioritize backhaul loads returning to your home depot',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: const Color(0xFF94A3B8),
+                ),
+              ),
               onChanged: (v) {},
             ),
             const SizedBox(height: 16),
@@ -2645,11 +3534,16 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               width: double.infinity,
               height: 44,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandYellow, foregroundColor: AppColors.slateDark),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brandYellow,
+                  foregroundColor: AppColors.slateDark,
+                ),
                 onPressed: () {
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✓ Highway Radar Alert Preferences Saved!')),
+                    const SnackBar(
+                      content: Text('✓ Highway Radar Alert Preferences Saved!'),
+                    ),
                   );
                 },
                 child: const Text('Save Preferences'),
@@ -2661,23 +3555,50 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     );
   }
 
-  void _showSavedRoutesSheet(BuildContext context, bool isDark, Color cardBg, Color textPrimary, Color cardBorder) {
+  void _showSavedRoutesSheet(
+    BuildContext context,
+    bool isDark,
+    Color cardBg,
+    Color textPrimary,
+    Color cardBorder,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: cardBg,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)))),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
-            Text('Saved Commercial Corridors', style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: textPrimary)),
+            Text(
+              'Saved Commercial Corridors',
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                color: textPrimary,
+              ),
+            ),
             const SizedBox(height: 12),
             ListTile(
-              leading: const Icon(Icons.route, color: AppColors.brandYellowDark),
+              leading: const Icon(
+                Icons.route,
+                color: AppColors.brandYellowDark,
+              ),
               title: const Text('Delhi NCR ⇄ Mumbai'),
               subtitle: const Text('NH-48 Corridor • 1,420 KM'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
@@ -2687,7 +3608,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.route, color: AppColors.brandYellowDark),
+              leading: const Icon(
+                Icons.route,
+                color: AppColors.brandYellowDark,
+              ),
               title: const Text('Mumbai ⇄ Pune Expressway'),
               subtitle: const Text('Express Highway • 150 KM'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
@@ -2697,7 +3621,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.route, color: AppColors.brandYellowDark),
+              leading: const Icon(
+                Icons.route,
+                color: AppColors.brandYellowDark,
+              ),
               title: const Text('Bengaluru ⇄ Chennai'),
               subtitle: const Text('NH-48 Industrial Belt • 350 KM'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
@@ -2719,9 +3646,15 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         title: Row(
           children: [
-            const Icon(Icons.local_gas_station, color: AppColors.brandYellowDark),
+            const Icon(
+              Icons.local_gas_station,
+              color: AppColors.brandYellowDark,
+            ),
             const SizedBox(width: 8),
-            Text('Live State Diesel Rates', style: GoogleFonts.inter(fontWeight: FontWeight.w900)),
+            Text(
+              'Live State Diesel Rates',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+            ),
           ],
         ),
         content: Text(
@@ -2729,13 +3662,22 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           style: GoogleFonts.inter(fontSize: 13, height: 1.5),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyLoadsState(bool isDark, Color cardBg, Color cardBorder, Color textPrimary, Color textSecondary) {
+  Widget _buildEmptyLoadsState(
+    bool isDark,
+    Color cardBg,
+    Color cardBorder,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -2745,11 +3687,19 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.search_off_outlined, size: 48, color: AppColors.brandYellowDark),
+          const Icon(
+            Icons.search_off_outlined,
+            size: 48,
+            color: AppColors.brandYellowDark,
+          ),
           const SizedBox(height: 12),
           Text(
             'No matching loads found',
-            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: textPrimary),
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: textPrimary,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -2759,7 +3709,10 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandYellow, foregroundColor: AppColors.slateDark),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandYellow,
+              foregroundColor: AppColors.slateDark,
+            ),
             onPressed: () {
               setState(() {
                 _selectedCategory = 'All Loads';

@@ -80,7 +80,11 @@ class SupabaseService {
     final uid = currentUser?.id;
     if (uid == null) return;
     try {
-      final res = await client.from('profiles').select('role').eq('id', uid).maybeSingle();
+      final res = await client
+          .from('profiles')
+          .select('role')
+          .eq('id', uid)
+          .maybeSingle();
       if (res != null && res['role'] != 'sme') {
         await client.from('profiles').update({'role': 'sme'}).eq('id', uid);
       }
@@ -119,14 +123,30 @@ class SupabaseService {
       final prefs = await SharedPreferences.getInstance();
       final pPrefix = 'customer_profile_${uid}_';
 
-      final cachedFullName = prefs.getString('${pPrefix}full_name') ?? prefs.getString('customer_saved_name');
-      final cachedCompany = prefs.getString('${pPrefix}company_name') ?? prefs.getString('customer_saved_company');
-      final cachedPhone = prefs.getString('${pPrefix}phone') ?? prefs.getString('customer_saved_phone');
-      final cachedGstin = prefs.getString('${pPrefix}gstin') ?? prefs.getString('customer_saved_gstin');
-      final cachedPan = prefs.getString('${pPrefix}pan_number') ?? prefs.getString('customer_saved_pan');
-      final cachedAddress = prefs.getString('${pPrefix}business_address') ?? prefs.getString('customer_saved_address');
-      final cachedAvatar = prefs.getString('${pPrefix}avatar_url') ?? prefs.getString('customer_saved_avatar');
-      final cachedOnboarded = prefs.getBool('${pPrefix}onboarding_complete') ?? prefs.getBool('customer_saved_onboarded');
+      final cachedFullName =
+          prefs.getString('${pPrefix}full_name') ??
+          prefs.getString('customer_saved_name');
+      final cachedCompany =
+          prefs.getString('${pPrefix}company_name') ??
+          prefs.getString('customer_saved_company');
+      final cachedPhone =
+          prefs.getString('${pPrefix}phone') ??
+          prefs.getString('customer_saved_phone');
+      final cachedGstin =
+          prefs.getString('${pPrefix}gstin') ??
+          prefs.getString('customer_saved_gstin');
+      final cachedPan =
+          prefs.getString('${pPrefix}pan_number') ??
+          prefs.getString('customer_saved_pan');
+      final cachedAddress =
+          prefs.getString('${pPrefix}business_address') ??
+          prefs.getString('customer_saved_address');
+      final cachedAvatar =
+          prefs.getString('${pPrefix}avatar_url') ??
+          prefs.getString('customer_saved_avatar');
+      final cachedOnboarded =
+          prefs.getBool('${pPrefix}onboarding_complete') ??
+          prefs.getBool('customer_saved_onboarded');
 
       if (profileData.isEmpty) {
         if (cachedCompany != null || cachedFullName != null) {
@@ -138,25 +158,39 @@ class SupabaseService {
         }
       }
 
-      if ((profileData['full_name'] == null || profileData['full_name'].toString().isEmpty) && cachedFullName != null) {
+      if ((profileData['full_name'] == null ||
+              profileData['full_name'].toString().isEmpty) &&
+          cachedFullName != null) {
         profileData['full_name'] = cachedFullName;
       }
-      if ((profileData['company_name'] == null || profileData['company_name'].toString().isEmpty) && cachedCompany != null) {
+      if ((profileData['company_name'] == null ||
+              profileData['company_name'].toString().isEmpty) &&
+          cachedCompany != null) {
         profileData['company_name'] = cachedCompany;
       }
-      if ((profileData['phone'] == null || profileData['phone'].toString().isEmpty) && cachedPhone != null) {
+      if ((profileData['phone'] == null ||
+              profileData['phone'].toString().isEmpty) &&
+          cachedPhone != null) {
         profileData['phone'] = cachedPhone;
       }
-      if ((profileData['gstin'] == null || profileData['gstin'].toString().isEmpty) && cachedGstin != null) {
+      if ((profileData['gstin'] == null ||
+              profileData['gstin'].toString().isEmpty) &&
+          cachedGstin != null) {
         profileData['gstin'] = cachedGstin;
       }
-      if ((profileData['pan_number'] == null || profileData['pan_number'].toString().isEmpty) && cachedPan != null) {
+      if ((profileData['pan_number'] == null ||
+              profileData['pan_number'].toString().isEmpty) &&
+          cachedPan != null) {
         profileData['pan_number'] = cachedPan;
       }
-      if ((profileData['business_address'] == null || profileData['business_address'].toString().isEmpty) && cachedAddress != null) {
+      if ((profileData['business_address'] == null ||
+              profileData['business_address'].toString().isEmpty) &&
+          cachedAddress != null) {
         profileData['business_address'] = cachedAddress;
       }
-      if ((profileData['avatar_url'] == null || profileData['avatar_url'].toString().isEmpty) && cachedAvatar != null) {
+      if ((profileData['avatar_url'] == null ||
+              profileData['avatar_url'].toString().isEmpty) &&
+          cachedAvatar != null) {
         profileData['avatar_url'] = cachedAvatar;
       }
     } catch (_) {}
@@ -198,14 +232,26 @@ class SupabaseService {
       }
       if (gstin != null && gstin.trim().isNotEmpty) {
         await prefs.setString('${pPrefix}gstin', gstin.trim().toUpperCase());
-        await prefs.setString('customer_saved_gstin', gstin.trim().toUpperCase());
+        await prefs.setString(
+          'customer_saved_gstin',
+          gstin.trim().toUpperCase(),
+        );
       }
       if (panNumber != null && panNumber.trim().isNotEmpty) {
-        await prefs.setString('${pPrefix}pan_number', panNumber.trim().toUpperCase());
-        await prefs.setString('customer_saved_pan', panNumber.trim().toUpperCase());
+        await prefs.setString(
+          '${pPrefix}pan_number',
+          panNumber.trim().toUpperCase(),
+        );
+        await prefs.setString(
+          'customer_saved_pan',
+          panNumber.trim().toUpperCase(),
+        );
       }
       if (businessAddress != null && businessAddress.trim().isNotEmpty) {
-        await prefs.setString('${pPrefix}business_address', businessAddress.trim());
+        await prefs.setString(
+          '${pPrefix}business_address',
+          businessAddress.trim(),
+        );
         await prefs.setString('customer_saved_address', businessAddress.trim());
       }
       if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
@@ -268,6 +314,8 @@ class SupabaseService {
     String? pickupDate,
     String urgency = 'normal',
     String? pickupAddress,
+    double? pickupLat,
+    double? pickupLng,
     String? dropAddress,
     String? gstin,
   }) async {
@@ -279,10 +327,13 @@ class SupabaseService {
       }
     } catch (_) {}
 
-    final pickup = pickupAt ??
-        DateTime.now().add(urgency == 'instant'
-            ? const Duration(hours: 1)
-            : const Duration(days: 1));
+    final pickup =
+        pickupAt ??
+        DateTime.now().add(
+          urgency == 'instant'
+              ? const Duration(hours: 1)
+              : const Duration(days: 1),
+        );
     final dist = distanceKm ?? 500.0;
 
     final body = <String, dynamic>{
@@ -296,6 +347,10 @@ class SupabaseService {
       if (pickupDate != null) 'pickup_date': pickupDate,
       if (pickupAddress != null && pickupAddress.isNotEmpty)
         'pickup_address': pickupAddress,
+      if (pickupLat != null && pickupLng != null) ...{
+        'pickup_lat': pickupLat,
+        'pickup_lng': pickupLng,
+      },
       if (dropAddress != null && dropAddress.isNotEmpty)
         'drop_address': dropAddress,
       if (gstin != null && gstin.isNotEmpty) 'gstin': gstin,
@@ -307,7 +362,8 @@ class SupabaseService {
       result = CargoRequest.fromJson(Map<String, dynamic>.from(res));
     } catch (e) {
       // Fallback 1: Direct Supabase insert via authenticated client session
-      final generatedId = 'CR-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+      final generatedId =
+          'CR-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
       try {
         final row = {
           'cargo_id': generatedId,
@@ -318,6 +374,8 @@ class SupabaseService {
           'cargo_type': cargoType,
           'cargo_weight_tons': weightTons,
           'pickup_at': pickup.toUtc().toIso8601String(),
+          if (pickupLat != null && pickupLng != null) 'pickup_lat': pickupLat,
+          if (pickupLat != null && pickupLng != null) 'pickup_lng': pickupLng,
           'urgency': urgency,
           'status': 'open',
         };
@@ -338,6 +396,8 @@ class SupabaseService {
         pickupAt: pickup.toUtc().toIso8601String(),
         createdAt: DateTime.now().toUtc().toIso8601String(),
         pickupAddress: pickupAddress,
+        pickupLat: pickupLat,
+        pickupLng: pickupLng,
         dropAddress: dropAddress,
         gstin: gstin,
       );
@@ -349,8 +409,15 @@ class SupabaseService {
       final uid = client.auth.currentUser?.id;
       final rawList = prefs.getStringList('customer_posted_cargo_$uid') ?? [];
       rawList.insert(0, jsonEncode(result.toJson()));
-      if (uid != null) await prefs.setStringList('customer_posted_cargo_$uid', rawList.take(25).toList());
-      await prefs.setStringList('customer_posted_cargo_latest', rawList.take(25).toList());
+      if (uid != null)
+        await prefs.setStringList(
+          'customer_posted_cargo_$uid',
+          rawList.take(25).toList(),
+        );
+      await prefs.setStringList(
+        'customer_posted_cargo_latest',
+        rawList.take(25).toList(),
+      );
     } catch (_) {}
 
     return result;
@@ -372,7 +439,8 @@ class SupabaseService {
       if (recs.isNotEmpty) {
         return recs.map((raw) {
           final r = Map<String, dynamic>.from(raw);
-          final backendPrice = (r['estimated_price_inr'] as num?)?.toDouble() ?? 0;
+          final backendPrice =
+              (r['estimated_price_inr'] as num?)?.toDouble() ?? 0;
           final km = (r['distance_km'] as num?)?.toDouble() ?? 0;
           final tons = (r['capacity_available_tons'] as num?)?.toDouble() ?? 0;
           final base = km > 0 ? km * weightTons * 1.55 : backendPrice * 1.45;
@@ -420,7 +488,8 @@ class SupabaseService {
     required String cargoType,
     required double weightTons,
   }) async {
-    String bookingId = 'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+    String bookingId =
+        'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     String status = 'matched';
     try {
       final res = await ApiService.post('/bookings', {
@@ -509,7 +578,9 @@ class SupabaseService {
       if (uid != null && uid.isNotEmpty) {
         query = query.eq('sme_id', uid);
       }
-      final cargoRows = await query.order('created_at', ascending: false).limit(30);
+      final cargoRows = await query
+          .order('created_at', ascending: false)
+          .limit(30);
       if (cargoRows.isNotEmpty) {
         for (final r in (cargoRows as List)) {
           final cargo = CargoRequest.fromJson(Map<String, dynamic>.from(r));
@@ -563,7 +634,9 @@ class SupabaseService {
     try {
       if (result.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
-        final cacheKey = uid != null ? 'customer_shipments_$uid' : 'customer_shipments_cached';
+        final cacheKey = uid != null
+            ? 'customer_shipments_$uid'
+            : 'customer_shipments_cached';
         await prefs.setStringList(
           cacheKey,
           result.take(30).map((e) => jsonEncode(e.toJson())).toList(),
@@ -575,7 +648,9 @@ class SupabaseService {
     if (result.isEmpty) {
       try {
         final prefs = await SharedPreferences.getInstance();
-        final cacheKey = uid != null ? 'customer_shipments_$uid' : 'customer_shipments_cached';
+        final cacheKey = uid != null
+            ? 'customer_shipments_$uid'
+            : 'customer_shipments_cached';
         final cached = prefs.getStringList(cacheKey) ?? [];
         for (final raw in cached) {
           try {
@@ -615,7 +690,9 @@ class SupabaseService {
     try {
       final data = await client
           .from('bookings')
-          .select('*, cargo:cargo_requests(*), truck:trucks(*, owner:profiles(*))')
+          .select(
+            '*, cargo:cargo_requests(*), truck:trucks(*, owner:profiles(*))',
+          )
           .or('id.eq.$q,cargo_id.eq.$q')
           .maybeSingle();
       if (data != null) {
@@ -638,7 +715,6 @@ class SupabaseService {
 
     return null;
   }
-
 
   static Future<List<Map<String, dynamic>>> getTrackingHistory(
     String bookingId,

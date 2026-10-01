@@ -39,7 +39,11 @@ class PartnerTripsViewModel extends ChangeNotifier {
       const [];
   List<AvailableLoad> get recommendedLoads =>
       (_nearbyRecommendations?['top_loads'] as List?)
-          ?.map((e) => AvailableLoad.fromMatchJson(Map<String, dynamic>.from(e as Map)))
+          ?.map(
+            (e) => AvailableLoad.fromMatchJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList() ??
       const [];
 
@@ -69,7 +73,8 @@ class PartnerTripsViewModel extends ChangeNotifier {
     try {
       final hasPermission = await Geolocator.checkPermission();
       Position? pos;
-      if (hasPermission == LocationPermission.always || hasPermission == LocationPermission.whileInUse) {
+      if (hasPermission == LocationPermission.always ||
+          hasPermission == LocationPermission.whileInUse) {
         try {
           pos = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.medium,
@@ -79,7 +84,13 @@ class PartnerTripsViewModel extends ChangeNotifier {
       if (pos != null) {
         // Persist so it's available even between app sessions / for other
         // backend consumers, then ask for recommendations scored from it.
-        unawaited(SupabaseService.updateTruckLocation(truckId, pos.latitude, pos.longitude));
+        unawaited(
+          SupabaseService.updateTruckLocation(
+            truckId,
+            pos.latitude,
+            pos.longitude,
+          ),
+        );
       }
       _nearbyRecommendations = await SupabaseService.getNearbyRecommendations(
         truckId,
@@ -103,6 +114,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
   String? _errorMessage;
   RealtimeChannel? _cargoCh;
   RealtimeChannel? _bookingsCh;
+  RealtimeChannel? _dispatchOffersCh;
   StreamSubscription<Position>? _gps;
   String? _gpsBookingId;
 
@@ -158,20 +170,22 @@ class PartnerTripsViewModel extends ChangeNotifier {
   double get availableCapacityTons =>
       (totalCapacityTons - bookedCapacityTons).clamp(0.0, totalCapacityTons);
 
-  double get capacityUtilizationPct =>
-      totalCapacityTons > 0
-          ? ((bookedCapacityTons / totalCapacityTons) * 100).clamp(0.0, 100.0)
-          : 59.0;
+  double get capacityUtilizationPct => totalCapacityTons > 0
+      ? ((bookedCapacityTons / totalCapacityTons) * 100).clamp(0.0, 100.0)
+      : 59.0;
 
   double get potentialExtraEarningsInr {
     final avail = availableCapacityTons > 0 ? availableCapacityTons : 6.5;
-    final fitting = _availableLoads.where((l) => l.weightTons <= avail).toList();
+    final fitting = _availableLoads
+        .where((l) => l.weightTons <= avail)
+        .toList();
     if (fitting.isNotEmpty) {
       final topFits = fitting.take(2).toList();
       return topFits.fold<double>(0.0, (acc, l) => acc + l.offeredPriceInr);
     }
     return (avail * 1290).roundToDouble();
   }
+
   String get categoryFilter => _categoryFilter;
   String get tonnageFilter => _tonnageFilter;
   AvailableLoad? get instantAlertLoad => _instantAlertLoad;
@@ -183,13 +197,28 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   static String _normCity(String raw) {
     var s = raw.toLowerCase().trim();
-    s = s.replaceAll(RegExp(r'\b(hub|junction|station|terminal|city|ncr|depot|wharf|port)\b', caseSensitive: false), ' ');
+    s = s.replaceAll(
+      RegExp(
+        r'\b(hub|junction|station|terminal|city|ncr|depot|wharf|port)\b',
+        caseSensitive: false,
+      ),
+      ' ',
+    );
     s = s.replaceAll(RegExp(r'[^\w\s]'), ' ');
     s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (s.contains('delhi') || s.contains('new delhi') || s.contains('gurugram') || s.contains('noida')) return 'delhi';
-    if (s.contains('mumbai') || s.contains('bombay') || s.contains('navi mumbai') || s.contains('thane')) return 'mumbai';
+    if (s.contains('delhi') ||
+        s.contains('new delhi') ||
+        s.contains('gurugram') ||
+        s.contains('noida'))
+      return 'delhi';
+    if (s.contains('mumbai') ||
+        s.contains('bombay') ||
+        s.contains('navi mumbai') ||
+        s.contains('thane'))
+      return 'mumbai';
     if (s.contains('bengaluru') || s.contains('bangalore')) return 'bengaluru';
-    if (s.contains('hyderabad') || s.contains('secunderabad')) return 'hyderabad';
+    if (s.contains('hyderabad') || s.contains('secunderabad'))
+      return 'hyderabad';
     if (s.contains('kolkata') || s.contains('calcutta')) return 'kolkata';
     if (s.contains('chennai') || s.contains('madras')) return 'chennai';
     if (s.contains('pune')) return 'pune';
@@ -221,19 +250,23 @@ class PartnerTripsViewModel extends ChangeNotifier {
             driverFrom: _searchFrom,
             driverTo: _searchTo,
             load: l,
-            truckCapacityTons: _myTrucks.isNotEmpty ? _myTrucks.first.defaultCapacityTons : 16.0,
+            truckCapacityTons: _myTrucks.isNotEmpty
+                ? _myTrucks.first.defaultCapacityTons
+                : 16.0,
           );
           if (match.isMatch) {
             _matchResults[l.cargoId] = match;
             return true;
           }
           // Direct fallback check
-          final forward = (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) &&
-                          (lDest.contains(nTo) || nTo.contains(lDest));
+          final forward =
+              (lOrigin.contains(nFrom) || nFrom.contains(lOrigin)) &&
+              (lDest.contains(nTo) || nTo.contains(lDest));
           if (forward) return true;
 
-          final returnLoad = (lOrigin.contains(nTo) || nTo.contains(lOrigin)) &&
-                             (lDest.contains(nFrom) || nFrom.contains(lDest));
+          final returnLoad =
+              (lOrigin.contains(nTo) || nTo.contains(lOrigin)) &&
+              (lDest.contains(nFrom) || nFrom.contains(lDest));
           if (returnLoad) return true;
 
           return false;
@@ -260,12 +293,12 @@ class PartnerTripsViewModel extends ChangeNotifier {
         final lOrigin = _normCity(l.origin);
         final lDest = _normCity(l.destination);
         return lOrigin.contains(nq) ||
-               nq.contains(lOrigin) ||
-               lDest.contains(nq) ||
-               nq.contains(lDest) ||
-               l.origin.toLowerCase().contains(q) ||
-               l.destination.toLowerCase().contains(q) ||
-               l.cargoType.toLowerCase().contains(q);
+            nq.contains(lOrigin) ||
+            lDest.contains(nq) ||
+            nq.contains(lDest) ||
+            l.origin.toLowerCase().contains(q) ||
+            l.destination.toLowerCase().contains(q) ||
+            l.cargoType.toLowerCase().contains(q);
       }).toList();
     } else if (_myCorridorOnly && _myTrucks.isNotEmpty) {
       final truck = _myTrucks.first;
@@ -282,7 +315,9 @@ class PartnerTripsViewModel extends ChangeNotifier {
     if (_tonnageFilter == 'mini') {
       list = list.where((l) => l.weightTons < 3.0).toList();
     } else if (_tonnageFilter == 'medium') {
-      list = list.where((l) => l.weightTons >= 3.0 && l.weightTons <= 10.0).toList();
+      list = list
+          .where((l) => l.weightTons >= 3.0 && l.weightTons <= 10.0)
+          .toList();
     } else if (_tonnageFilter == 'heavy') {
       list = list.where((l) => l.weightTons > 10.0).toList();
     }
@@ -290,8 +325,12 @@ class PartnerTripsViewModel extends ChangeNotifier {
     // Rank matching loads by composite ML match score so optimal corridor waypoints appear first
     if (_searchFrom.isNotEmpty && _searchTo.isNotEmpty) {
       list.sort((a, b) {
-        final scoreA = _matchResults[a.cargoId]?.matchScore ?? (a.hasRealMatchScore ? a.matchScore : 50);
-        final scoreB = _matchResults[b.cargoId]?.matchScore ?? (b.hasRealMatchScore ? b.matchScore : 50);
+        final scoreA =
+            _matchResults[a.cargoId]?.matchScore ??
+            (a.hasRealMatchScore ? a.matchScore : 50);
+        final scoreB =
+            _matchResults[b.cargoId]?.matchScore ??
+            (b.hasRealMatchScore ? b.matchScore : 50);
         return scoreB.compareTo(scoreA);
       });
     }
@@ -374,6 +413,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
   void clearSearchFilter() => clearFilters();
 
   void triggerInstantAlert(AvailableLoad load) {
+    if (load.dispatchOfferId == null) return;
     _instantCountdownTimer?.cancel();
     _instantAlertLoad = load;
     _instantSecondsLeft = 45;
@@ -403,7 +443,9 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   void _showBackgroundDispatchNotification(AvailableLoad load) {
     if (!_backgroundNotifiedCargoIds.add(load.cargoId)) return;
-    unawaited(DispatchNotificationService.showInstantLoad(load).catchError((_) {}));
+    unawaited(
+      DispatchNotificationService.showInstantLoad(load).catchError((_) {}),
+    );
   }
 
   void setAppInBackground(bool value) {
@@ -413,10 +455,14 @@ class PartnerTripsViewModel extends ChangeNotifier {
     }
   }
 
-  void dismissInstantAlert() {
+  void dismissInstantAlert({bool skipOffer = true}) {
     _instantCountdownTimer?.cancel();
     if (_instantAlertLoad != null) {
       _declinedInstantIds.add(_instantAlertLoad!.cargoId);
+      final offerId = _instantAlertLoad!.dispatchOfferId;
+      if (skipOffer && offerId != null) {
+        unawaited(SupabaseService.skipDispatchOffer(offerId).catchError((_) {}));
+      }
     }
     _instantAlertLoad = null;
     notifyListeners();
@@ -424,15 +470,34 @@ class PartnerTripsViewModel extends ChangeNotifier {
 
   void declineInstantLoad() => dismissInstantAlert();
 
-  void _checkForInstantAlerts() {
-    if (_instantAlertLoad != null) return;
-    for (final load in _availableLoads) {
-      if (load.isInstant && !_declinedInstantIds.contains(load.cargoId)) {
-        triggerInstantAlert(load);
-        break;
+  void _ensureDispatchOfferSubscription() {
+    final driverId = SupabaseService.currentUser?.id;
+    if (driverId == null || _dispatchOffersCh != null) return;
+    _dispatchOffersCh = SupabaseService.subscribeDispatchOffers(
+      driverId,
+      () => _refreshDispatchOffers(),
+    );
+  }
+
+  Future<void> _refreshDispatchOffers() async {
+    try {
+      final offers = await SupabaseService.getDispatchOffers();
+      final currentOfferId = _instantAlertLoad?.dispatchOfferId;
+      if (currentOfferId != null &&
+          !offers.any((load) => load.dispatchOfferId == currentOfferId)) {
+        dismissInstantAlert(skipOffer: false);
       }
+      if (_instantAlertLoad != null) return;
+      final next = offers.where((load) =>
+        load.dispatchOfferId != null && !_declinedInstantIds.contains(load.cargoId)
+      ).firstOrNull;
+      if (next != null) triggerInstantAlert(next);
+    } catch (_) {
+      // Realtime or backend may be briefly unavailable; next event/reload retries.
     }
   }
+
+  Future<void> refreshDispatchOffers() => _refreshDispatchOffers();
 
   @override
   void dispose() {
@@ -441,6 +506,7 @@ class PartnerTripsViewModel extends ChangeNotifier {
     _gps?.cancel();
     if (_cargoCh != null) SupabaseService.removeChannel(_cargoCh!);
     if (_bookingsCh != null) SupabaseService.removeChannel(_bookingsCh!);
+    if (_dispatchOffersCh != null) SupabaseService.removeChannel(_dispatchOffersCh!);
     super.dispose();
   }
 
@@ -449,12 +515,13 @@ class PartnerTripsViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       _myTrucks = await SupabaseService.getMyTrucks();
+      _ensureDispatchOfferSubscription();
       startLocationAwareRecommendations();
       _availableLoads = await SupabaseService.getAvailableLoads();
       _activeTrips = await SupabaseService.getActiveTrips();
       _tripBaselineEstablished = true;
       _errorMessage = null;
-      _checkForInstantAlerts();
+      await _refreshDispatchOffers();
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     }
@@ -465,9 +532,33 @@ class PartnerTripsViewModel extends ChangeNotifier {
   Future<void> _refreshLoads() async {
     try {
       _availableLoads = await SupabaseService.getAvailableLoads();
-      _checkForInstantAlerts();
       notifyListeners();
     } catch (_) {}
+  }
+
+  Future<String?> handleDispatchNotificationAction(String offerId, String action) async {
+    try {
+      final offers = await SupabaseService.getDispatchOffers();
+      final load = offers.where((candidate) => candidate.dispatchOfferId == offerId).firstOrNull;
+      if (load == null) return 'This load offer has expired or was already accepted.';
+      if (action == 'dispatch_skip') {
+        await SupabaseService.skipDispatchOffer(offerId);
+        _declinedInstantIds.add(load.cargoId);
+        if (_instantAlertLoad?.dispatchOfferId == offerId) dismissInstantAlert(skipOffer: false);
+        await _refreshDispatchOffers();
+        return null;
+      }
+      if (action == 'dispatch_accept') {
+        final error = await acceptLoad(load);
+        if (error != null) return error;
+        dismissInstantAlert(skipOffer: false);
+        return null;
+      }
+      if (_instantAlertLoad == null) triggerInstantAlert(load);
+      return null;
+    } catch (error) {
+      return error.toString().replaceAll('Exception: ', '');
+    }
   }
 
   Future<void> _refreshTrips() async {
@@ -477,21 +568,24 @@ class PartnerTripsViewModel extends ChangeNotifier {
         final previousIds = _activeTrips.map((trip) => trip.bookingId).toSet();
         for (final trip in trips) {
           if (!previousIds.contains(trip.bookingId) &&
-              trip.status == 'pending' && trip.isInstant) {
-            triggerInstantAlert(AvailableLoad(
-              cargoId: trip.cargoId,
-              bookingId: trip.bookingId,
-              smeName: trip.shipperName,
-              origin: trip.origin,
-              destination: trip.destination,
-              cargoType: trip.cargoType,
-              weightTons: trip.weightTons,
-              offeredPriceInr: trip.payoutInr,
-              distanceKm: 0,
-              pickupWindow: 'Immediate pickup',
-              urgency: 'instant',
-              isInstant: true,
-            ));
+              trip.status == 'pending' &&
+              trip.isInstant) {
+            triggerInstantAlert(
+              AvailableLoad(
+                cargoId: trip.cargoId,
+                bookingId: trip.bookingId,
+                smeName: trip.shipperName,
+                origin: trip.origin,
+                destination: trip.destination,
+                cargoType: trip.cargoType,
+                weightTons: trip.weightTons,
+                offeredPriceInr: trip.payoutInr,
+                distanceKm: 0,
+                pickupWindow: 'Immediate pickup',
+                urgency: 'instant',
+                isInstant: true,
+              ),
+            );
             break;
           }
         }
@@ -512,6 +606,18 @@ class PartnerTripsViewModel extends ChangeNotifier {
     }
     if (_myTrucks.isEmpty) {
       return 'Register your truck first (Profile → complete onboarding).';
+    }
+    if (load.dispatchOfferId != null) {
+      try {
+        await SupabaseService.acceptDispatchOffer(load.dispatchOfferId!);
+        _declinedInstantIds.add(load.cargoId);
+        dismissInstantAlert(skipOffer: false);
+        await _refreshTrips();
+        await _refreshDispatchOffers();
+        return null;
+      } catch (e) {
+        return e.toString().replaceAll('Exception: ', '');
+      }
     }
     if (load.bookingId != null) {
       try {

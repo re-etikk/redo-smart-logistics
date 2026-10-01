@@ -60,12 +60,21 @@ class BookingViewModel extends ChangeNotifier {
   String _pickupAddress = '';
   String _dropAddress = '';
   String _gstin = '';
+  bool _pickupCoordinatesVerified = false;
 
   PlaceSuggestion get originPlace => _originPlace;
   PlaceSuggestion get destPlace => _destPlace;
   String get origin => _originPlace.name;
   String get destination => _destPlace.name;
   LatLng get originLatLng => _originPlace.latLng;
+  bool get hasVerifiedPickupCoordinates => _pickupCoordinatesVerified;
+
+  bool get _hasUsablePickupCoordinates =>
+      _pickupCoordinatesVerified &&
+      _originPlace.latLng.latitude >= -90 &&
+      _originPlace.latLng.latitude <= 90 &&
+      _originPlace.latLng.longitude >= -180 &&
+      _originPlace.latLng.longitude <= 180;
   LatLng get destinationLatLng => _destPlace.latLng;
 
   String get cargoType => _cargoType;
@@ -77,8 +86,10 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  double get volumetricWeightTons => _volumeCft > 0 ? (_volumeCft / 120.0) : 0.0;
-  double get billableWeightTons => volumetricWeightTons > _weightTons ? volumetricWeightTons : _weightTons;
+  double get volumetricWeightTons =>
+      _volumeCft > 0 ? (_volumeCft / 120.0) : 0.0;
+  double get billableWeightTons =>
+      volumetricWeightTons > _weightTons ? volumetricWeightTons : _weightTons;
 
   double get estimatedFareInr {
     final dist = roadDistanceKm > 0 ? roadDistanceKm : 350.0;
@@ -93,8 +104,13 @@ class BookingViewModel extends ChangeNotifier {
 
   int get savingsPct {
     if (dedicatedTruckBenchmarkInr <= estimatedFareInr) return 42;
-    return (((dedicatedTruckBenchmarkInr - estimatedFareInr) / dedicatedTruckBenchmarkInr) * 100).round().clamp(15, 80);
+    return (((dedicatedTruckBenchmarkInr - estimatedFareInr) /
+                dedicatedTruckBenchmarkInr) *
+            100)
+        .round()
+        .clamp(15, 80);
   }
+
   bool get isLoading => _isLoading;
   bool get isRouting => _isRouting;
   RouteInfo? get currentRoute => _currentRoute;
@@ -103,7 +119,8 @@ class BookingViewModel extends ChangeNotifier {
   double get roadDistanceKm => _currentRoute?.distanceKm ?? 0;
   String get roadDistanceText =>
       _currentRoute?.distanceText ?? '${roadDistanceKm.round()} km';
-  String get roadDurationText => _currentRoute?.durationText ?? 'Route not calculated';
+  String get roadDurationText =>
+      _currentRoute?.durationText ?? 'Route not calculated';
 
   List<TruckMatch> get matches => _matches;
   CargoRequest? get lastPostedCargo => _lastPostedCargo;
@@ -176,6 +193,7 @@ class BookingViewModel extends ChangeNotifier {
 
   void setOriginPlace(PlaceSuggestion place) {
     _originPlace = place;
+    _pickupCoordinatesVerified = true;
     _lastPostedCargo = null;
     _matches = [];
     notifyListeners();
@@ -191,6 +209,7 @@ class BookingViewModel extends ChangeNotifier {
   }
 
   void setOrigin(String cityName) {
+    _pickupCoordinatesVerified = false;
     _originPlace = PlaceSuggestion(
       name: cityName,
       description: '$cityName Hub',
@@ -230,6 +249,7 @@ class BookingViewModel extends ChangeNotifier {
     final place = await RoutingService.getCurrentLocation();
     if (place != null) {
       _originPlace = place;
+      _pickupCoordinatesVerified = true;
       _isRouting = false;
       notifyListeners();
       await fetchRoute();
@@ -265,6 +285,12 @@ class BookingViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (!_hasUsablePickupCoordinates) {
+      _errorMessage =
+          'Select a pickup point from the map or use your current location to notify nearby drivers.';
+      notifyListeners();
+      return false;
+    }
 
     _isLoading = true;
     _errorMessage = null;
@@ -274,7 +300,8 @@ class BookingViewModel extends ChangeNotifier {
       final pickup = _isInstant
           ? DateTime.now().add(const Duration(hours: 1))
           : _scheduledDate;
-      final pDate = '${pickup.year}-${pickup.month.toString().padLeft(2, '0')}-${pickup.day.toString().padLeft(2, '0')}';
+      final pDate =
+          '${pickup.year}-${pickup.month.toString().padLeft(2, '0')}-${pickup.day.toString().padLeft(2, '0')}';
 
       _lastPostedCargo ??= await SupabaseService.postCargoRequest(
         origin: _originPlace.name,
@@ -286,6 +313,12 @@ class BookingViewModel extends ChangeNotifier {
         pickupDate: pDate,
         urgency: _isInstant ? 'instant' : 'scheduled',
         pickupAddress: _pickupAddress,
+        pickupLat: _pickupCoordinatesVerified
+            ? _originPlace.latLng.latitude
+            : null,
+        pickupLng: _pickupCoordinatesVerified
+            ? _originPlace.latLng.longitude
+            : null,
         dropAddress: _dropAddress,
         gstin: _gstin,
       );
@@ -325,6 +358,12 @@ class BookingViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (!_hasUsablePickupCoordinates) {
+      _errorMessage =
+          'Select a pickup point from the map or use your current location to notify nearby drivers.';
+      notifyListeners();
+      return false;
+    }
 
     _isLoading = true;
     _errorMessage = null;
@@ -334,7 +373,8 @@ class BookingViewModel extends ChangeNotifier {
       final pickup = _isInstant
           ? DateTime.now().add(const Duration(hours: 1))
           : _scheduledDate;
-      final pDate = '${pickup.year}-${pickup.month.toString().padLeft(2, '0')}-${pickup.day.toString().padLeft(2, '0')}';
+      final pDate =
+          '${pickup.year}-${pickup.month.toString().padLeft(2, '0')}-${pickup.day.toString().padLeft(2, '0')}';
 
       _lastPostedCargo = await SupabaseService.postCargoRequest(
         origin: _originPlace.name,
@@ -346,6 +386,12 @@ class BookingViewModel extends ChangeNotifier {
         pickupDate: pDate,
         urgency: _isInstant ? 'instant' : 'scheduled',
         pickupAddress: _pickupAddress,
+        pickupLat: _pickupCoordinatesVerified
+            ? _originPlace.latLng.latitude
+            : null,
+        pickupLng: _pickupCoordinatesVerified
+            ? _originPlace.latLng.longitude
+            : null,
         dropAddress: _dropAddress,
         gstin: _gstin,
       );
