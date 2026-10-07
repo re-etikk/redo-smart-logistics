@@ -3,6 +3,8 @@ import { apiError } from '../middleware/error.js';
 import { routeDistanceKm } from '../services/matching.js';
 import { computePriceQuote } from '../services/pricing.js';
 
+const r = Router();
+
 // GET /pricing/quote?origin=..&destination=..&weight_tons=..&cargo_type=..&distance_km=..&volume_cft=..&urgency=..
 r.get('/quote', async (req, res, next) => {
   try {

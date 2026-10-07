@@ -408,6 +408,8 @@ r.patch("/:id", async (req, res, next) => {
 
     throw apiError(404, "NOT_FOUND", "Cargo request not found.");
   } catch (e) { next(e); }
+});
+
 // GET /cargo/:id/dispatch: Check live dispatch state for this cargo
 r.get("/:id/dispatch", async (req, res, next) => {
   try {
