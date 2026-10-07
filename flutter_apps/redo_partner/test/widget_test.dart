@@ -8,6 +8,7 @@ import 'package:redo_partner/main.dart';
 import 'package:redo_partner/viewmodels/auth_viewmodel.dart';
 import 'package:redo_partner/viewmodels/partner_trips_viewmodel.dart';
 import 'package:redo_partner/viewmodels/theme_viewmodel.dart';
+import 'package:redo_partner/ui/widgets/redo_partner_components.dart';
 
 class MockAuthViewModel extends ChangeNotifier implements AuthViewModel {
   @override
@@ -110,7 +111,22 @@ class MockPartnerTripsViewModel extends ChangeNotifier implements PartnerTripsVi
   List<AvailableLoad> get recommendedLoads => const [];
 
   @override
-  List<AvailableLoad> get allAvailableLoads => const [];
+  bool get isOnline => true;
+
+  @override
+  double get todayEarningsInr => 4820.0;
+
+  @override
+  int get todayTripsCount => 4;
+
+  @override
+  double get todayDistanceKm => 286.0;
+
+  @override
+  double get driverRating => 4.9;
+
+  @override
+  ActiveTrip? get currentActiveTrip => null;
 
   @override
   Future<void> fetchAll() async {}
@@ -210,23 +226,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Verify bottom navigation items are present
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('My Trips'), findsOneWidget);
-    expect(find.text('Earnings'), findsOneWidget);
-    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Home'), findsWidgets);
+    expect(find.text('Trips'), findsWidgets);
+    expect(find.text('Earnings'), findsWidgets);
+    expect(find.text('Messages'), findsWidgets);
+    expect(find.text('Profile'), findsWidgets);
 
-    // Switch to My Trips tab
-    await tester.tap(find.text('My Trips'));
+    // Switch to Trips tab
+    await tester.tap(find.descendant(
+      of: find.byType(PartnerBottomNavigation),
+      matching: find.text('Trips'),
+    ));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     // Switch to Earnings tab
-    await tester.tap(find.text('Earnings'));
+    await tester.tap(find.descendant(
+      of: find.byType(PartnerBottomNavigation),
+      matching: find.text('Earnings'),
+    ));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     // Switch to Profile tab
-    await tester.tap(find.text('Profile'));
+    await tester.tap(find.descendant(
+      of: find.byType(PartnerBottomNavigation),
+      matching: find.text('Profile'),
+    ));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
   });

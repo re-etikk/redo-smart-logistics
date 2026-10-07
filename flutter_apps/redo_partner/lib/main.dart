@@ -18,12 +18,14 @@ import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/partner_trips_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
 import 'ui/screens/auth/login_screen.dart';
+import 'ui/screens/home/partner_home_screen.dart';
 import 'ui/screens/onboarding/partner_onboarding_stepper.dart';
 import 'ui/screens/home/available_loads_screen.dart';
 import 'ui/screens/trips/active_trip_execution_screen.dart';
 import 'ui/screens/earnings/earnings_screen.dart';
 import 'ui/screens/profile/profile_screen.dart';
-import 'ui/screens/ai/partner_ai_assistant_screen.dart';
+import 'ui/screens/chat/direct_chat_screen.dart';
+import 'ui/widgets/redo_partner_components.dart';
 import 'l10n/app_localizations.dart';
 import 'ui/widgets/voice_assistant_widget.dart';
 import 'ui/widgets/instant_load_dispatch_sheet.dart';
@@ -229,17 +231,38 @@ class _PartnerMainTabsState extends State<PartnerMainTabs>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final screens = [
-      AvailableLoadsScreen(
+      PartnerHomeScreen(
         onNavigateToTrips: () => setState(() => _currentIndex = 1),
+        onNavigateToEarnings: () => setState(() => _currentIndex = 2),
+        onNavigateToMessages: () => setState(() => _currentIndex = 3),
+        onNavigateToProfile: () => setState(() => _currentIndex = 4),
+        onOpenActiveTrip: (trip) => setState(() => _currentIndex = 1),
       ),
       ActiveTripsScreen(
-        onFindLoadsPressed: () => setState(() => _currentIndex = 0),
+        onFindLoadsPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AvailableLoadsScreen()),
+        ),
       ),
       const EarningsScreen(),
-      PartnerAiAssistantScreen(
-        onTabChangeRequested: (idx) => setState(() => _currentIndex = idx),
+      Consumer<PartnerTripsViewModel>(
+        builder: (context, vm, _) {
+          final activeTrip = vm.currentActiveTrip;
+          return DirectChatScreen(
+            bookingId: activeTrip?.bookingId ?? 'bk_chat_partner',
+            counterpartyName: activeTrip?.shipperName.isNotEmpty == true
+                ? activeTrip!.shipperName
+                : 'Ritik Kumar',
+            counterpartyRole: 'Customer',
+            counterpartyPhone: '+91 98765 43210',
+            truckReg: vm.myTrucks.isNotEmpty
+                ? vm.myTrucks.first.registrationNumber
+                : 'UP 32 AB 1234',
+            origin: activeTrip?.origin ?? 'Delhi, DL',
+            destination: activeTrip?.destination ?? 'Patna, BR',
+          );
+        },
       ),
       const ProfileScreen(),
     ];
@@ -254,72 +277,10 @@ class _PartnerMainTabsState extends State<PartnerMainTabs>
                 ? null
                 : const VoiceAssistantFab(),
             floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-            bottomNavigationBar: NavigationBar(
+            bottomNavigationBar: PartnerBottomNavigation(
               selectedIndex: _currentIndex,
-              onDestinationSelected: (idx) =>
-                  setState(() => _currentIndex = idx),
-              indicatorColor: AppColors.brandYellow,
-              destinations: [
-                NavigationDestination(
-                  icon: const Icon(Icons.home_outlined),
-                  selectedIcon: const Icon(
-                    Icons.home,
-                    color: AppColors.slateDark,
-                  ),
-                  label: l10n?.home ?? 'Home',
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.local_shipping_outlined),
-                  selectedIcon: const Icon(
-                    Icons.local_shipping,
-                    color: AppColors.slateDark,
-                  ),
-                  label: l10n?.myTrips ?? 'My Trips',
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.account_balance_wallet_outlined),
-                  selectedIcon: const Icon(
-                    Icons.account_balance_wallet,
-                    color: AppColors.slateDark,
-                  ),
-                  label: l10n?.earnings ?? 'Earnings',
-                ),
-                const NavigationDestination(
-                  icon: Badge(
-                    label: Text(
-                      'New',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    backgroundColor: Color(0xFFEF4444),
-                    child: Icon(Icons.auto_awesome_outlined),
-                  ),
-                  selectedIcon: Badge(
-                    label: Text(
-                      'New',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    backgroundColor: Color(0xFFEF4444),
-                    child: Icon(Icons.auto_awesome, color: AppColors.slateDark),
-                  ),
-                  label: 'Fleet AI',
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.person_outline),
-                  selectedIcon: const Icon(
-                    Icons.person,
-                    color: AppColors.slateDark,
-                  ),
-                  label: l10n?.profile ?? 'Profile',
-                ),
-              ],
+              onItemSelected: (idx) => setState(() => _currentIndex = idx),
+              unreadMessagesCount: 1,
             ),
           ),
           if (tripsVM.instantLoadAlert case final load?)

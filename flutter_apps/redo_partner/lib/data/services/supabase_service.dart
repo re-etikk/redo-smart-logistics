@@ -656,6 +656,20 @@ class SupabaseService {
     }
   }
 
+  /// Updates truck availability status ('available' vs 'offline')
+  static Future<void> updateTruckStatus(
+    String truckId,
+    String status,
+  ) async {
+    try {
+      await client.from('trucks').update({'status': status}).eq('truck_id', truckId);
+    } catch (_) {}
+    try {
+      await ApiService.patch('/trucks/$truckId/status', {'status': status});
+    } catch (_) {}
+  }
+
+
   /// Live-location + backhaul-aware recommendations for one truck: both
   /// specific top-matched loads and corridor-level "which city to head
   /// toward" suggestions. Works even before a trip is declared.
