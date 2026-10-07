@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:redo_customer/core/theme.dart';
 import 'package:redo_customer/data/models/models.dart';
 import 'package:redo_customer/ui/screens/wallet/wallet_screen.dart';
 import 'package:redo_customer/ui/screens/shipments/shipment_details_screen.dart';
@@ -37,6 +38,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: ChangeNotifierProvider<ShipmentsViewModel>(
             create: (_) => MockShipmentsViewModel(),
             child: const WalletScreen(),

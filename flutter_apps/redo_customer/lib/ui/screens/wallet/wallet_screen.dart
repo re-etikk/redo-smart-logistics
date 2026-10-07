@@ -572,6 +572,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     // Add money button
                     ElevatedButton.icon(
@@ -595,6 +596,8 @@ class _WalletScreenState extends State<WalletScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _WalletColors.primaryYellow,
                         elevation: 0,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -618,6 +621,8 @@ class _WalletScreenState extends State<WalletScreen> {
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.white,
                         elevation: 0,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         side: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -637,7 +642,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildReDoCreditsCard(NumberFormat currency) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : _WalletColors.cardWhite,
         borderRadius: BorderRadius.circular(18),
@@ -651,6 +656,7 @@ class _WalletScreenState extends State<WalletScreen> {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Coins Icon in warm amber container
           Container(
@@ -675,6 +681,8 @@ class _WalletScreenState extends State<WalletScreen> {
               children: [
                 Text(
                   'ReDo credits',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -684,6 +692,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '${currency.format(_redoCredits)} available',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
@@ -703,27 +713,36 @@ class _WalletScreenState extends State<WalletScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           // View details CTA
-          ElevatedButton(
-            onPressed: _showCreditsDetailsModal,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _WalletColors.primaryYellow,
-              foregroundColor: _WalletColors.darkNavy,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'View details',
-                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(width: 2),
-                const Icon(Icons.chevron_right_rounded, size: 14),
-              ],
+          InkWell(
+            onTap: _showCreditsDetailsModal,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _WalletColors.primaryYellow,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View details',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: _WalletColors.darkNavy,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 15,
+                    color: _WalletColors.darkNavy,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
