@@ -209,16 +209,19 @@ class PartnerTripsViewModel extends ChangeNotifier {
     if (s.contains('delhi') ||
         s.contains('new delhi') ||
         s.contains('gurugram') ||
-        s.contains('noida'))
+        s.contains('noida')) {
       return 'delhi';
+    }
     if (s.contains('mumbai') ||
         s.contains('bombay') ||
         s.contains('navi mumbai') ||
-        s.contains('thane'))
+        s.contains('thane')) {
       return 'mumbai';
+    }
     if (s.contains('bengaluru') || s.contains('bangalore')) return 'bengaluru';
-    if (s.contains('hyderabad') || s.contains('secunderabad'))
+    if (s.contains('hyderabad') || s.contains('secunderabad')) {
       return 'hyderabad';
+    }
     if (s.contains('kolkata') || s.contains('calcutta')) return 'kolkata';
     if (s.contains('chennai') || s.contains('madras')) return 'chennai';
     if (s.contains('pune')) return 'pune';

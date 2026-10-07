@@ -342,7 +342,7 @@ class _PartnerBrandStoryScreenState extends State<PartnerBrandStoryScreen> with 
           'assets/images/onboarding/step3_tagline_map.png',
           height: 240,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(Icons.alt_route_rounded, size: 80, color: AppColors.brandYellow),
+          errorBuilder: (_, _, _) => const Icon(Icons.alt_route_rounded, size: 80, color: AppColors.brandYellow),
         ),
         const SizedBox(height: 24),
         Text(
@@ -401,7 +401,7 @@ class _PartnerBrandStoryScreenState extends State<PartnerBrandStoryScreen> with 
             'assets/images/onboarding/step4_truck_moves.png',
             height: 300,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Image.asset(
+            errorBuilder: (_, _, _) => Image.asset(
               'assets/images/redo_profile_banner.png',
               height: 200,
               fit: BoxFit.contain,
@@ -449,7 +449,7 @@ class _PartnerBrandStoryScreenState extends State<PartnerBrandStoryScreen> with 
             'assets/images/onboarding/step5_journey_continues.png',
             height: 300,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Image.asset(
+            errorBuilder: (_, _, _) => Image.asset(
               'assets/images/redo_profile_banner.png',
               height: 200,
               fit: BoxFit.contain,

@@ -10,6 +10,7 @@ import '../../../core/theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/services/routing_service.dart';
 import '../../../data/services/supabase_service.dart';
+import '../../../data/services/places_service.dart';
 import '../../../core/unit_formatter.dart';
 import '../../../viewmodels/partner_trips_viewmodel.dart';
 import '../../../viewmodels/theme_viewmodel.dart';
@@ -92,34 +93,66 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
     setState(() => _locatingDriver = true);
     try {
       Position? pos;
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled && animate && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enable GPS / Location services.')),
+        );
+      }
       final hasPerm = await Geolocator.checkPermission();
       if (hasPerm == LocationPermission.always ||
           hasPerm == LocationPermission.whileInUse) {
-        pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        ).timeout(const Duration(seconds: 4));
+        pos = await Geolocator.getLastKnownPosition();
+        pos ??= await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 4),
+        );
       } else {
         final req = await Geolocator.requestPermission();
         if (req == LocationPermission.always ||
             req == LocationPermission.whileInUse) {
-          pos = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-          ).timeout(const Duration(seconds: 4));
+          pos = await Geolocator.getLastKnownPosition();
+          pos ??= await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 4),
+          );
         }
       }
 
       if (pos != null && mounted) {
         final driverLoc = LatLng(pos.latitude, pos.longitude);
+        String detectedCity = '';
+        try {
+          final rev = await PlacesService.reverseGeocode(pos.latitude, pos.longitude);
+          if (rev != null && rev.isNotEmpty) {
+            detectedCity = rev.split(',').first.trim();
+          }
+        } catch (_) {}
+
+        if (detectedCity.isEmpty) {
+          double minD = double.infinity;
+          String closest = 'Delhi NCR';
+          for (final entry in _cityLatLng.entries) {
+            final d = sqrt(pow(pos.latitude - entry.value.latitude, 2) + pow(pos.longitude - entry.value.longitude, 2));
+            if (d < minD) {
+              minD = d;
+              closest = entry.key;
+            }
+          }
+          detectedCity = closest;
+        }
+
         setState(() {
           _driverCurrentLatLng = driverLoc;
-          _fromLatLng ??= driverLoc;
+          _fromLatLng = driverLoc;
+          _fromController.text = detectedCity;
           _markers.removeWhere((m) => m.markerId.value == 'driver_live');
           _markers.add(
             Marker(
               markerId: const MarkerId('driver_live'),
               position: driverLoc,
-              infoWindow: const InfoWindow(
-                title: 'Your Truck Live Location (GPS)',
+              infoWindow: InfoWindow(
+                title: 'Your Location ($detectedCity)',
               ),
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueAzure,
@@ -128,10 +161,22 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
           );
         });
 
+        _updateFilterAndRoute();
+
         if (animate && _mapController != null) {
           _mapController!.animateCamera(
             CameraUpdate.newCameraPosition(
               CameraPosition(target: driverLoc, zoom: 15.0),
+            ),
+          );
+        }
+
+        if (animate && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF10B981),
+              content: Text('📍 Current location autofilled: $detectedCity'),
             ),
           );
         }
@@ -599,7 +644,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                     height: 38,
                     width: 38,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
@@ -1047,7 +1092,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             height: 140,
             width: double.infinity,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
+            errorBuilder: (_, _, _) => Container(
               height: 140,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -3186,30 +3231,31 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
                                   '${load.origin.toLowerCase()}->${load.destination.toLowerCase()}',
                             );
 
-                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                            }
 
-                            if (context.mounted) {
-                              if (bookingId != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '✓ Load Accepted! Assigned Booking: $bookingId',
-                                    ),
-                                    backgroundColor: AppColors.success,
+                            if (!mounted) return;
+                            if (bookingId != null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '✓ Load Accepted! Assigned Booking: $bookingId',
                                   ),
-                                );
-                                widget.onNavigateToTrips?.call();
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      vm.errorMessage ??
-                                          'Could not accept load. Please try again.',
-                                    ),
-                                    backgroundColor: AppColors.danger,
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              widget.onNavigateToTrips?.call();
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    vm.errorMessage ??
+                                        'Could not accept load. Please try again.',
                                   ),
-                                );
-                              }
+                                  backgroundColor: AppColors.danger,
+                                ),
+                              );
                             }
                           },
                     child: accepting
@@ -3493,7 +3539,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             const SizedBox(height: 16),
             SwitchListTile(
               value: true,
-              activeColor: AppColors.brandYellow,
+              activeThumbColor: AppColors.brandYellow,
               title: Text(
                 'Proximity Radar (Within 50 KM)',
                 style: GoogleFonts.inter(
@@ -3512,7 +3558,7 @@ class _AvailableLoadsScreenState extends State<AvailableLoadsScreen> {
             ),
             SwitchListTile(
               value: true,
-              activeColor: AppColors.brandYellow,
+              activeThumbColor: AppColors.brandYellow,
               title: Text(
                 'Return Trip Corridor Alerts',
                 style: GoogleFonts.inter(

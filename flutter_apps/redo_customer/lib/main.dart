@@ -13,18 +13,22 @@ import 'viewmodels/shipments_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
 import 'ui/screens/auth/login_screen.dart';
 import 'ui/screens/onboarding/customer_onboarding_screen.dart';
-import 'ui/screens/home/home_map_screen.dart';
+import 'ui/screens/home/home_screen.dart';
+import 'ui/screens/wallet/wallet_screen.dart';
 import 'ui/screens/shipments/shipments_screen.dart';
+import 'ui/screens/shipments/create_shipment_screen.dart';
 import 'ui/screens/shipments/tracking_screen.dart';
 import 'ui/screens/profile/profile_screen.dart';
 import 'ui/screens/ai/ai_assistant_screen.dart';
 import 'ui/widgets/voice_assistant_widget.dart';
+import 'ui/widgets/redo_design_system.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
+    // ignore: deprecated_member_use
     anonKey: AppConfig.supabaseAnonKey,
     authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
   );
@@ -92,11 +96,17 @@ class CustomerMainTabs extends StatefulWidget {
 class _CustomerMainTabsState extends State<CustomerMainTabs> {
   int _currentIndex = 0;
 
+  void _openCreateShipmentFlow() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const CreateShipmentScreen(),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    // Register once: fires for BOTH the mic and the AI text chat sheet, the
-    // moment an action is parsed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<VoiceAssistantService>().onActionReady = _handleVoiceAction;
@@ -106,73 +116,63 @@ class _CustomerMainTabsState extends State<CustomerMainTabs> {
   void _handleVoiceAction(VoiceAssistantAction action) {
     switch (action.type) {
       case 'book_shipment':
-        setState(() => _currentIndex = 0);
+        _openCreateShipmentFlow();
         break;
       case 'open_bookings':
         setState(() => _currentIndex = 1);
         break;
       case 'track_shipment':
-        setState(() => _currentIndex = 2);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TrackingScreen(
+              onTabChangeRequested: (idx) => setState(() => _currentIndex = idx),
+            ),
+          ),
+        );
         break;
       case 'chat':
       case 'open_ai':
-        setState(() => _currentIndex = 3);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AiAssistantScreen(
+              onTabChangeRequested: (idx) => setState(() => _currentIndex = idx),
+            ),
+          ),
+        );
         break;
       case 'open_profile':
         setState(() => _currentIndex = 4);
         break;
       default:
-        // 'chat' / 'unknown' — plain conversational answer, no navigation.
         break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final screens = [
-      HomeMapScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
-      ShipmentsScreen(onNewBookingPressed: () => setState(() => _currentIndex = 0)),
-      TrackingScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
-      AiAssistantScreen(onTabChangeRequested: (idx) => setState(() => _currentIndex = idx)),
+      HomeScreen(
+        onTabChangeRequested: (idx) => setState(() => _currentIndex = idx),
+        onCreateShipment: _openCreateShipmentFlow,
+      ),
+      ShipmentsScreen(
+        onNewBookingPressed: _openCreateShipmentFlow,
+      ),
+      const CreateShipmentScreen(),
+      WalletScreen(
+        onBack: () => setState(() => _currentIndex = 0),
+      ),
       const ProfileScreen(),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      floatingActionButton: _currentIndex == 3 ? null : const VoiceAssistantFab(),
+      floatingActionButton: const VoiceAssistantFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
-        indicatorColor: AppColors.brandYellow,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home, color: AppColors.slateDark),
-            label: l10n?.home ?? 'Home',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.article_outlined),
-            selectedIcon: const Icon(Icons.article, color: AppColors.slateDark),
-            label: l10n?.bookings ?? 'Bookings',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.location_on_outlined),
-            selectedIcon: const Icon(Icons.location_on, color: AppColors.slateDark),
-            label: l10n?.track ?? 'Track',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.auto_awesome_outlined),
-            selectedIcon: const Icon(Icons.auto_awesome, color: AppColors.slateDark),
-            label: 'AI Assistant',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person, color: AppColors.slateDark),
-            label: l10n?.profile ?? 'Profile',
-          ),
-        ],
+      bottomNavigationBar: ReDoBottomNavigation(
+        currentIndex: _currentIndex,
+        onTabSelected: (idx) => setState(() => _currentIndex = idx),
+        onCreatePressed: _openCreateShipmentFlow,
       ),
     );
   }

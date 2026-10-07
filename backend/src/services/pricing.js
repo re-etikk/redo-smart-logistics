@@ -102,7 +102,7 @@ async function getSupplyDemandCounts(originCity) {
   return { demand, supply };
 }
 
-export async function computePriceQuote({ origin, destination, distanceKm, weightTons, cargoType, volumeCft = 0 }) {
+export async function computePriceQuote({ origin, destination, distanceKm, weightTons, cargoType, volumeCft = 0, urgency = 'standard' }) {
   const corridorId = await findCorridorId(origin, destination);
   const config = await getConfigForCorridor(corridorId);
   const { demand, supply } = await getSupplyDemandCounts(origin);
@@ -113,15 +113,28 @@ export async function computePriceQuote({ origin, destination, distanceKm, weigh
   const billableWeight = Math.max(Number(weightTons) || 0.1, volTons);
 
   const baseFare = distanceKm * billableWeight * Number(config.base_rate_per_ton_km);
-  const beforeMinFare = Math.round(baseFare * typeMultiplier * surgeMultiplier);
-  const priceInr = Math.max(Number(config.min_fare_inr), beforeMinFare);
+  const mUrgency = urgency === 'express' ? 1.15 : 1.00;
+  const beforeMinFare = Math.round(baseFare * typeMultiplier * surgeMultiplier * mUrgency);
+  const driverFreight = Math.max(Number(config.min_fare_inr), beforeMinFare);
+  const commissionPct = Number(config.platform_commission_pct) || 0.08;
+  const redoFee = Math.round(driverFreight * commissionPct);
+  const customerPrice = driverFreight + redoFee;
 
   const estimatedDedicatedTruckPrice = Math.max(4500, Math.round(distanceKm * 18 + 1500));
-  const savingsAmount = Math.max(0, estimatedDedicatedTruckPrice - priceInr);
+  const savingsAmount = Math.max(0, estimatedDedicatedTruckPrice - customerPrice);
   const savingsPct = Math.max(0, Math.min(85, Math.round((savingsAmount / estimatedDedicatedTruckPrice) * 100)));
 
   return {
-    price_inr: priceInr,
+    price_inr: customerPrice,
+    estimated_price_inr: driverFreight,
+    driver_freight_inr: driverFreight,
+    applicable_fees_inr: redoFee,
+    redo_fee_inr: redoFee,
+    final_price_inr: customerPrice,
+    customer_price_inr: customerPrice,
+    estimated_dedicated_truck_price: estimatedDedicatedTruckPrice,
+    savings_amount: savingsAmount,
+    savings_pct: savingsPct,
     corridor_id: corridorId,
     corridor_name: config.corridor_name,
     base_rate_per_ton_km: Number(config.base_rate_per_ton_km),
@@ -131,11 +144,24 @@ export async function computePriceQuote({ origin, destination, distanceKm, weigh
     demand_count: demand,
     supply_count: supply,
     is_surging: surgeMultiplier > 1,
-    platform_commission_pct: Number(config.platform_commission_pct),
+    platform_commission_pct: commissionPct,
     billable_weight_tons: billableWeight,
     volumetric_weight_tons: volTons,
-    estimated_dedicated_truck_price: estimatedDedicatedTruckPrice,
-    savings_amount: savingsAmount,
-    savings_pct: savingsPct,
+    pricing_conditions: {
+      corridor_id: corridorId,
+      corridor_name: config.corridor_name,
+      base_rate_per_ton_km: Number(config.base_rate_per_ton_km),
+      min_fare_inr: Number(config.min_fare_inr),
+      cargo_type_multiplier: typeMultiplier,
+      surge_multiplier: surgeMultiplier,
+      is_surging: surgeMultiplier > 1,
+      demand_count: demand,
+      supply_count: supply,
+      billable_weight_tons: billableWeight,
+      actual_weight_tons: Number(weightTons) || 0.1,
+      volumetric_weight_tons: volTons,
+      commission_pct: commissionPct,
+      urgency,
+    },
   };
 }

@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/app_strings.dart';
 import '../../../core/theme.dart';
@@ -78,7 +80,7 @@ class _PartnerSettingsScreenState extends State<PartnerSettingsScreen> {
                       height: 36,
                       width: 36,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         width: 36,
                         height: 36,
                         color: Colors.black,
@@ -226,6 +228,36 @@ class _PartnerSettingsScreenState extends State<PartnerSettingsScreen> {
                           subtitle: _selectedUnits,
                           trailingBadge: _buildPill(_selectedUnits),
                           onTap: () => _selectUnits(context, themeVM),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Section: Security & Active Sessions
+                  Text('Security & Active Sessions', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: textPrimary)),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildTile(
+                          icon: Icons.lock_reset_outlined,
+                          title: 'Reset Password',
+                          subtitle: 'Update account password or send reset email link',
+                          onTap: () => _showResetPasswordModal(context),
+                        ),
+                        _divider(cardBorder),
+                        _buildTile(
+                          icon: Icons.devices_rounded,
+                          title: 'Active Sessions & Devices',
+                          subtitle: 'View trusted devices & terminate other sessions',
+                          trailingBadge: _buildBadge('Secure', true),
+                          onTap: () => _showActiveSessionsModal(context),
                         ),
                       ],
                     ),
@@ -521,4 +553,368 @@ class _PartnerSettingsScreenState extends State<PartnerSettingsScreen> {
       ),
     );
   }
+
+  void _showResetPasswordModal(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = Theme.of(context).cardColor;
+    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
+    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
+
+    final session = Supabase.instance.client.auth.currentSession;
+    final email = session?.user.email ?? '';
+
+    final passCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool isUpdating = false;
+    bool obscure = true;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.brandYellow.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.lock_reset, color: Color(0xFFD97706), size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Reset Password',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close, size: 20),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      email.isNotEmpty
+                          ? 'Signed in as $email. Enter your new password below.'
+                          : 'Enter your new password below.',
+                      style: GoogleFonts.inter(fontSize: 12, color: textMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: passCtrl,
+                      obscureText: obscure,
+                      decoration: InputDecoration(
+                        labelText: 'New Password',
+                        hintText: 'Minimum 6 characters',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                          onPressed: () => setModalState(() => obscure = !obscure),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmCtrl,
+                      obscureText: obscure,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm New Password',
+                        hintText: 'Re-enter your password',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: isUpdating
+                            ? null
+                            : () async {
+                                final pass = passCtrl.text.trim();
+                                final confirm = confirmCtrl.text.trim();
+                                if (pass.length < 6) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Password must be at least 6 characters long.')),
+                                  );
+                                  return;
+                                }
+                                if (pass != confirm) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Passwords do not match. Please re-check.')),
+                                  );
+                                  return;
+                                }
+                                setModalState(() => isUpdating = true);
+                                try {
+                                  await Supabase.instance.client.auth.updateUser(
+                                    UserAttributes(password: pass),
+                                  );
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor: Color(0xFF16A34A),
+                                        content: Text('Password updated successfully!'),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  setModalState(() => isUpdating = false);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Password update error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                        child: isUpdating
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.slateDark))
+                            : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                    if (email.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.email_outlined, size: 16),
+                          label: const Text('Send Password Reset Link to Email', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                          onPressed: () async {
+                            try {
+                              await Supabase.instance.client.auth.resetPasswordForEmail(email);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: AppColors.slateDark,
+                                    content: Text('Password reset link sent to $email'),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Reset email error: $e')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showActiveSessionsModal(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = Theme.of(context).cardColor;
+    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
+    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
+
+    final session = Supabase.instance.client.auth.currentSession;
+    final deviceOS = Platform.operatingSystem.toUpperCase();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        bool isSigningOutOthers = false;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFDCFCE7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.devices_rounded, color: Color(0xFF16A34A), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Active Sessions',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Manage authorized partner devices and active driver sessions.',
+                  style: GoogleFonts.inter(fontSize: 12, color: textMuted),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkCanvas : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.smartphone_rounded, color: Color(0xFF16A34A), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'This Device ($deviceOS)',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDCFCE7),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'ACTIVE NOW',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                      color: const Color(0xFF16A34A),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              session?.user.email != null ? 'Email: ${session!.user.email}' : 'Token valid · Supabase Auth',
+                              style: GoogleFonts.inter(fontSize: 11, color: textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    icon: isSigningOutOthers
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.phonelink_erase_rounded, size: 18),
+                    label: Text(
+                      'Sign Out All Other Devices',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: isSigningOutOthers
+                        ? null
+                        : () async {
+                            setModalState(() => isSigningOutOthers = true);
+                            try {
+                              await Supabase.instance.client.auth.signOut(scope: SignOutScope.others);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: Color(0xFF16A34A),
+                                    content: Text('All other driver sessions terminated.'),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setModalState(() => isSigningOutOthers = false);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Sign out error: $e')),
+                                );
+                              }
+                            }
+                          },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
 }

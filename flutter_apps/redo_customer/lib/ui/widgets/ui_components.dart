@@ -14,6 +14,7 @@ class RedoLogo extends StatelessWidget {
 class RedoBrandHeader extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onNotificationTap;
+  final VoidCallback? onAiTap;
   final VoidCallback? onProfileTap;
   final bool showProfile;
 
@@ -21,6 +22,7 @@ class RedoBrandHeader extends StatelessWidget {
     super.key,
     this.subtitle = 'Transport & Logistics',
     this.onNotificationTap,
+    this.onAiTap,
     this.onProfileTap,
     this.showProfile = true,
   });
@@ -43,7 +45,7 @@ class RedoBrandHeader extends StatelessWidget {
                 height: 38,
                 width: 38,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
@@ -88,6 +90,27 @@ class RedoBrandHeader extends StatelessWidget {
               ],
             ),
             const Spacer(),
+            if (onAiTap != null) ...[
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: onAiTap,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkCanvas : const Color(0xFFFFF8EC),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.brandYellow.withValues(alpha: 0.6)),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 18,
+                    color: AppColors.brandYellow,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             // Notification Bell with Red Dot
             InkWell(
               borderRadius: BorderRadius.circular(20),
@@ -161,7 +184,7 @@ class RedoTruckHeroGraphic extends StatelessWidget {
       'assets/images/redo_truck_3d.png',
       height: height,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => SizedBox(
+      errorBuilder: (_, _, _) => SizedBox(
         height: height,
         width: height * 1.55,
         child: CustomPaint(
@@ -180,7 +203,7 @@ class _CustomerTruckPainter extends CustomPainter {
 
     // Road shadow
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.12)
+      ..color = Colors.black.withValues(alpha: 0.12)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.drawOval(
       Rect.fromCenter(center: Offset(w * 0.5, h * 0.92), width: w * 0.9, height: h * 0.14),

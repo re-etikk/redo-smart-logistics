@@ -117,6 +117,16 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> with SingleTicker
               ),
               child: Row(
                 children: [
+                  if (Navigator.of(context).canPop()) ...[
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_rounded, color: textPrimary),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Back',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.asset(

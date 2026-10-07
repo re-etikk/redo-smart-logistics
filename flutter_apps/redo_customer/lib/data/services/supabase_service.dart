@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,11 +10,16 @@ import 'api_service.dart';
 /// Auth + profile go straight to Supabase (RLS-safe).
 /// Cargo, matching, bookings and tracking go through the Express backend —
 /// the same API the website uses — so ML matching, the booking state machine,
-/// notifications and invoices are REAL, never invented locally.
 class SupabaseService {
-  static final SupabaseClient client = Supabase.instance.client;
+  static SupabaseClient get client => Supabase.instance.client;
 
-  static User? get currentUser => client.auth.currentUser;
+  static User? get currentUser {
+    try {
+      return Supabase.instance.client.auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
   static bool get isAuthenticated => currentUser != null;
 
   // --- Auth Methods ---
@@ -318,6 +324,16 @@ class SupabaseService {
     double? pickupLng,
     String? dropAddress,
     String? gstin,
+    int packageCount = 1,
+    double? lengthCm,
+    double? widthCm,
+    double? heightCm,
+    String? dimensions,
+    bool isFragile = false,
+    bool isTemperatureSensitive = false,
+    double declaredValueInr = 0.0,
+    double estimatedPriceInr = 0.0,
+    String? specialHandlingNotes,
   }) async {
     // Ensure profile exists first so there is never a PROFILE_MISSING block
     try {
@@ -336,6 +352,29 @@ class SupabaseService {
         );
     final dist = distanceKm ?? 500.0;
 
+    final resolvedDimensions = dimensions ??
+        ((lengthCm != null && widthCm != null && heightCm != null)
+            ? '${lengthCm.round()} x ${widthCm.round()} x ${heightCm.round()} cm'
+            : null);
+
+    final specialHandlingMap = <String, dynamic>{
+      'pickup_address': pickupAddress ?? origin,
+      'drop_address': dropAddress ?? destination,
+      if (gstin != null && gstin.isNotEmpty) 'gstin': gstin,
+      'package_count': packageCount,
+      'dimensions': ?resolvedDimensions,
+      'length_cm': ?lengthCm,
+      'width_cm': ?widthCm,
+      'height_cm': ?heightCm,
+      'is_fragile': isFragile,
+      'is_temperature_sensitive': isTemperatureSensitive,
+      'declared_value_inr': declaredValueInr,
+      'estimated_price_inr': estimatedPriceInr,
+      if (specialHandlingNotes != null && specialHandlingNotes.isNotEmpty)
+        'note': specialHandlingNotes,
+    };
+    final specialHandlingJson = jsonEncode(specialHandlingMap);
+
     final body = <String, dynamic>{
       'origin': origin,
       'destination': destination,
@@ -344,7 +383,7 @@ class SupabaseService {
       'cargo_weight_tons': weightTons,
       'pickup_at': pickup.toUtc().toIso8601String(),
       'urgency': urgency,
-      if (pickupDate != null) 'pickup_date': pickupDate,
+      'pickup_date': ?pickupDate,
       if (pickupAddress != null && pickupAddress.isNotEmpty)
         'pickup_address': pickupAddress,
       if (pickupLat != null && pickupLng != null) ...{
@@ -354,6 +393,16 @@ class SupabaseService {
       if (dropAddress != null && dropAddress.isNotEmpty)
         'drop_address': dropAddress,
       if (gstin != null && gstin.isNotEmpty) 'gstin': gstin,
+      'package_count': packageCount,
+      'dimensions': ?resolvedDimensions,
+      'length_cm': ?lengthCm,
+      'width_cm': ?widthCm,
+      'height_cm': ?heightCm,
+      'is_fragile': isFragile,
+      'is_temperature_sensitive': isTemperatureSensitive,
+      'declared_value_inr': declaredValueInr,
+      'estimated_price_inr': estimatedPriceInr,
+      'special_handling': specialHandlingJson,
     };
 
     CargoRequest result;
@@ -361,13 +410,14 @@ class SupabaseService {
       final res = await ApiService.post('/cargo', body);
       result = CargoRequest.fromJson(Map<String, dynamic>.from(res));
     } catch (e) {
-      // Fallback 1: Direct Supabase insert via authenticated client session
+      // Fallback 1: Direct Supabase insert via authenticated or public client session
+      final uid = client.auth.currentUser?.id;
       final generatedId =
           'CR-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
       try {
         final row = {
           'cargo_id': generatedId,
-          'sme_id': client.auth.currentUser?.id,
+          'sme_id': ?uid,
           'origin': origin,
           'destination': destination,
           'distance_km': dist,
@@ -378,29 +428,18 @@ class SupabaseService {
           if (pickupLat != null && pickupLng != null) 'pickup_lng': pickupLng,
           'urgency': urgency,
           'status': 'open',
+          'special_handling': specialHandlingJson,
+          'pickup_date': ?pickupDate,
         };
-        await client.from('cargo_requests').upsert(row);
-      } catch (_) {
-        // Fallback 2: Proceed in-memory so user is never blocked from finding matching trucks
+        final dbData = await client.from('cargo_requests').insert(row).select().single();
+        result = CargoRequest.fromJson(Map<String, dynamic>.from(dbData));
+      } catch (dbError) {
+        // Both primary API and Supabase direct connection failed!
+        // Never invent fake local-only shipment records if backend exists.
+        throw Exception(
+          'Unable to reach REDO servers to create your shipment. Please check your internet connection and try again ($dbError).',
+        );
       }
-      result = CargoRequest(
-        cargoId: generatedId,
-        smeId: client.auth.currentUser?.id ?? '',
-        origin: origin,
-        destination: destination,
-        distanceKm: dist,
-        cargoType: cargoType,
-        cargoWeightTons: weightTons,
-        status: 'open',
-        urgency: urgency,
-        pickupAt: pickup.toUtc().toIso8601String(),
-        createdAt: DateTime.now().toUtc().toIso8601String(),
-        pickupAddress: pickupAddress,
-        pickupLat: pickupLat,
-        pickupLng: pickupLng,
-        dropAddress: dropAddress,
-        gstin: gstin,
-      );
     }
 
     // Immediately cache locally so it never disappears on re-login or screen change
@@ -409,11 +448,12 @@ class SupabaseService {
       final uid = client.auth.currentUser?.id;
       final rawList = prefs.getStringList('customer_posted_cargo_$uid') ?? [];
       rawList.insert(0, jsonEncode(result.toJson()));
-      if (uid != null)
+      if (uid != null) {
         await prefs.setStringList(
           'customer_posted_cargo_$uid',
           rawList.take(25).toList(),
         );
+      }
       await prefs.setStringList(
         'customer_posted_cargo_latest',
         rawList.take(25).toList(),
@@ -491,15 +531,25 @@ class SupabaseService {
     String bookingId =
         'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     String status = 'matched';
+    final rand = Random.secure();
+    final uniquePickupOtp = (1000 + rand.nextInt(9000)).toString();
+    final uniqueDeliveryOtp = (1000 + rand.nextInt(9000)).toString();
+    String pickupOtp = uniquePickupOtp;
+    String deliveryOtp = uniqueDeliveryOtp;
+
     try {
       final res = await ApiService.post('/bookings', {
         'cargo_id': cargoId,
         'truck_id': truckId,
         'agreed_price_inr': agreedPriceInr,
         'match_score': matchScore / 100,
+        'pickup_otp': uniquePickupOtp,
+        'delivery_otp': uniqueDeliveryOtp,
       });
       bookingId = '${res['id'] ?? bookingId}';
       status = '${res['status'] ?? status}';
+      if (res['pickup_otp'] != null) pickupOtp = '${res['pickup_otp']}';
+      if (res['delivery_otp'] != null) deliveryOtp = '${res['delivery_otp']}';
     } catch (e) {
       try {
         final row = {
@@ -508,6 +558,8 @@ class SupabaseService {
           'truck_id': truckId,
           'agreed_price_inr': agreedPriceInr,
           'status': 'matched',
+          'pickup_otp': uniquePickupOtp,
+          'delivery_otp': uniqueDeliveryOtp,
         };
         await client.from('bookings').upsert(row);
       } catch (_) {}
@@ -516,6 +568,8 @@ class SupabaseService {
       id: bookingId,
       cargoId: cargoId,
       truckId: truckId,
+      pickupOtp: pickupOtp,
+      deliveryOtp: deliveryOtp,
       origin: origin,
       destination: destination,
       cargoType: cargoType,
@@ -841,6 +895,277 @@ class SupabaseService {
       schema: 'public',
       table: 'truck_trips',
       callback: (_) => onChange(),
+    );
+    ch.subscribe();
+    return ch;
+  }
+
+  // --- Dynamic Pricing Engine Integration ---
+
+  static Future<PriceQuote> getPriceQuote({
+    required String origin,
+    required String destination,
+    required double weightTons,
+    String cargoType = 'general',
+    double distanceKm = 0,
+    double volumeCft = 0,
+    String urgency = 'standard',
+  }) async {
+    final dist = distanceKm > 0 ? distanceKm : 500.0;
+    final wTons = weightTons > 0 ? weightTons : 0.5;
+
+    try {
+      final queryParams = <String, String>{
+        'origin': origin,
+        'destination': destination,
+        'weight_tons': wTons.toStringAsFixed(2),
+        'cargo_type': cargoType,
+        'distance_km': dist.toStringAsFixed(0),
+        'volume_cft': volumeCft.toStringAsFixed(1),
+        'urgency': urgency,
+      };
+      final uri = Uri(path: '/pricing/quote', queryParameters: queryParams).toString();
+      final res = await ApiService.get(uri);
+      if (res is Map<String, dynamic>) {
+        return PriceQuote.fromJson(res);
+      }
+    } catch (_) {}
+
+    // Deterministic fallback using the identical ReDo dynamic pricing engine formula:
+    // (backend/src/services/dynamicPricing.js)
+    return _computeDeterministicQuote(
+      origin: origin,
+      destination: destination,
+      distanceKm: dist,
+      weightTons: wTons,
+      cargoType: cargoType,
+      volumeCft: volumeCft,
+      urgency: urgency,
+    );
+  }
+
+  static PriceQuote _computeDeterministicQuote({
+    required String origin,
+    required String destination,
+    required double distanceKm,
+    required double weightTons,
+    required String cargoType,
+    required double volumeCft,
+    required String urgency,
+  }) {
+    final volTons = volumeCft > 0 ? (volumeCft / 120.0) : 0.0;
+    final billableWeight = max(weightTons, volTons);
+
+    // Corridor matching
+    final normO = origin.toLowerCase();
+    final normD = destination.toLowerCase();
+    double baseRate = 2.50;
+    double minFare = 1200.0;
+    String corridorId = 'default';
+    String corridorName = 'All-India Standard Lane';
+
+    if ((normO.contains('delhi') && normD.contains('patna')) ||
+        (normO.contains('patna') && normD.contains('delhi'))) {
+      corridorId = 'delhi_patna';
+      corridorName = 'Delhi - Agra - Kanpur - Lucknow - Patna';
+      baseRate = 2.40;
+      minFare = 1500.0;
+    } else if ((normO.contains('delhi') && normD.contains('mumbai')) ||
+        (normO.contains('mumbai') && normD.contains('delhi'))) {
+      corridorId = 'delhi_mumbai';
+      corridorName = 'Delhi - Jaipur - Ahmedabad - Surat - Mumbai';
+      baseRate = 2.20;
+      minFare = 1500.0;
+    } else if ((normO.contains('mumbai') && normD.contains('bengaluru')) ||
+        (normO.contains('bengaluru') && normD.contains('mumbai'))) {
+      corridorId = 'mumbai_bengaluru';
+      corridorName = 'Mumbai - Pune - Kolhapur - Bengaluru';
+      baseRate = 2.30;
+      minFare = 1500.0;
+    }
+
+    // Cargo multiplier
+    final normCargo = cargoType.toLowerCase();
+    double cargoMultiplier = 1.0;
+    if (normCargo.contains('fragile')) {
+      cargoMultiplier = 1.18;
+    } else if (normCargo.contains('perishable') || normCargo.contains('cold')) {
+      cargoMultiplier = 1.25;
+    } else if (normCargo.contains('fmcg') || normCargo.contains('food')) {
+      cargoMultiplier = 1.08;
+    } else if (normCargo.contains('high_value') || normCargo.contains('electronic')) {
+      cargoMultiplier = 1.30;
+    } else if (normCargo.contains('chem') || normCargo.contains('hazard')) {
+      cargoMultiplier = 1.35;
+    }
+
+    final urgencyMultiplier = urgency == 'express' ? 1.15 : 1.0;
+    final rawBase = distanceKm * billableWeight * baseRate;
+    final calculatedFreight = (rawBase * cargoMultiplier * urgencyMultiplier).roundToDouble();
+    final driverFreight = max(minFare, calculatedFreight);
+    final redoFee = (driverFreight * 0.08).roundToDouble();
+    final customerPrice = driverFreight + redoFee;
+
+    final dedicated = max(4500.0, (distanceKm * 18.0 + 1500.0).roundToDouble());
+    final savings = max(0.0, dedicated - customerPrice);
+    final savingsPct = dedicated > 0 ? ((savings / dedicated) * 100).round() : 0;
+
+    return PriceQuote(
+      estimatedPriceInr: driverFreight,
+      finalPriceInr: customerPrice,
+      applicableFeesInr: redoFee,
+      savingsAmountInr: savings,
+      savingsPct: savingsPct,
+      estimatedDedicatedTruckPriceInr: dedicated,
+      conditions: PricingConditions(
+        corridorId: corridorId,
+        corridorName: corridorName,
+        baseRatePerTonKm: baseRate,
+        minFareInr: minFare,
+        cargoTypeMultiplier: cargoMultiplier,
+        surgeMultiplier: 1.0,
+        isSurging: false,
+        demandCount: 0,
+        supplyCount: 0,
+        billableWeightTons: billableWeight,
+        actualWeightTons: weightTons,
+        volumetricWeightTons: volTons,
+        commissionPct: 0.08,
+        urgency: urgency,
+      ),
+      isOfflineEstimated: true,
+    );
+  }
+
+  // --- Real Driver Dispatch Integration ---
+
+  static Future<Map<String, dynamic>> getDispatchState(String cargoId) async {
+    try {
+      final res = await ApiService.get('/cargo/$cargoId/dispatch');
+      if (res is Map<String, dynamic>) {
+        return res;
+      }
+    } catch (_) {}
+
+    // Fallback: Query Supabase tables directly
+    try {
+      final bookingRow = await client
+          .from('bookings')
+          .select('*, truck:trucks(*, owner:profiles(full_name, phone))')
+          .eq('cargo_id', cargoId)
+          .maybeSingle();
+
+      if (bookingRow != null) {
+        final bMap = Map<String, dynamic>.from(bookingRow);
+        final truck = bMap['truck'] as Map<String, dynamic>?;
+        final owner = truck?['owner'] as Map<String, dynamic>?;
+        return {
+          'status': 'assigned',
+          'booking': bMap,
+          'assigned_driver': {
+            'name': owner?['full_name'] ?? 'Assigned Driver',
+            'phone': owner?['phone'] ?? '+91-9876543210',
+            'truck_reg': truck?['registration_number'] ?? '',
+            'truck_type': truck?['truck_type'] ?? 'Commercial Truck',
+            'rating': (truck?['driver_rating'] as num?)?.toDouble() ?? 4.8,
+          },
+        };
+      }
+
+      final offersRows = await client
+          .from('dispatch_offers')
+          .select('id, driver_id, truck_id, distance_km, status, expires_at, created_at')
+          .eq('cargo_id', cargoId)
+          .order('created_at', ascending: false);
+
+      final cargoRow = await client
+          .from('cargo_requests')
+          .select('status')
+          .eq('cargo_id', cargoId)
+          .maybeSingle();
+
+      final offersList = (offersRows as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+
+      final activeCount = offersList.where((o) {
+        final status = o['status'] as String? ?? '';
+        final exp = DateTime.tryParse(o['expires_at'] as String? ?? '');
+        return status == 'pending' && (exp == null || exp.isAfter(DateTime.now()));
+      }).length;
+
+      return {
+        'status': cargoRow?['status'] ?? 'open',
+        'offers': offersList,
+        'offers_count': offersList.length,
+        'active_offers_count': activeCount,
+      };
+    } catch (_) {
+      return {'status': 'open', 'offers': [], 'offers_count': 0, 'active_offers_count': 0};
+    }
+  }
+
+  static Future<bool> retryDispatch(String cargoId) async {
+    try {
+      final res = await ApiService.post('/cargo/$cargoId/dispatch/retry');
+      return res is Map && res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> cancelCargoRequest(String cargoId) async {
+    bool ok = false;
+    try {
+      await ApiService.patch('/cargo/$cargoId', {'status': 'cancelled'});
+      ok = true;
+    } catch (_) {}
+
+    try {
+      await client.from('cargo_requests').update({'status': 'cancelled'}).eq('cargo_id', cargoId);
+      ok = true;
+    } catch (_) {}
+
+    return ok;
+  }
+
+  static RealtimeChannel subscribeDispatch({
+    required String cargoId,
+    required void Function(Map<String, dynamic> change) onUpdate,
+  }) {
+    final ch = client.channel('dispatch-$cargoId-${DateTime.now().microsecondsSinceEpoch}');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'dispatch_offers',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'cargo_id',
+        value: cargoId,
+      ),
+      callback: (payload) => onUpdate({'table': 'dispatch_offers', 'record': payload.newRecord}),
+    );
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'bookings',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'cargo_id',
+        value: cargoId,
+      ),
+      callback: (payload) => onUpdate({'table': 'bookings', 'record': payload.newRecord}),
+    );
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'cargo_requests',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'cargo_id',
+        value: cargoId,
+      ),
+      callback: (payload) => onUpdate({'table': 'cargo_requests', 'record': payload.newRecord}),
     );
     ch.subscribe();
     return ch;

@@ -52,6 +52,8 @@ class BookingViewModel extends ChangeNotifier {
   CargoRequest? _lastPostedCargo;
   BookingItem? _lastBooking;
   String? _errorMessage;
+  PriceQuote? _currentQuote;
+  bool _isFetchingQuote = false;
 
   // Professional Scheduling & Load Details
   bool _isInstant = false;
@@ -61,6 +63,15 @@ class BookingViewModel extends ChangeNotifier {
   String _dropAddress = '';
   String _gstin = '';
   bool _pickupCoordinatesVerified = false;
+
+  // Detailed cargo specification for native UI flow
+  int _packageCount = 2;
+  double _lengthCm = 30;
+  double _widthCm = 20;
+  double _heightCm = 15;
+  bool _isFragile = false;
+  bool _isTemperatureSensitive = false;
+  double _declaredValueInr = 50000;
 
   PlaceSuggestion get originPlace => _originPlace;
   PlaceSuggestion get destPlace => _destPlace;
@@ -91,18 +102,125 @@ class BookingViewModel extends ChangeNotifier {
   double get billableWeightTons =>
       volumetricWeightTons > _weightTons ? volumetricWeightTons : _weightTons;
 
+  int get packageCount => _packageCount;
+  double get lengthCm => _lengthCm;
+  double get widthCm => _widthCm;
+  double get heightCm => _heightCm;
+  bool get isFragile => _isFragile;
+  bool get isTemperatureSensitive => _isTemperatureSensitive;
+  double get declaredValueInr => _declaredValueInr;
+  double get weightKg => (_weightTons * 1000.0).clamp(0.5, 99999.0);
+
+  void setWeightKg(double kg) {
+    _weightTons = kg / 1000.0;
+    _lastPostedCargo = null;
+    _matches = [];
+    notifyListeners();
+  }
+
+  void setPackageCount(int count) {
+    _packageCount = count.clamp(1, 999);
+    notifyListeners();
+  }
+
+  void setDimensions({
+    required double length,
+    required double width,
+    required double height,
+  }) {
+    _lengthCm = length;
+    _widthCm = width;
+    _heightCm = height;
+    _volumeCft = (length * width * height) / 28316.8;
+    notifyListeners();
+  }
+
+  void setFragile(bool val) {
+    _isFragile = val;
+    notifyListeners();
+  }
+
+  void setTemperatureSensitive(bool val) {
+    _isTemperatureSensitive = val;
+    notifyListeners();
+  }
+
+  void setDeclaredValueInr(double val) {
+    _declaredValueInr = val;
+    notifyListeners();
+  }
+
+  PriceQuote? get currentQuote => _currentQuote;
+  bool get isFetchingQuote => _isFetchingQuote;
+
+  Future<PriceQuote> fetchPriceQuote({bool silent = false}) async {
+    if (!silent) {
+      _isFetchingQuote = true;
+      notifyListeners();
+    }
+
+    final orig = origin.isNotEmpty ? origin : 'Delhi, DL';
+    final dest = destination.isNotEmpty ? destination : 'Patna, BR';
+    final dist = roadDistanceKm > 0 ? roadDistanceKm : 500.0;
+    final wTons = billableWeightTons > 0 ? billableWeightTons : 0.5;
+
+    final quote = await SupabaseService.getPriceQuote(
+      origin: orig,
+      destination: dest,
+      weightTons: wTons,
+      cargoType: _cargoType,
+      distanceKm: dist,
+      volumeCft: _volumeCft,
+      urgency: _isInstant ? 'express' : 'standard',
+    );
+
+    _currentQuote = quote;
+    _isFetchingQuote = false;
+    notifyListeners();
+    return quote;
+  }
+
   double get estimatedFareInr {
+    if (_currentQuote != null) return _currentQuote!.finalPriceInr;
     final dist = roadDistanceKm > 0 ? roadDistanceKm : 350.0;
     final w = billableWeightTons > 0 ? billableWeightTons : 2.5;
     return (dist * w * 2.4 * 1.08).clamp(1800.0, 999999.0).roundToDouble();
   }
 
+  // Itemized breakdown matching ReDo Screen 04 design
+  double get priceBaseFareInr {
+    if (_currentQuote != null) return _currentQuote!.estimatedPriceInr;
+    final fare = estimatedFareInr;
+    return (fare * 0.77).roundToDouble();
+  }
+
+  double get priceDistanceChargeInr {
+    if (_currentQuote != null) return 0.0;
+    final fare = estimatedFareInr;
+    return (fare * 0.15).roundToDouble();
+  }
+
+  double get priceCargoHandlingInr {
+    if (_currentQuote != null) return 0.0;
+    final extra = (_isFragile ? 80.0 : 0.0) + (_isTemperatureSensitive ? 100.0 : 0.0);
+    return (180.0 + extra).roundToDouble();
+  }
+
+  double get priceServiceFeeInr => _currentQuote?.applicableFeesInr ?? 50.0;
+
+  double get priceTotalInr {
+    if (_currentQuote != null) return _currentQuote!.finalPriceInr;
+    return priceBaseFareInr + priceDistanceChargeInr + priceCargoHandlingInr + priceServiceFeeInr;
+  }
+
   double get dedicatedTruckBenchmarkInr {
+    if (_currentQuote != null) return _currentQuote!.estimatedDedicatedTruckPriceInr;
     final dist = roadDistanceKm > 0 ? roadDistanceKm : 350.0;
     return (dist * 18.0 + 1500.0).clamp(4500.0, 999999.0).roundToDouble();
   }
 
   int get savingsPct {
+    if (_currentQuote != null) return _currentQuote!.savingsPct;
     if (dedicatedTruckBenchmarkInr <= estimatedFareInr) return 42;
     return (((dedicatedTruckBenchmarkInr - estimatedFareInr) /
                 dedicatedTruckBenchmarkInr) *
@@ -110,6 +228,13 @@ class BookingViewModel extends ChangeNotifier {
         .round()
         .clamp(15, 80);
   }
+
+  double get savingsAmountInr {
+    if (_currentQuote != null) return _currentQuote!.savingsAmountInr;
+    return (dedicatedTruckBenchmarkInr - priceTotalInr).clamp(0.0, 999999.0);
+  }
+
+  PricingConditions? get pricingConditions => _currentQuote?.conditions;
 
   bool get isLoading => _isLoading;
   bool get isRouting => _isRouting;
@@ -274,22 +399,46 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> searchMatchingTrucks() async {
-    if (_originPlace.name.trim().isEmpty || _destPlace.name.trim().isEmpty) {
-      _errorMessage = 'Choose both pickup and drop locations first.';
+  /// Creates the actual shipment/order record on the backend.
+  /// Validates all parameters and persists customer, pickup, delivery, cargo,
+  /// dimensions, weight, quantity, special handling, estimated price, status,
+  /// and timestamp.
+  Future<CargoRequest?> createShipmentOrder({double? estimatedPrice}) async {
+    // 1. Rigorous data validation before submitting to backend
+    if (_originPlace.name.trim().isEmpty) {
+      _errorMessage = 'Please select a pickup location.';
       notifyListeners();
-      return false;
+      return null;
     }
-    if (_originPlace.name == _destPlace.name) {
-      _errorMessage = 'Pickup and Drop locations cannot be the same.';
+    if (_destPlace.name.trim().isEmpty) {
+      _errorMessage = 'Please select a delivery location.';
       notifyListeners();
-      return false;
+      return null;
     }
-    if (!_hasUsablePickupCoordinates) {
-      _errorMessage =
-          'Select a pickup point from the map or use your current location to notify nearby drivers.';
+    if (_originPlace.name.trim().toLowerCase() == _destPlace.name.trim().toLowerCase()) {
+      _errorMessage = 'Pickup and delivery locations cannot be identical.';
       notifyListeners();
-      return false;
+      return null;
+    }
+    if (weightKg <= 0) {
+      _errorMessage = 'Cargo weight must be positive.';
+      notifyListeners();
+      return null;
+    }
+    if (_packageCount < 1) {
+      _errorMessage = 'Package quantity must be at least 1.';
+      notifyListeners();
+      return null;
+    }
+    if (_lengthCm <= 0 || _widthCm <= 0 || _heightCm <= 0) {
+      _errorMessage = 'Cargo dimensions must be positive.';
+      notifyListeners();
+      return null;
+    }
+    if (_declaredValueInr <= 0) {
+      _errorMessage = 'Please enter a valid estimated cargo value.';
+      notifyListeners();
+      return null;
     }
 
     _isLoading = true;
@@ -303,28 +452,66 @@ class BookingViewModel extends ChangeNotifier {
       final pDate =
           '${pickup.year}-${pickup.month.toString().padLeft(2, '0')}-${pickup.day.toString().padLeft(2, '0')}';
 
-      _lastPostedCargo ??= await SupabaseService.postCargoRequest(
-        origin: _originPlace.name,
-        destination: _destPlace.name,
-        cargoType: _cargoType,
+      final finalEstimatedPrice = (estimatedPrice != null && estimatedPrice > 0)
+          ? estimatedPrice
+          : (priceTotalInr > 0 ? priceTotalInr : estimatedFareInr);
+
+      final cargo = await SupabaseService.postCargoRequest(
+        origin: _originPlace.name.trim(),
+        destination: _destPlace.name.trim(),
+        cargoType: _cargoType.trim(),
         weightTons: _weightTons,
-        distanceKm: roadDistanceKm,
+        distanceKm: roadDistanceKm > 0 ? roadDistanceKm : 350.0,
         pickupAt: pickup,
         pickupDate: pDate,
         urgency: _isInstant ? 'instant' : 'scheduled',
-        pickupAddress: _pickupAddress,
+        pickupAddress: _pickupAddress.isNotEmpty ? _pickupAddress : _originPlace.name,
         pickupLat: _pickupCoordinatesVerified
             ? _originPlace.latLng.latitude
             : null,
         pickupLng: _pickupCoordinatesVerified
             ? _originPlace.latLng.longitude
             : null,
-        dropAddress: _dropAddress,
+        dropAddress: _dropAddress.isNotEmpty ? _dropAddress : _destPlace.name,
         gstin: _gstin,
+        packageCount: _packageCount,
+        lengthCm: _lengthCm,
+        widthCm: _widthCm,
+        heightCm: _heightCm,
+        dimensions: '${_lengthCm.round()} x ${_widthCm.round()} x ${_heightCm.round()} cm',
+        isFragile: _isFragile,
+        isTemperatureSensitive: _isTemperatureSensitive,
+        declaredValueInr: _declaredValueInr,
+        estimatedPriceInr: finalEstimatedPrice,
       );
 
+      _lastPostedCargo = cargo;
+      _isLoading = false;
+      notifyListeners();
+      return cargo;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> searchMatchingTrucks() async {
+    final targetCargoId = _lastPostedCargo?.cargoId;
+    if (targetCargoId == null) {
+      _errorMessage = 'Shipment must be confirmed before finding trucks.';
+      notifyListeners();
+      return false;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
       _matches = await SupabaseService.getMatchesForCargo(
-        cargoId: _lastPostedCargo!.cargoId,
+        cargoId: targetCargoId,
         origin: _originPlace.name,
         destination: _destPlace.name,
         weightTons: _weightTons,
@@ -332,7 +519,7 @@ class BookingViewModel extends ChangeNotifier {
 
       if (_matches.isEmpty) {
         _errorMessage =
-            'No suitable return capacity found for this route yet. Try another pickup window.';
+            'No matching trucks found for this route yet. Searching network...';
       }
 
       _isLoading = false;
@@ -435,5 +622,28 @@ class BookingViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<bool> retryDispatch() async {
+    final cargoId = _lastPostedCargo?.cargoId;
+    if (cargoId == null) return false;
+    _isLoading = true;
+    notifyListeners();
+    final ok = await SupabaseService.retryDispatch(cargoId);
+    _isLoading = false;
+    notifyListeners();
+    return ok;
+  }
+
+  Future<bool> cancelCurrentCargo() async {
+    final cargoId = _lastPostedCargo?.cargoId;
+    if (cargoId == null) return false;
+    _isLoading = true;
+    notifyListeners();
+    final ok = await SupabaseService.cancelCargoRequest(cargoId);
+    _lastPostedCargo = null;
+    _isLoading = false;
+    notifyListeners();
+    return ok;
   }
 }

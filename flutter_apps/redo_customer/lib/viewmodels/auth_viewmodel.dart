@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/models.dart';
 import '../data/services/supabase_service.dart';
 
@@ -45,6 +46,19 @@ class AuthViewModel extends ChangeNotifier {
     try {
       await SupabaseService.ensureCustomerRole();
       _profile = await SupabaseService.getProfile();
+
+      // Ensure avatar is never wiped by a blank Supabase profile response
+      final prefs = await SharedPreferences.getInstance();
+      final localAvatar = prefs.getString('user_saved_avatar_path') ??
+          prefs.getString('customer_saved_avatar') ??
+          prefs.getString('customer_profile_${user.id}_avatar_url');
+
+      if ((_profile?.avatarUrl == null || _profile!.avatarUrl!.isEmpty) &&
+          localAvatar != null &&
+          localAvatar.isNotEmpty) {
+        _profile = _profile?.copyWith(avatarUrl: localAvatar);
+      }
+
       if (_profile != null && _profile!.onboardingComplete) {
         _status = AuthStatus.authenticated;
       } else {
@@ -151,6 +165,10 @@ class AuthViewModel extends ChangeNotifier {
         ? fullName.trim()
         : (_profile?.fullName ?? user?.email?.split('@').first ?? 'User');
 
+    final resolvedAvatar = (avatarUrl != null && avatarUrl.trim().isNotEmpty)
+        ? avatarUrl.trim()
+        : _profile?.avatarUrl;
+
     // Immediately update local in-memory profile and notify listeners
     _profile = UserProfile(
       id: uid,
@@ -158,7 +176,7 @@ class AuthViewModel extends ChangeNotifier {
       phone: (phone != null && phone.trim().isNotEmpty) ? phone.trim() : _profile?.phone,
       role: 'sme',
       companyName: companyName.trim(),
-      avatarUrl: (avatarUrl != null && avatarUrl.trim().isNotEmpty) ? avatarUrl.trim() : _profile?.avatarUrl,
+      avatarUrl: resolvedAvatar,
       onboardingComplete: true,
       gstin: (gstin != null && gstin.trim().isNotEmpty) ? gstin.trim().toUpperCase() : _profile?.gstin,
       panNumber: (panNumber != null && panNumber.trim().isNotEmpty) ? panNumber.trim().toUpperCase() : _profile?.panNumber,
@@ -167,6 +185,14 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (resolvedAvatar != null && resolvedAvatar.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_saved_avatar_path', resolvedAvatar);
+        await prefs.setString('customer_saved_avatar', resolvedAvatar);
+        if (uid.isNotEmpty) {
+          await prefs.setString('customer_profile_${uid}_avatar_url', resolvedAvatar);
+        }
+      }
       await SupabaseService.saveProfile(
         companyName: companyName,
         fullName: fullName,
@@ -174,7 +200,7 @@ class AuthViewModel extends ChangeNotifier {
         gstin: gstin,
         panNumber: panNumber,
         businessAddress: businessAddress,
-        avatarUrl: avatarUrl,
+        avatarUrl: resolvedAvatar,
         onboardingComplete: true,
       );
     } catch (_) {}

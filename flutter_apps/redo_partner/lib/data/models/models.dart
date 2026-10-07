@@ -278,8 +278,9 @@ class AvailableLoad {
       parsedPickup = DateTime.tryParse(json['pickup_at'].toString())?.toLocal();
     }
     String window = 'Flexible pickup';
-    if (parsedPickup != null)
+    if (parsedPickup != null) {
       window = DateFormat('EEE, d MMM - h:mm a').format(parsedPickup);
+    }
 
     return AvailableLoad(
       cargoId: json['cargo_id'] as String,
@@ -320,6 +321,8 @@ class ActiveTrip {
   final String? pickupAddress;
   final String? dropAddress;
   final bool isInstant;
+  final String? pickupOtp;
+  final String? deliveryOtp;
 
   ActiveTrip({
     required this.bookingId,
@@ -337,6 +340,8 @@ class ActiveTrip {
     this.pickupAddress,
     this.dropAddress,
     this.isInstant = false,
+    this.pickupOtp,
+    this.deliveryOtp,
   });
 
   factory ActiveTrip.fromJson(Map<String, dynamic> json) {
@@ -362,8 +367,18 @@ class ActiveTrip {
     final isInst =
         (cargo?['urgency'] as String? ?? '').toLowerCase() == 'instant';
 
+    final bId = json['id'] as String? ?? '';
+    final defaultDeliveryOtp = ((bId.hashCode.abs() % 9000) + 1000).toString();
+    final defaultPickupOtp = ((('${bId}_pickup').hashCode.abs() % 9000) + 1000).toString();
+    final pOtp = (json['pickup_otp'] != null && json['pickup_otp'].toString().isNotEmpty)
+        ? json['pickup_otp'].toString()
+        : defaultPickupOtp;
+    final dOtp = (json['delivery_otp'] != null && json['delivery_otp'].toString().isNotEmpty)
+        ? json['delivery_otp'].toString()
+        : defaultDeliveryOtp;
+
     return ActiveTrip(
-      bookingId: json['id'] as String,
+      bookingId: bId,
       cargoId:
           json['cargo_id'] as String? ?? cargo?['cargo_id'] as String? ?? '',
       origin: cargo?['origin'] as String? ?? '',
@@ -380,6 +395,8 @@ class ActiveTrip {
       pickupAddress: pAddr,
       dropAddress: dAddr,
       isInstant: isInst,
+      pickupOtp: pOtp,
+      deliveryOtp: dOtp,
     );
   }
 }

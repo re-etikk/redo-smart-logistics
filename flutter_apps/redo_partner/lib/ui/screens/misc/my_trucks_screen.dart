@@ -134,7 +134,7 @@ class _MyTrucksScreenState extends State<MyTrucksScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: truckType,
+                      initialValue: truckType,
                       decoration: InputDecoration(
                         labelText: 'Truck Type',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -151,12 +151,19 @@ class _MyTrucksScreenState extends State<MyTrucksScreen> {
                         if (val != null) {
                           setSheetState(() {
                             truckType = val;
-                            if (val.contains('1.5')) capacityTons = 1.5;
-                            else if (val.contains('4T')) capacityTons = 4.0;
-                            else if (val.contains('7T')) capacityTons = 7.0;
-                            else if (val.contains('10T')) capacityTons = 10.0;
-                            else if (val.contains('16T') || val.contains('32ft')) capacityTons = 16.0;
-                            else if (val.contains('25T')) capacityTons = 25.0;
+                            if (val.contains('1.5')) {
+                              capacityTons = 1.5;
+                            } else if (val.contains('4T')) {
+                              capacityTons = 4.0;
+                            } else if (val.contains('7T')) {
+                              capacityTons = 7.0;
+                            } else if (val.contains('10T')) {
+                              capacityTons = 10.0;
+                            } else if (val.contains('16T') || val.contains('32ft')) {
+                              capacityTons = 16.0;
+                            } else if (val.contains('25T')) {
+                              capacityTons = 25.0;
+                            }
                           });
                         }
                       },
@@ -165,7 +172,7 @@ class _MyTrucksScreenState extends State<MyTrucksScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: bodyType,
+                      initialValue: bodyType,
                       decoration: InputDecoration(
                         labelText: 'Body Type',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -186,7 +193,7 @@ class _MyTrucksScreenState extends State<MyTrucksScreen> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
-                value: homeOrigin,
+                initialValue: homeOrigin,
                 decoration: InputDecoration(
                   labelText: 'Home Depot / Base City',
                   prefixIcon: const Icon(Icons.home_work_outlined),
@@ -345,7 +352,7 @@ class _MyTrucksScreenState extends State<MyTrucksScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 itemCount: trucks.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
                   final t = trucks[i];
                   final open = _openFor == t.truckId;

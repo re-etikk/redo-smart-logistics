@@ -356,7 +356,7 @@ class _BrandStoryIntroScreenState extends State<BrandStoryIntroScreen> with Tick
               'assets/images/onboarding/step3_tagline_map.png',
               height: 240,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 width: 180,
                 height: 180,
                 decoration: BoxDecoration(
@@ -435,7 +435,7 @@ class _BrandStoryIntroScreenState extends State<BrandStoryIntroScreen> with Tick
             'assets/images/onboarding/step4_truck_moves.png',
             height: 300,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Image.asset(
+            errorBuilder: (_, _, _) => Image.asset(
               'assets/images/redo_profile_banner.png',
               height: 200,
               fit: BoxFit.contain,
@@ -489,7 +489,7 @@ class _BrandStoryIntroScreenState extends State<BrandStoryIntroScreen> with Tick
             'assets/images/onboarding/step5_journey_continues.png',
             height: 300,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Image.asset(
+            errorBuilder: (_, _, _) => Image.asset(
               'assets/images/redo_profile_banner.png',
               height: 200,
               fit: BoxFit.contain,

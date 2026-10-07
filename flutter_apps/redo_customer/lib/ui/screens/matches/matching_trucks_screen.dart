@@ -74,7 +74,7 @@ class MatchingTrucksScreen extends StatelessWidget {
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: matches.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 14),
+              separatorBuilder: (_, _) => const SizedBox(height: 14),
               itemBuilder: (context, index) {
                 final match = matches[index];
                 final capacityText = UnitFormatter.formatWeightTons(

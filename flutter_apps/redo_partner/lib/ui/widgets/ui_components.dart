@@ -49,7 +49,7 @@ class RedoBrandHeader extends StatelessWidget {
                 height: 38,
                 width: 38,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
@@ -193,7 +193,7 @@ class RedoTruckHeroGraphic extends StatelessWidget {
       'assets/images/redo_truck_3d.png',
       height: height,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => SizedBox(
+      errorBuilder: (_, _, _) => SizedBox(
         height: height,
         width: height * 1.55,
         child: CustomPaint(
@@ -212,7 +212,7 @@ class _TruckPainter extends CustomPainter {
 
     // Road shadow
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.12)
+      ..color = Colors.black.withValues(alpha: 0.12)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.drawOval(
       Rect.fromCenter(center: Offset(w * 0.5, h * 0.92), width: w * 0.9, height: h * 0.14),
@@ -233,7 +233,7 @@ class _TruckPainter extends CustomPainter {
     canvas.drawRRect(trailerRect, trailerBorder);
 
     // Trailer stripes / redo banner
-    final bannerPaint = Paint()..color = const Color(0xFFFBBF24).withOpacity(0.2);
+    final bannerPaint = Paint()..color = const Color(0xFFFBBF24).withValues(alpha: 0.2);
     canvas.drawRect(Rect.fromLTWH(w * 0.34, h * 0.42, w * 0.61, h * 0.22), bannerPaint);
 
     // Redo text on trailer
@@ -323,7 +323,7 @@ class RedoPackageGraphic extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF3C7).withOpacity(0.5),
+        color: const Color(0xFFFEF3C7).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Center(

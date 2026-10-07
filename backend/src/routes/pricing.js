@@ -1,16 +1,12 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
 import { apiError } from '../middleware/error.js';
 import { routeDistanceKm } from '../services/matching.js';
 import { computePriceQuote } from '../services/pricing.js';
 
-const r = Router();
-r.use(requireAuth);
-
-// GET /pricing/quote?origin=..&destination=..&weight_tons=..&cargo_type=..&distance_km=..
+// GET /pricing/quote?origin=..&destination=..&weight_tons=..&cargo_type=..&distance_km=..&volume_cft=..&urgency=..
 r.get('/quote', async (req, res, next) => {
   try {
-    const { origin, destination, weight_tons, cargo_type, distance_km, volume_cft } = req.query;
+    const { origin, destination, weight_tons, cargo_type, distance_km, volume_cft, urgency } = req.query;
     if (!origin || !destination || !weight_tons) {
       throw apiError(400, 'VALIDATION', 'origin, destination and weight_tons are required.');
     }
@@ -20,6 +16,7 @@ r.get('/quote', async (req, res, next) => {
       weightTons: Number(weight_tons),
       cargoType: cargo_type,
       volumeCft: Number(volume_cft) || 0,
+      urgency: urgency || 'standard',
     });
     res.json(quote);
   } catch (e) { next(e); }

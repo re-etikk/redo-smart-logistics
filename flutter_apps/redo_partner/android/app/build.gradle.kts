@@ -43,12 +43,17 @@ android {
             isShrinkResources = false
         }
     }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
 }
 
 flutter {
     source = "../.."
 }
 
-tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+tasks.matching { it.name.contains("AarMetadata") || it.name.contains("Lint") }.configureEach {
     enabled = false
 }

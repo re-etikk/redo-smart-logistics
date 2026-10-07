@@ -107,7 +107,8 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   void initState() {
     super.initState();
     Future.microtask(() async {
-      if (mounted) context.read<ShipmentsViewModel>().fetchShipments(silent: true);
+      if (!mounted) return;
+      context.read<ShipmentsViewModel>().fetchShipments(silent: true);
       final vm = context.read<BookingViewModel>();
       if (vm.origin.isEmpty && mounted) {
         await vm.useCurrentLocationForPickup();

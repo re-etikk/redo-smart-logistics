@@ -471,33 +471,40 @@ class _AiChatBottomSheetState extends State<AiChatBottomSheet> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: AppColors.brandYellow,
-                        shape: BoxShape.circle,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: AppColors.brandYellow,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.psychology, size: 18, color: AppColors.slateDark),
                       ),
-                      child: const Icon(Icons.psychology, size: 18, color: AppColors.slateDark),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n?.aiChat ?? 'REDO AI Assistant',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 16, color: textPrimary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n?.aiChat ?? 'REDO AI Assistant',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 16, color: textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '12 Languages • Voice & Text • Instant Dispatch',
+                              style: GoogleFonts.inter(fontSize: 10, color: textMuted),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        Text(
-                          '12 Languages • Voice & Text • Instant Dispatch',
-                          style: GoogleFonts.inter(fontSize: 10, color: textMuted),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: Icon(Icons.add_comment_outlined, color: textMuted, size: 20),

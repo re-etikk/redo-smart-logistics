@@ -33,6 +33,7 @@ void main() async {
 
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
+    // ignore: deprecated_member_use
     anonKey: AppConfig.supabaseAnonKey,
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
@@ -131,6 +132,7 @@ class _PartnerMainTabsState extends State<PartnerMainTabs>
       _handleDispatchNotificationAction,
     );
     _fcmMessageSubscription = FcmService.foregroundMessages.listen((message) {
+      if (!mounted) return;
       if (message.data['type'] == 'dispatch_offer') {
         unawaited(
           context.read<PartnerTripsViewModel>().refreshDispatchOffers(),

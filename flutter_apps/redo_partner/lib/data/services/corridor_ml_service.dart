@@ -149,8 +149,8 @@ class CorridorMLService {
       return CorridorMatchResult.notMatched;
     }
 
-    final corridorKey = dFrom + '_' + dTo;
-    final loadCorridorKey = lFrom + '_' + lTo;
+    final corridorKey = '${dFrom}_$dTo';
+    final loadCorridorKey = '${lFrom}_$lTo';
 
     // 1. Check for Exact Direct Forward Match (e.g. Patna -> Delhi)
     if (_isCityMatch(dFrom, lFrom) && _isCityMatch(dTo, lTo)) {
@@ -177,7 +177,7 @@ class CorridorMLService {
 
     // 2. Check for Return / Backhaul Match (e.g. Delhi -> Patna on Patna -> Delhi truck)
     if (_isCityMatch(dFrom, lTo) && _isCityMatch(dTo, lFrom)) {
-      final affinity = _getCorridorAffinity(dTo + '_' + dFrom);
+      final affinity = _getCorridorAffinity('${dTo}_$dFrom');
       final score = _calculateScore(
         baseScore: 94,
         detourKm: 0,
@@ -192,7 +192,7 @@ class CorridorMLService {
         detourKm: 0,
         badgeText: '🔄 $score% Return Backhaul Match',
         description: 'Eliminate empty return trip with this backhaul load',
-        corridorKey: dTo + '_' + dFrom,
+        corridorKey: '${dTo}_$dFrom',
         reasons: ['Zero deadhead miles', 'Guaranteed return freight', '+0 km detour'],
         estimatedExtraEarningInr: load.offeredPriceInr,
       );
@@ -265,7 +265,7 @@ class CorridorMLService {
         detourKm: detour,
         badgeText: '★ $score% $badge',
         description: desc,
-        corridorKey: dFrom + '_' + lFrom + '_' + lTo + '_' + dTo,
+        corridorKey: '${dFrom}_${lFrom}_${lTo}_$dTo',
         reasons: reasons,
         estimatedExtraEarningInr: load.offeredPriceInr,
       );
@@ -410,7 +410,7 @@ class CorridorMLService {
         detourKm: detourDistanceKm,
         badgeText: '★ $score% $badge',
         description: desc,
-        corridorKey: normCity(driverFromName) + '_' + normCity(load.origin) + '_' + normCity(load.destination),
+        corridorKey: '${normCity(driverFromName)}_${normCity(load.origin)}_${normCity(load.destination)}',
         reasons: [
           'Direct road path alignment',
           '+${detourDistanceKm.round()} km extra detour',

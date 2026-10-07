@@ -65,6 +65,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     final status = prefs.getString(_prefKeyStatus) ?? 'pending';
     final savedJson = prefs.getString(_prefKeyKyc);
 
+    if (!mounted) return;
     final auth = context.read<AuthViewModel>();
     final profile = auth.profile;
 
@@ -194,6 +195,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       if (mounted) {
         final auth = context.read<AuthViewModel>();
         await auth.refreshProfile();
+        if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

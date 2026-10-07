@@ -478,8 +478,17 @@ class VoiceAssistantService extends ChangeNotifier {
     }
   }
 
-  Future<VoiceAssistantAction> _processQueryWithDualAi(String text) async {
-    final lang = detectLanguageCode(text);
+  Future<VoiceAssistantAction> _processQueryWithDualAi(String text, [String? targetLangCode]) async {
+    String lang = targetLangCode ?? '';
+    if (lang.isEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        lang = prefs.getString('language_code') ?? '';
+      } catch (_) {}
+    }
+    if (lang.isEmpty) {
+      lang = detectLanguageCode(text);
+    }
     final lower = text.toLowerCase();
 
     // 1. Check real shipment tracking request
@@ -558,7 +567,7 @@ class VoiceAssistantService extends ChangeNotifier {
 
     // 5. Try Secondary Engine: Hugging Face Fast Llama-3.1 Router
     try {
-      final hfResponse = await _callHuggingFace(text, fromCity, toCity, weightTons);
+      final hfResponse = await _callHuggingFace(text, fromCity, toCity, weightTons, lang);
       if (hfResponse != null && hfResponse.trim().isNotEmpty) {
         _activeAiEngine = 'Hugging Face (Llama-3.1)';
         return VoiceAssistantAction(
@@ -590,7 +599,13 @@ class VoiceAssistantService extends ChangeNotifier {
   }
 
   Future<String?> _callSarvamAi(String userQuery, String? from, String? to, double? weight, String lang) async {
-    const systemPrompt = 'You are REDO Smart Logistics AI Assistant in India. Answer in user language (Hindi, Hinglish, English, Tamil, Telugu, etc.). Keep reply friendly, concise (2-3 sentences), practical for Indian freight operations.';
+    final systemPrompt = '''
+You are REDO AI — an intelligent, polite, female conversational voice assistant and logistics advisor in India.
+Voice tone rules:
+- Always use polite, feminine Hindi grammar when speaking Hindi or Hinglish (e.g. "main aapki sahayata kar sakti hoon", "bata rahi hoon", "khol rahi hoon", "pesh hai"). NEVER use masculine grammar like "karta hu" or "raha hoon".
+- Respond naturally and fluently in the user's active language ($lang). If $lang is English, answer in English. If Hindi, answer in Hindi. If Tamil/Telugu/Marathi/etc., reply in that language.
+- Scope: You are smart and knowledgeable. You can answer questions about freight rates, route planning, GST & e-way bills (mandatory ₹50,000 threshold), vehicle options (Tata Ace to 40ft trailer), weather, fuel prices, and general everyday questions concisely (2-3 sentences max).
+''';
 
     final res = await http.post(
       Uri.parse(AppConfig.sarvamChatUrl),
@@ -619,7 +634,13 @@ class VoiceAssistantService extends ChangeNotifier {
     return null;
   }
 
-  Future<String?> _callHuggingFace(String userQuery, String? from, String? to, double? weight) async {
+  Future<String?> _callHuggingFace(String userQuery, String? from, String? to, double? weight, [String lang = 'hi']) async {
+    final systemPrompt = '''
+You are REDO AI — an intelligent, polite, female conversational voice assistant in India.
+Always use polite, respectful female Hindi phrasing (e.g. "main aapki sahayata kar sakti hoon", "bata rahi hoon", "pesh hai"). Never use "karta hu" or "raha hoon".
+Answer user questions concisely (2-3 sentences max) in the user's language ($lang). You can answer questions about freight rates, route transit, GST & e-way bills, vehicle options, weather, and general questions accurately.
+''';
+
     final res = await http.post(
       Uri.parse(AppConfig.hfRouterUrl),
       headers: {
@@ -631,7 +652,7 @@ class VoiceAssistantService extends ChangeNotifier {
         'messages': [
           {
             'role': 'system',
-            'content': 'You are REDO Logistics AI Assistant in India. Answer in user language (Hindi/English). Concise (2-3 sentences) with freight price, vehicle, and corridor transit info.',
+            'content': systemPrompt,
           },
           {'role': 'user', 'content': userQuery},
         ],
@@ -829,7 +850,7 @@ class VoiceAssistantService extends ChangeNotifier {
     if (lower.contains('profile') || lower.contains('account')) {
       return VoiceAssistantAction(
         type: 'open_profile',
-        responseText: isHindi ? 'Customer business profile khol raha hoon.' : 'Opening your business profile.',
+        responseText: isHindi ? 'Aapka customer business profile khol rahi hoon.' : 'Opening your business profile.',
         langCode: lang,
         aiEngineUsed: 'REDO Logistics Core',
       );
@@ -838,7 +859,7 @@ class VoiceAssistantService extends ChangeNotifier {
     if (lower.contains('booking') || lower.contains('order') || lower.contains('shipment')) {
       return VoiceAssistantAction(
         type: 'open_bookings',
-        responseText: isHindi ? 'Aapki bookings directory khol raha hoon.' : 'Opening your bookings directory.',
+        responseText: isHindi ? 'Aapki bookings directory khol rahi hoon.' : 'Opening your bookings directory.',
         langCode: lang,
         aiEngineUsed: 'REDO Logistics Core',
       );
@@ -847,8 +868,8 @@ class VoiceAssistantService extends ChangeNotifier {
     return VoiceAssistantAction(
       type: 'chat',
       responseText: isHindi
-          ? 'Namaste! Main Sarvam AI & Hugging Face dwara chalit REDO logistics assistant hoon. Aap kisi bhi route ka rate (jaise Delhi se Mumbai 10 ton), tracking, ya truck recommendation pooch sakte hain.'
-          : 'Hello! I am your REDO logistics co-pilot powered by Sarvam AI & Hugging Face. Ask me for corridor freight rates, live tracking, or commercial truck options.',
+          ? 'Namaste! Main REDO AI assistant hoon, aapki sahayata ke liye taiyar hoon. Aap kisi bhi route ka rate, tracking, truck recommendation, ya koi bhi sawal pooch sakte hain.'
+          : 'Hello! I am your REDO AI assistant, ready to help you. Ask me about corridor freight rates, live tracking, truck selection, or any inquiries.',
       langCode: lang,
       aiEngineUsed: 'REDO Logistics Core',
     );
@@ -857,10 +878,28 @@ class VoiceAssistantService extends ChangeNotifier {
   Future<void> _speak(String text, {String? langCode}) async {
     try {
       final code = langCode ?? detectLanguageCode(text);
-      await _tts.setLanguage(code);
+      await _tts.setPitch(1.15); // Higher pitch for polite female voice tone
+      await _tts.setSpeechRate(0.48);
+      if (code.startsWith('hi')) {
+        await _tts.setLanguage('hi-IN');
+      } else if (code.startsWith('ta')) {
+        await _tts.setLanguage('ta-IN');
+      } else if (code.startsWith('te')) {
+        await _tts.setLanguage('te-IN');
+      } else if (code.startsWith('mr')) {
+        await _tts.setLanguage('mr-IN');
+      } else if (code.startsWith('bn')) {
+        await _tts.setLanguage('bn-IN');
+      } else if (code.startsWith('gu')) {
+        await _tts.setLanguage('gu-IN');
+      } else {
+        await _tts.setLanguage('en-IN');
+      }
       await _tts.speak(text);
     } catch (_) {
-      await _tts.speak(text);
+      try {
+        await _tts.speak(text);
+      } catch (_) {}
     }
   }
 

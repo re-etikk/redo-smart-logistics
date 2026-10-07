@@ -137,8 +137,8 @@ class CorridorMLService {
       return CorridorMatchResult.notMatched;
     }
 
-    final corridorKey = '$dFrom\_$dTo';
-    final loadCorridorKey = '$lFrom\_$lTo';
+    final corridorKey = '${dFrom}_$dTo';
+    final loadCorridorKey = '${lFrom}_$lTo';
     final priceEst = (cargo.distanceKm * cargo.cargoWeightTons * 1.05).roundToDouble();
 
     if (_isCityMatch(dFrom, lFrom) && _isCityMatch(dTo, lTo)) {
@@ -164,7 +164,7 @@ class CorridorMLService {
     }
 
     if (_isCityMatch(dFrom, lTo) && _isCityMatch(dTo, lFrom)) {
-      final affinity = _getCorridorAffinity('$dTo\_$dFrom');
+      final affinity = _getCorridorAffinity('${dTo}_$dFrom');
       final score = _calculateScore(
         baseScore: 94,
         detourKm: 0,
@@ -179,7 +179,7 @@ class CorridorMLService {
         detourKm: 0,
         badgeText: '🔄 $score% Return Backhaul Match',
         description: 'Eliminate empty return trip with this backhaul load',
-        corridorKey: '$dTo\_$dFrom',
+        corridorKey: '${dTo}_$dFrom',
         reasons: ['Zero deadhead miles', 'Guaranteed return freight', '+0 km detour'],
         estimatedExtraEarningInr: priceEst,
       );
@@ -251,7 +251,7 @@ class CorridorMLService {
         detourKm: detour,
         badgeText: '★ $score% $badge',
         description: desc,
-        corridorKey: '$dFrom\_$lFrom\_$lTo\_$dTo',
+        corridorKey: '${dFrom}_${lFrom}_${lTo}_$dTo',
         reasons: reasons,
         estimatedExtraEarningInr: priceEst,
       );
