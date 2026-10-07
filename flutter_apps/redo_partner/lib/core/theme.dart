@@ -8,6 +8,7 @@ class ReDoPartnerColors {
   static const Color brandYellowDark = Color(0xFFE5A015);
   static const Color darkNavy = Color(0xFF111820);    // Dark Navy #111820
   static const Color warmBackground = Color(0xFFFAF6EE); // Warm Background #FAF6EE
+  static const Color warmBg = Color(0xFFFAF6EE);
   static const Color white = Color(0xFFFFFFFF);       // White #FFFFFF
   static const Color secondary = Color(0xFF747B82);   // Secondary #747B82
   static const Color success = Color(0xFF36A653);     // Success #36A653

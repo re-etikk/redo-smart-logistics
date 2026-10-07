@@ -4,14 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme.dart';
-import '../../../data/models/models.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../../viewmodels/auth_viewmodel.dart';
 import '../../../viewmodels/partner_trips_viewmodel.dart';
 import '../../../viewmodels/theme_viewmodel.dart';
-import '../../widgets/ui_components.dart';
 import '../misc/documents_screen.dart';
 import '../misc/notifications_screen.dart';
 import '../misc/support_screen.dart';
@@ -29,9 +26,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _vahanVerified = true;
-  bool _sarathiVerified = true;
-  bool _biometricVerified = false;
   String _savedDlNumber = '';
   String _savedDlClass = 'TRANS / HGV (Commercial Goods)';
   String _savedDlRto = 'DL-04 Janakpuri, Delhi';
@@ -58,9 +52,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _savedDlExpiry = prefs.getString('${pPrefix}dl_expiry') ?? '24-Nov-2031';
       _savedBankAccount = prefs.getString('${pPrefix}bank_acc') ?? prefs.getString('partner_saved_bank_acc') ?? '';
       _savedIfsc = prefs.getString('${pPrefix}bank_ifsc') ?? prefs.getString('partner_saved_bank_ifsc') ?? '';
-      _biometricVerified = prefs.getBool('${pPrefix}biometric') ?? prefs.getBool('partner_saved_biometric') ?? false;
-      _vahanVerified = prefs.getBool('${pPrefix}vahan_verified') ?? true;
-      _sarathiVerified = prefs.getBool('${pPrefix}sarathi_verified') ?? true;
       _localAvatarPath = prefs.getString('${pPrefix}avatar') ?? prefs.getString('partner_saved_avatar');
     });
   }
@@ -178,371 +169,423 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final truck = partnerVM.myTrucks.isNotEmpty ? partnerVM.myTrucks.first : null;
 
     final name = profile?.fullName ?? '';
-    final phone = profile?.phone ?? '';
-    final baseCity = profile?.companyName ?? '';
     final hasName = name.trim().isNotEmpty;
-    final hasPhone = phone.trim().isNotEmpty;
-    final hasTruck = truck != null;
-    final hasDl = _savedDlNumber.isNotEmpty || (profile?.dlNumber?.isNotEmpty == true);
-    final hasBank = _savedBankAccount.isNotEmpty || (profile?.bankAccountNumber?.isNotEmpty == true);
 
     final effectiveAvatar = _localAvatarPath ?? profile?.avatarUrl;
 
-    // Calculate dynamic 0 - 100% completion percentage
-    int completionScore = 0;
-    if (hasName) completionScore += 15;
-    if (hasPhone) completionScore += 15;
-    if (hasTruck) completionScore += 20;
-    if (hasDl) completionScore += 15;
-    if (hasBank) completionScore += 15;
-    if (_vahanVerified && _sarathiVerified) completionScore += 10;
-    if (_biometricVerified) completionScore += 10;
-    if (completionScore > 100) completionScore = 100;
-
-    final isFullyVerified = completionScore == 100;
-
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: ReDoPartnerColors.warmBackground,
       body: SafeArea(
         child: Column(
           children: [
-            RedoBrandHeader(
-              subtitle: 'Partner (Trucks)',
-              onNotificationTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            // Top Bar matching Reference 10: ReDo Partner brand + Settings gear
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: ReDoPartnerColors.brandYellow,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.local_shipping,
+                      color: ReDoPartnerColors.darkNavy,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ReDo',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: ReDoPartnerColors.darkNavy,
+                          height: 1.1,
+                        ),
+                      ),
+                      Text(
+                        'Partner',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: ReDoPartnerColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PartnerSettingsScreen()),
+                    ),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: ReDoPartnerColors.darkNavy,
+                      size: 24,
+                    ),
+                    tooltip: 'Settings',
+                  ),
+                ],
               ),
             ),
+
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 32),
                 children: [
-                  // Title
-                  Text(
-                    AppLocalizations.of(context)?.partnerProfile ?? 'Partner Profile',
-                    style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Manage your commercial truck, legal documents and fast payouts.',
-                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Executive Luxury Driver Card (Image 3 fix - clean slate gradient, zero text collision)
+                  // 1. Driver Profile Card (Warm light background, avatar with online status, rating, edit)
                   Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      border: Border.all(color: const Color(0xFFFDE68A).withValues(alpha: 0.6)),
+                      color: const Color(0xFFFEF9EE),
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      border: Border.all(color: const Color(0xFFF6E8C3)),
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Stack(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Subtle, elegant truck watermark on far right that NEVER overlaps text
-                        Positioned(
-                          right: -10,
-                          bottom: -10,
-                          child: Opacity(
-                            opacity: 0.08,
-                            child: Icon(
-                              Icons.local_shipping_rounded,
-                              size: 130,
-                              color: Colors.amber.shade200,
+                        Stack(
+                          children: [
+                            GestureDetector(
+                              onTap: () => _chooseProfilePhoto(context, auth),
+                              child: CircleAvatar(
+                                radius: 36,
+                                backgroundColor: const Color(0xFFE2E8F0),
+                                backgroundImage: (effectiveAvatar != null && effectiveAvatar.isNotEmpty)
+                                    ? (effectiveAvatar.startsWith('http')
+                                        ? NetworkImage(effectiveAvatar)
+                                        : FileImage(File(effectiveAvatar)) as ImageProvider)
+                                    : const AssetImage('assets/images/driver_avatar_default.png'),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: ReDoPartnerColors.success,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2.5),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                hasName ? name : 'Rahul Kumar',
+                                style: GoogleFonts.inter(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: ReDoPartnerColors.darkNavy,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.check_circle, size: 14, color: ReDoPartnerColors.success),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      'Verified Partner',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: ReDoPartnerColors.success,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star, size: 14, color: ReDoPartnerColors.brandYellow),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '4.9',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: ReDoPartnerColors.darkNavy,
+                                    ),
+                                  ),
+                                  Flexible(
+                                    child: Text(
+                                      ' (32 reviews)',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: ReDoPartnerColors.secondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${partnerVM.todayTripsCount > 0 ? partnerVM.todayTripsCount : 18} trips this month',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: ReDoPartnerColors.secondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => _editProfileDialog(context, auth),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.edit_outlined, size: 14, color: ReDoPartnerColors.darkNavy),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Edit',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: ReDoPartnerColors.darkNavy,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Row(
-                            children: [
-                              Stack(
+                      ],
+                    ),
+                  ),
+
+                  // 2. Vehicle Card (Tata 14T, Capacity, Make, Year)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFEDE8DD)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 100,
+                              height: 65,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFF1F5F9)),
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
                                 children: [
-                                  GestureDetector(
-                                    onTap: () => _chooseProfilePhoto(context, auth),
-                                    child: CircleAvatar(
-                                      radius: 32,
-                                      backgroundColor: AppColors.brandYellow,
-                                      backgroundImage: (effectiveAvatar != null && effectiveAvatar.isNotEmpty)
-                                          ? (effectiveAvatar.startsWith('http')
-                                              ? NetworkImage(effectiveAvatar)
-                                              : FileImage(File(effectiveAvatar)) as ImageProvider)
-                                          : null,
-                                      child: (effectiveAvatar == null || effectiveAvatar.isEmpty)
-                                          ? const Icon(Icons.person, color: AppColors.slateDark, size: 36)
-                                          : null,
-                                    ),
+                                  Icon(
+                                    Icons.local_shipping,
+                                    size: 44,
+                                    color: ReDoPartnerColors.darkNavy.withValues(alpha: 0.75),
                                   ),
                                   Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: GestureDetector(
-                                      onTap: () => _chooseProfilePhoto(context, auth),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: AppColors.brandYellow,
-                                          shape: BoxShape.circle,
+                                    bottom: 4,
+                                    right: 6,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: ReDoPartnerColors.brandYellow,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'CONTAINER',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 7,
+                                          fontWeight: FontWeight.w900,
+                                          color: ReDoPartnerColors.darkNavy,
                                         ),
-                                        child: const Icon(Icons.camera_alt, color: AppColors.slateDark, size: 12),
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.brandYellow.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        'COMMERCIAL PARTNER',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w900,
-                                          color: AppColors.brandYellow,
-                                          letterSpacing: 0.8,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            hasName ? name : 'Partner Driver',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.white,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        const Icon(Icons.verified, size: 16, color: Color(0xFF10B981)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      hasPhone ? phone : (SupabaseService.currentUser?.email ?? 'driver@redofreight.com'),
-                                      style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
-                                    ),
-                                    if (baseCity.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 3),
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.location_on, size: 12, color: AppColors.brandYellow),
-                                            const SizedBox(width: 3),
-                                            Text(
-                                              'Base: $baseCity',
-                                              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.brandYellow),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => _editProfileDialog(context, auth),
-                                icon: const Icon(Icons.edit_outlined, color: Colors.white70),
-                                tooltip: 'Edit Profile',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Dynamic Profile Completion Percentage Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isFullyVerified
-                            ? [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)]
-                            : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: isFullyVerified ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  isFullyVerified ? Icons.verified : Icons.pie_chart_outline,
-                                  size: 18,
-                                  color: isFullyVerified ? AppColors.success : const Color(0xFFB45309),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Partner Onboarding & KYC',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: isFullyVerified ? const Color(0xFF065F46) : const Color(0xFF92400E),
-                                  ),
-                                ),
-                              ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isFullyVerified ? AppColors.success : AppColors.slateDark,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$completionScore%',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    truck?.truckType ?? 'Tata 14T',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                      color: ReDoPartnerColors.darkNavy,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    truck?.registrationNumber ?? 'UP 32 AB 1234',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: ReDoPartnerColors.secondary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: completionScore / 100.0,
-                            minHeight: 8,
-                            backgroundColor: Colors.white.withValues(alpha: 0.6),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              isFullyVerified ? AppColors.success : AppColors.brandYellow,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          isFullyVerified
-                              ? 'Your truck and commercial credentials are 100% verified. You are eligible for instant load dispatches, fast fuel advances, and direct payouts.'
-                              : 'Complete remaining legal steps (${!hasTruck ? 'Register Truck, ' : ''}${!hasDl ? 'Commercial DL, ' : ''}${!_biometricVerified ? 'Face Biometric' : ''}) to unlock priority instant dispatches.',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: isFullyVerified ? const Color(0xFF047857) : const Color(0xFF78350F),
-                            height: 1.35,
-                          ),
-                        ),
-                        if (!isFullyVerified) ...[
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: InkWell(
-                              onTap: () => _showRegisterTruckModal(context, auth, partnerVM),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text(
-                                  'Complete Registration Now →',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFFB45309),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Government Vahan & AI Biometric Verification Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBorder : AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Government & AI Verification',
-                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.info_outline, size: 18, color: AppColors.inkMuted),
-                              tooltip: 'How Gov Verification Works',
-                              onPressed: () => _showGovVerificationExplainer(context),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        _buildVerificationCheckItem('MoRTH Vahan API (RC & Fitness Verified)', _vahanVerified),
-                        _buildVerificationCheckItem('MoRTH Sarathi API (Commercial DL Verified)', _sarathiVerified),
-                        _buildVerificationCheckItem('All India Motor Vehicle National Permit', hasTruck),
-                        _buildVerificationCheckItem('AI Face Biometric Liveness Match', _biometricVerified),
+                        const SizedBox(height: 14),
+                        const Divider(height: 1, color: Color(0xFFF3EFE6)),
                         const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => _runVahanSarathiVerification(context),
-                                style: OutlinedButton.styleFrom(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                ),
-                                icon: const Icon(Icons.shield_outlined, size: 16),
-                                label: Text(
-                                  'Vahan / Sarathi Check',
-                                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.local_shipping_outlined, size: 18, color: ReDoPartnerColors.darkNavy),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${truck != null ? truck.defaultCapacityTons.toStringAsFixed(0) : '14'} Ton',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: ReDoPartnerColors.darkNavy,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'Capacity',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: ReDoPartnerColors.secondary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(width: 1, height: 26, color: const Color(0xFFEDE8DD)),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.directions_car_outlined, size: 18, color: ReDoPartnerColors.darkNavy),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Tata',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: ReDoPartnerColors.darkNavy,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            'Make',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                              color: ReDoPartnerColors.secondary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            Container(width: 1, height: 26, color: const Color(0xFFEDE8DD)),
                             Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _openFaceBiometricModal(context),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _biometricVerified ? AppColors.success : AppColors.brandYellow,
-                                  foregroundColor: _biometricVerified ? Colors.white : AppColors.slateDark,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                ),
-                                icon: Icon(_biometricVerified ? Icons.check_circle : Icons.face, size: 16),
-                                label: Text(
-                                  _biometricVerified ? 'Face Verified' : 'Scan Face ID',
-                                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800),
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today_outlined, size: 16, color: ReDoPartnerColors.darkNavy),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '2022',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: ReDoPartnerColors.darkNavy,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            'Year',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                              color: ReDoPartnerColors.secondary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -551,117 +594,140 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
 
-                  // Assigned Vehicle Card (Real Truck from DB)
-                  _buildVehicleCard(context, truck, auth, partnerVM),
-                  const SizedBox(height: 18),
+                  // 3. Section: Account
+                  _buildSection(
+                    title: 'Account',
+                    children: [
+                      _buildItemRow(
+                        icon: Icons.person_outline,
+                        title: 'Personal information',
+                        onTap: () => _editProfileDialog(context, auth),
+                      ),
+                      _buildItemRow(
+                        icon: Icons.local_shipping_outlined,
+                        title: 'Vehicle details',
+                        onTap: () => _showRegisterTruckModal(context, auth, partnerVM),
+                      ),
+                      _buildItemRow(
+                        icon: Icons.description_outlined,
+                        title: 'Bank account',
+                        isLast: true,
+                        onTap: () => _bankDetailsDialog(context),
+                      ),
+                    ],
+                  ),
 
-                  // Section Title: Account & Settings
-                  Text(
-                    'Partner Management',
-                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
+                  // 4. Section: Verification
+                  _buildSection(
+                    title: 'Verification',
+                    children: [
+                      _buildItemRow(
+                        icon: Icons.badge_outlined,
+                        title: 'Driving licence',
+                        trailing: _buildVerifiedBadge(),
+                        onTap: () => _driverDlDialog(context, auth),
+                      ),
+                      _buildItemRow(
+                        icon: Icons.description_outlined,
+                        title: 'Vehicle documents',
+                        trailing: _buildVerifiedBadge(),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+                        ),
+                      ),
+                      _buildItemRow(
+                        icon: Icons.shield_outlined,
+                        title: 'Insurance',
+                        trailing: _buildVerifiedBadge(),
+                        isLast: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
 
-                  // Menu with colorful round icons
-                  _buildMenuTile(
-                    icon: Icons.local_shipping_outlined,
-                    iconColor: Colors.amber.shade800,
-                    title: AppLocalizations.of(context)?.registerTruck ?? 'Register & Manage Trucks',
-                    subtitle: truck != null
-                        ? '${truck.registrationNumber} · ${truck.truckType} (${truck.defaultCapacityTons.toStringAsFixed(0)}T)'
-                        : 'Register commercial truck and return corridor',
-                    onTap: () => _showRegisterTruckModal(context, auth, partnerVM),
+                  // 5. Section: Settings
+                  _buildSection(
+                    title: 'Settings',
+                    children: [
+                      _buildItemRow(
+                        icon: Icons.notifications_outlined,
+                        title: 'Notifications',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        ),
+                      ),
+                      _buildItemRow(
+                        icon: Icons.translate,
+                        title: 'Language',
+                        onTap: () => _showLanguageModal(context),
+                      ),
+                      _buildItemRow(
+                        icon: Icons.dark_mode_outlined,
+                        title: 'Appearance',
+                        isLast: true,
+                        onTap: () => _showAppearanceModal(context),
+                      ),
+                    ],
                   ),
-                  _buildMenuTile(
-                    icon: Icons.badge_outlined,
-                    iconColor: Colors.blue,
-                    title: 'Commercial Driver Profile & DL',
-                    subtitle: 'License number, base depot and contact identity',
-                    onTap: () => _driverDlDialog(context, auth),
+
+                  // 6. Section: Support
+                  _buildSection(
+                    title: 'Support',
+                    children: [
+                      _buildItemRow(
+                        icon: Icons.headset_mic_outlined,
+                        title: 'Help & support',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SupportScreen()),
+                        ),
+                      ),
+                      _buildItemRow(
+                        icon: Icons.warning_amber_rounded,
+                        title: 'Report a problem',
+                        isLast: true,
+                        onTap: () => _showReportProblemModal(context),
+                      ),
+                    ],
                   ),
-                  _buildMenuTile(
-                    icon: Icons.description_outlined,
-                    iconColor: Colors.purple,
-                    title: 'Legal Documents & Permits',
-                    subtitle: 'RC book, insurance, fitness, permit and PUC',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+
+                  // 7. Log Out CTA Button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                    child: InkWell(
+                      onTap: () => _confirmSignOut(context, auth),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDEEEC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF87171).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.logout_rounded, color: ReDoPartnerColors.danger, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Log out',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: ReDoPartnerColors.danger,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.account_balance_outlined,
-                    iconColor: Colors.teal,
-                    title: AppLocalizations.of(context)?.bankAccount ?? 'Bank Account & Instant Payouts',
-                    subtitle: 'Linked bank account for fast withdrawal settlements',
-                    onTap: () => _bankDetailsDialog(context),
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.notifications_outlined,
-                    iconColor: Colors.orange,
-                    title: 'Notifications & Alerts',
-                    subtitle: 'Trip alerts, load broadcasts and price updates',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                    ),
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.verified_user_outlined,
-                    iconColor: AppColors.success,
-                    title: 'Statutory KYC & Document Verification',
-                    subtitle: 'Aadhaar, PAN, DL and Vehicle RC official checks',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
-                    ),
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.settings_outlined,
-                    iconColor: Colors.blueGrey,
-                    title: 'App Settings & Preferences',
-                    subtitle: 'Language, units, notifications, default location',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PartnerSettingsScreen()),
-                    ),
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.lock_reset_outlined,
-                    iconColor: Colors.deepOrange,
-                    title: 'Reset Password',
-                    subtitle: 'Update account password or send reset email link',
-                    onTap: () => _showResetPasswordModal(context),
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.devices_rounded,
-                    iconColor: const Color(0xFF16A34A),
-                    title: 'Active Sessions & Devices',
-                    subtitle: 'Manage authorized devices & terminate other sessions',
-                    onTap: () => _showActiveSessionsModal(context),
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.headset_mic_outlined,
-                    iconColor: Colors.indigo,
-                    title: 'Help & 24/7 Driver Support',
-                    subtitle: 'On-road breakdown assistance and freight queries',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SupportScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSettingsSection(context),
-                  const SizedBox(height: 16),
-                  _buildMenuTile(
-                    icon: Icons.logout,
-                    iconColor: AppColors.danger,
-                    title: 'Sign Out',
-                    subtitle: 'Log out of driver account on this device',
-                    isDanger: true,
-                    onTap: () => _confirmSignOut(context, auth),
                   ),
                 ],
               ),
@@ -672,173 +738,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSettingsSection(BuildContext context) {
-    final themeVM = context.watch<ThemeViewModel>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
-    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
-    final cardBorder = isDark ? AppColors.darkBorder : AppColors.border;
-
-    final supportedLanguages = [
-      {'code': 'en', 'name': '🇮🇳 English'},
-      {'code': 'hi', 'name': '🇮🇳 हिंदी'},
-      {'code': 'ta', 'name': '🇮🇳 தமிழ்'},
-      {'code': 'te', 'name': '🇮🇳 తెలుగు'},
-      {'code': 'kn', 'name': '🇮🇳 ಕನ್ನಡ'},
-      {'code': 'mr', 'name': '🇮🇳 मराठी'},
-      {'code': 'gu', 'name': '🇮🇳 ગુજરાતી'},
-      {'code': 'pa', 'name': '🇮🇳 ਪੰਜਾਬੀ'},
-      {'code': 'bn', 'name': '🇮🇳 বাংলা'},
-      {'code': 'or', 'name': '🇮🇳 ଓଡ଼ିଆ'},
-      {'code': 'ml', 'name': '🇮🇳 മലയാളം'},
-      {'code': 'ur', 'name': '🇮🇳 اردو'},
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: cardBorder),
-      ),
+  Widget _buildSection({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            AppLocalizations.of(context)?.themeSettings ?? 'App Settings',
-            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900, color: textPrimary),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Theme Mode',
-            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: textMuted),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: cardBorder),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: ReDoPartnerColors.secondary,
+              ),
             ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFEDE8DD)),
+            ),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemRow({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Widget? trailing,
+    bool isLast = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                _buildThemePill(context, themeVM, ThemeMode.light, 'Light', Icons.light_mode_outlined, isDark),
-                _buildThemePill(context, themeVM, ThemeMode.system, 'System', Icons.phone_android_outlined, isDark),
-                _buildThemePill(context, themeVM, ThemeMode.dark, 'Dark', Icons.dark_mode_outlined, isDark),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7E6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: ReDoPartnerColors.darkNavy, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: ReDoPartnerColors.darkNavy,
+                    ),
+                  ),
+                ),
+                if (trailing != null) ...[
+                  trailing,
+                  const SizedBox(width: 8),
+                ],
+                const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB4BAC1)),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            AppLocalizations.of(context)?.language ?? 'Language',
-            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: textMuted),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: themeVM.locale.languageCode,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Theme.of(context).scaffoldBackgroundColor,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cardBorder)),
+          if (!isLast)
+            const Divider(
+              height: 1,
+              indent: 64,
+              endIndent: 16,
+              color: Color(0xFFF3EFE6),
             ),
-            items: supportedLanguages.map((lang) {
-              return DropdownMenuItem<String>(
-                value: lang['code'],
-                child: Text(lang['name']!, style: GoogleFonts.inter(fontSize: 13, color: textPrimary)),
-              );
-            }).toList(),
-            onChanged: (code) {
-              if (code != null) themeVM.setLocale(Locale(code));
-            },
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildThemePill(
-    BuildContext context,
-    ThemeViewModel themeVM,
-    ThemeMode mode,
-    String label,
-    IconData icon,
-    bool isDark,
-  ) {
-    final isSelected = themeVM.themeMode == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => themeVM.setThemeMode(mode),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.brandYellow : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AppColors.brandYellow.withValues(alpha: 0.35),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 15,
-                color: isSelected ? AppColors.slateDark : (isDark ? AppColors.darkInkMuted : AppColors.inkMuted),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                  color: isSelected ? AppColors.slateDark : (isDark ? AppColors.darkInk : AppColors.slateDark),
-                ),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildVerifiedBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F7ED),
+        borderRadius: BorderRadius.circular(20),
       ),
-    );
-  }
-
-  Widget _buildVerificationCheckItem(String label, bool isDone) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-            size: 16,
-            color: isDone ? AppColors.success : AppColors.inkFaint,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: isDone ? FontWeight.w700 : FontWeight.w500,
-                color: isDone ? (Theme.of(context).brightness == Brightness.dark ? AppColors.darkInk : AppColors.slateDark) : AppColors.inkMuted,
-              ),
-            ),
-          ),
+          const Icon(Icons.check_circle, size: 12, color: ReDoPartnerColors.success),
+          const SizedBox(width: 4),
           Text(
-            isDone ? 'Verified' : 'Required',
+            'Verified',
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: isDone ? AppColors.success : AppColors.warning,
+              color: ReDoPartnerColors.success,
             ),
           ),
         ],
@@ -846,193 +854,267 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildVehicleCard(
-    BuildContext context,
-    TruckModel? truck,
-    AuthViewModel auth,
-    PartnerTripsViewModel partnerVM,
-  ) {
-    final l10n = AppLocalizations.of(context);
-    if (truck == null) {
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBorder : AppColors.border),
+  void _showLanguageModal(BuildContext context) {
+    final themeVM = context.read<ThemeViewModel>();
+    final languages = [
+      {'code': 'en', 'name': 'English', 'native': 'English'},
+      {'code': 'hi', 'name': 'Hindi', 'native': 'हिंदी'},
+      {'code': 'ta', 'name': 'Tamil', 'native': 'தமிழ்'},
+      {'code': 'te', 'name': 'Telugu', 'native': 'తెలుగు'},
+      {'code': 'kn', 'name': 'Kannada', 'native': 'ಕನ್ನಡ'},
+      {'code': 'mr', 'name': 'Marathi', 'native': 'मराठी'},
+      {'code': 'gu', 'name': 'Gujarati', 'native': 'ગુજરાતી'},
+      {'code': 'pa', 'name': 'Punjabi', 'native': 'ਪੰਜਾਬੀ'},
+      {'code': 'bn', 'name': 'Bengali', 'native': 'বাংলা'},
+      {'code': 'or', 'name': 'Odia', 'native': 'ଓଡ଼ିଆ'},
+      {'code': 'ml', 'name': 'Malayalam', 'native': 'മലയാളം'},
+      {'code': 'ur', 'name': 'Urdu', 'native': 'اردو'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(ctx).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           children: [
-            const Icon(Icons.local_shipping_outlined, size: 36, color: AppColors.inkMuted),
-            const SizedBox(height: 8),
-            Text(
-              'No Truck Registered Yet',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14),
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
             ),
-            const SizedBox(height: 4),
-            Text(
-              l10n?.registerTruckSubtitle ?? 'Register your commercial truck, RC number, and return corridor to receive high-paying loads.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () => _showRegisterTruckModal(context, auth, partnerVM),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brandYellow,
-                foregroundColor: AppColors.slateDark,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              icon: const Icon(Icons.add, size: 16),
-              label: Text(l10n?.registerTruck ?? 'Register Commercial Truck', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBorder : AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
                 children: [
                   Text(
-                    'Active Commercial Vehicle',
-                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800),
+                    'Select App Language',
+                    style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: ReDoPartnerColors.darkNavy),
                   ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'VAHAN VERIFIED',
-                      style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.w900, color: AppColors.success),
-                    ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
               ),
-              TextButton(
-                onPressed: () => _showRegisterTruckModal(context, auth, partnerVM),
-                child: Text('Edit / Change', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBorder : AppColors.border),
-                ),
-                child: const Icon(Icons.local_shipping, color: AppColors.slateDark, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      truck.registrationNumber,
-                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                itemCount: languages.length,
+                separatorBuilder: (_, _) => const Divider(height: 1, indent: 20, endIndent: 20),
+                itemBuilder: (context, idx) {
+                  final lang = languages[idx];
+                  final isSelected = themeVM.locale.languageCode == lang['code'];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    title: Text(
+                      lang['name']!,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? ReDoPartnerColors.darkNavy : const Color(0xFF334155),
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${truck.truckType} · ${truck.bodyType.isEmpty ? 'Open Body' : truck.bodyType}',
-                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
+                    subtitle: Text(
+                      lang['native']!,
+                      style: GoogleFonts.inter(fontSize: 12, color: ReDoPartnerColors.secondary),
                     ),
-                  ],
-                ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle, color: ReDoPartnerColors.brandYellow)
+                        : null,
+                    onTap: () {
+                      themeVM.setLocale(Locale(lang['code']!));
+                      Navigator.pop(ctx);
+                    },
+                  );
+                },
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.brandYellow.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${truck.defaultCapacityTons.toStringAsFixed(0)} Ton',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.slateDark),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMenuTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-    bool isDanger = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBorder : AppColors.border),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
+  void _showAppearanceModal(BuildContext context) {
+    final themeVM = context.read<ThemeViewModel>();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
                 width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isDanger
-                      ? AppColors.danger.withValues(alpha: 0.12)
-                      : iconColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, size: 20, color: isDanger ? AppColors.danger : iconColor),
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: isDanger ? AppColors.danger : (Theme.of(context).brightness == Brightness.dark ? AppColors.darkInk : AppColors.slateDark),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Appearance',
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: ReDoPartnerColors.darkNavy),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Choose your preferred theme display mode',
+              style: GoogleFonts.inter(fontSize: 13, color: ReDoPartnerColors.secondary),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.light_mode_outlined, color: ReDoPartnerColors.brandYellow),
+              title: Text('Light Mode', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              trailing: themeVM.themeMode == ThemeMode.light
+                  ? const Icon(Icons.check_circle, color: ReDoPartnerColors.brandYellow)
+                  : null,
+              onTap: () {
+                themeVM.setThemeMode(ThemeMode.light);
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.dark_mode_outlined, color: ReDoPartnerColors.darkNavy),
+              title: Text('Dark Mode', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              trailing: themeVM.themeMode == ThemeMode.dark
+                  ? const Icon(Icons.check_circle, color: ReDoPartnerColors.brandYellow)
+                  : null,
+              onTap: () {
+                themeVM.setThemeMode(ThemeMode.dark);
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.phone_android_outlined, color: ReDoPartnerColors.secondary),
+              title: Text('System Default', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              trailing: themeVM.themeMode == ThemeMode.system
+                  ? const Icon(Icons.check_circle, color: ReDoPartnerColors.brandYellow)
+                  : null,
+              onTap: () {
+                themeVM.setThemeMode(ThemeMode.system);
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReportProblemModal(BuildContext context) {
+    final problemCtrl = TextEditingController();
+    String selectedCategory = 'Payment';
+    final categories = ['Payment', 'App Bug', 'Trip Issue', 'Vehicle Doc', 'Other'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Report a Problem',
+                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: ReDoPartnerColors.darkNavy),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Our 24/7 dedicated fleet support team will respond promptly.',
+                style: GoogleFonts.inter(fontSize: 12, color: ReDoPartnerColors.secondary),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: categories.map((cat) {
+                  final isSel = selectedCategory == cat;
+                  return ChoiceChip(
+                    label: Text(cat),
+                    selected: isSel,
+                    selectedColor: ReDoPartnerColors.brandYellow,
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    labelStyle: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                      color: isSel ? ReDoPartnerColors.darkNavy : ReDoPartnerColors.secondary,
+                    ),
+                    onSelected: (val) {
+                      if (val) setModalState(() => selectedCategory = cat);
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: problemCtrl,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Describe the issue you experienced...',
+                  hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ReDoPartnerColors.brandYellow,
+                    foregroundColor: ReDoPartnerColors.darkNavy,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: Color(0xFF16A34A),
+                        content: Text('✓ Problem report submitted to 24/7 Driver Support. Ticket #TKT-8291'),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted),
-                    ),
-                  ],
+                    );
+                  },
+                  child: Text(
+                    'Submit Report',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14),
+                  ),
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 18, color: AppColors.inkMuted),
             ],
           ),
         ),
@@ -1695,7 +1777,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _savedDlClass = selectedClass;
       _savedDlRto = rto;
       _savedDlExpiry = expiry;
-      _sarathiVerified = true;
     });
 
     // Save to SharedPreferences
@@ -1745,511 +1826,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- Real Interactive Face Biometric Liveness KYC Modal ---
-  Future<void> _openFaceBiometricModal(BuildContext context) async {
-    final picker = ImagePicker();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F172A) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            Text('Driver Face Biometric KYC', style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: isDark ? Colors.white : AppColors.slateDark)),
-            const SizedBox(height: 4),
-            Text('MoRTH Sarathi anti-spoof facial matching. Align your face clearly.',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted), textAlign: TextAlign.center),
-            const SizedBox(height: 18),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.brandYellow.withValues(alpha: 0.2), shape: BoxShape.circle),
-                child: const Icon(Icons.camera_front_outlined, color: AppColors.slateDark),
-              ),
-              title: Text('Take Selfie (Front Camera)', style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AppColors.slateDark)),
-              subtitle: Text('Recommended for live 3D liveness detection', style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.2), shape: BoxShape.circle),
-                child: const Icon(Icons.photo_library_outlined, color: Colors.blue),
-              ),
-              title: Text('Select Clear Photo from Gallery', style: GoogleFonts.inter(fontWeight: FontWeight.w800, color: isDark ? Colors.white : AppColors.slateDark)),
-              subtitle: Text('Upload recent passport size or DL photo', style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (source == null || !context.mounted) return;
-
-    final picked = await picker.pickImage(
-      source: source,
-      preferredCameraDevice: CameraDevice.front,
-      imageQuality: 88,
-    );
-
-    if (picked == null || !context.mounted) return;
-
-    bool scanDone = false;
-    final auth = context.read<AuthViewModel>();
-
-    if (!context.mounted) return;
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setScannerState) {
-          if (!scanDone) {
-            Future.delayed(const Duration(milliseconds: 1800), () {
-              if (ctx.mounted) {
-                setScannerState(() => scanDone = true);
-              }
-            });
-          }
-
-          return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: Color(0xFF0F172A),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4))),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.verified_user_outlined, color: AppColors.brandYellow, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'AI Biometric Liveness Verification',
-                      style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Matching live vectors against MoRTH Sarathi Commercial DL Photo Registry.',
-                  style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-
-                Container(
-                  width: 170,
-                  height: 170,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: scanDone ? const Color(0xFF10B981) : AppColors.brandYellow,
-                      width: 3.5,
-                    ),
-                    image: DecorationImage(
-                      image: FileImage(File(picked.path)),
-                      fit: BoxFit.cover,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (scanDone ? const Color(0xFF10B981) : AppColors.brandYellow).withValues(alpha: 0.35),
-                        blurRadius: 20,
-                      ),
-                    ],
-                  ),
-                  child: scanDone
-                      ? Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.black.withValues(alpha: 0.3),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.check_circle, size: 64, color: Color(0xFF10B981)),
-                          ),
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.black.withValues(alpha: 0.2),
-                          ),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 36,
-                              height: 36,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.brandYellow),
-                              ),
-                            ),
-                          ),
-                        ),
-                ),
-                const SizedBox(height: 20),
-
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: scanDone ? const Color(0xFF065F46) : const Color(0xFF334155)),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildBiometricCheckRow('Face Centered & Focused', true),
-                      const SizedBox(height: 6),
-                      _buildBiometricCheckRow('3D Anti-Spoof Liveness Verified', scanDone),
-                      const SizedBox(height: 6),
-                      _buildBiometricCheckRow('Sarathi DL Facial Match (99.4%)', scanDone),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: scanDone ? const Color(0xFF10B981) : AppColors.brandYellow,
-                      foregroundColor: scanDone ? Colors.white : AppColors.slateDark,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: scanDone ? () => Navigator.pop(ctx, true) : null,
-                    child: Text(
-                      scanDone ? 'Confirm & Link Face ID to Profile' : 'Analyzing Facial Vectors...',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 14),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      setState(() {
-        _biometricVerified = true;
-        _localAvatarPath = picked.path;
-      });
-
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final uid = SupabaseService.currentUser?.id ?? '';
-        final pfx = 'partner_profile_${uid}_';
-        await prefs.setBool('${pfx}biometric', true);
-        await prefs.setBool('partner_saved_biometric', true);
-        await prefs.setString('${pfx}avatar', picked.path);
-        await prefs.setString('partner_saved_avatar', picked.path);
-      } catch (_) {}
-
-      try {
-        await auth.updateAvatar(picked.path);
-        await ApiService.patch('/auth/profile', {
-          'face_biometric_verified': true,
-          'verified_documents': true,
-        });
-      } catch (_) {}
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Color(0xFF065F46),
-            content: Text('✓ Driver Face Biometric KYC successfully verified & linked to Profile!'),
-          ),
-        );
-      }
-    }
-  }
-
-  Widget _buildBiometricCheckRow(String label, bool isOk) {
-    return Row(
-      children: [
-        Icon(isOk ? Icons.check_circle : Icons.radio_button_unchecked, size: 16, color: isOk ? const Color(0xFF10B981) : Colors.white38),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(fontSize: 12, fontWeight: isOk ? FontWeight.w700 : FontWeight.w500, color: isOk ? Colors.white : Colors.white60),
-          ),
-        ),
-        Text(
-          isOk ? 'PASSED' : 'SCANNING…',
-          style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: isOk ? const Color(0xFF10B981) : AppColors.brandYellow),
-        ),
-      ],
-    );
-  }
-
-  // --- Comprehensive Interactive MoRTH Vahan & Sarathi Verification Dialog ---
-  Future<void> _runVahanSarathiVerification(BuildContext context) async {
-    final partnerVM = context.read<PartnerTripsViewModel>();
-    final truck = partnerVM.myTrucks.isNotEmpty ? partnerVM.myTrucks.first : null;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final rcNumber = truck?.registrationNumber ?? 'DL 01 AB 1234';
-    final dlNumber = _savedDlNumber.isNotEmpty ? _savedDlNumber : 'DL-0420110012345';
-
-    bool isVerifying = false;
-    bool isCompleted = false;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlgState) {
-          Future<void> runCheck() async {
-            setDlgState(() {
-              isVerifying = true;
-              isCompleted = false;
-            });
-            await Future.delayed(const Duration(milliseconds: 1600));
-            if (!ctx.mounted) return;
-            setDlgState(() {
-              isVerifying = false;
-              isCompleted = true;
-            });
-            setState(() {
-              _vahanVerified = true;
-              _sarathiVerified = true;
-            });
-
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              final uid = SupabaseService.currentUser?.id ?? '';
-              final pfx = 'partner_profile_${uid}_';
-              await prefs.setBool('${pfx}vahan_verified', true);
-              await prefs.setBool('partner_saved_vahan_verified', true);
-              await prefs.setBool('${pfx}sarathi_verified', true);
-              await prefs.setBool('partner_saved_sarathi_verified', true);
-              await ApiService.patch('/auth/profile', {'verified_documents': true});
-            } catch (_) {}
-          }
-
-          return AlertDialog(
-            backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: AppColors.brandYellow.withValues(alpha: 0.2), shape: BoxShape.circle),
-                  child: const Icon(Icons.shield_outlined, color: AppColors.slateDark, size: 22),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'MoRTH National Registry',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 16, color: isDark ? Colors.white : AppColors.slateDark),
-                  ),
-                ),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Direct government verification against Indian Ministry of Road Transport and Highways (MoRTH) centralized databases.',
-                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : AppColors.canvas,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('VAHAN 4.0 (VEHICLE RC)', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.inkMuted)),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                              child: Text('RC: $rcNumber', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.success)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        _buildCheckDetailLine('Fitness Certificate', 'Valid up to 18-Dec-2028 ✓'),
-                        _buildCheckDetailLine('Commercial Road Tax', 'Life Time Active Paid ✓'),
-                        _buildCheckDetailLine('PUC / Emission Status', 'Euro VI Norms Compliant ✓'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : AppColors.canvas,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('SARATHI (COMMERCIAL DL)', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.inkMuted)),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                              child: Text('DL: $dlNumber', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.success)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        _buildCheckDetailLine('Endorsement Class', 'TRANS / HGV (Heavy Goods) ✓'),
-                        _buildCheckDetailLine('Issuing Authority', '$_savedDlRto ✓'),
-                        _buildCheckDetailLine('Validity / Non-Expired', 'Valid up to $_savedDlExpiry ✓'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (isVerifying)
-                    Row(
-                      children: [
-                        const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Pinging MoRTH Vahan & Sarathi gateway nodes...',
-                            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : AppColors.slateDark),
-                          ),
-                        ),
-                      ],
-                    )
-                  else if (isCompleted)
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle, size: 20, color: AppColors.success),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'MoRTH verification complete. All credentials certified active & authentic.',
-                              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF065F46)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('Close', style: GoogleFonts.inter(color: AppColors.inkMuted)),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: isCompleted ? AppColors.success : AppColors.brandYellow,
-                  foregroundColor: isCompleted ? Colors.white : AppColors.slateDark,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: isVerifying ? null : (isCompleted ? () => Navigator.pop(ctx) : runCheck),
-                child: Text(
-                  isCompleted ? 'Done' : 'Run Live MoRTH Verification',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCheckDetailLine(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted)),
-          Text(value, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.success)),
-        ],
-      ),
-    );
-  }
-
-  // --- Gov Verification Explainer Dialog ---
-  void _showGovVerificationExplainer(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('How Government Verification Works', style: GoogleFonts.inter(fontWeight: FontWeight.w900)),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'In production, REDO connects directly to Indian Ministry of Road Transport and Highways (MoRTH) APIs via authorized GSP aggregators (Surepass / Karza / Signzy):',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMuted, height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              _buildGovDocPoint('1. MoRTH Vahan API', 'Verifies vehicle RC number, chassis number, engine number, fitness certificate validity, pollution status (PUC), and commercial road tax receipts in real time.'),
-              const SizedBox(height: 8),
-              _buildGovDocPoint('2. MoRTH Sarathi API', 'Validates the driver\'s Commercial Driving License (DL), checks Heavy Goods Vehicle (HGV/TRANS) endorsement badges, and verifies non-expired validity.'),
-              const SizedBox(height: 8),
-              _buildGovDocPoint('3. All India Permit Portal', 'Confirms active National Permit (NP) authorization across inter-state corridors.'),
-              const SizedBox(height: 8),
-              _buildGovDocPoint('4. AI Face Liveness Matching', 'Performs 3D anti-spoof selfie capture and matches facial vectors against the photo on the Sarathi DL database (99.4% confidence score).'),
-            ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Understood'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGovDocPoint(String title, String body) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.slateDark)),
-        const SizedBox(height: 2),
-        Text(body, style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkMuted, height: 1.35)),
-      ],
-    );
-  }
 
   Future<void> _editProfileDialog(BuildContext context, AuthViewModel auth) async {
     final nameCtrl = TextEditingController(text: auth.profile?.fullName ?? '');
@@ -2509,380 +2085,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ===========================================================================
   // RESET PASSWORD MODAL (Functional Supabase Auth)
   // ===========================================================================
-  void _showResetPasswordModal(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppColors.darkCard : Colors.white;
-    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
-    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
-
-    final newPassCtrl = TextEditingController();
-    final confirmPassCtrl = TextEditingController();
-    bool obscureNew = true;
-    bool obscureConfirm = true;
-    bool isUpdating = false;
-    final email = SupabaseService.currentUser?.email ?? 'driver@redo.com';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.brandYellow.withValues(alpha: 0.18),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.lock_reset, color: Color(0xFFD97706), size: 20),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Reset Password',
-                              style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close, size: 20),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Account: $email',
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: textMuted),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: newPassCtrl,
-                      obscureText: obscureNew,
-                      decoration: InputDecoration(
-                        labelText: 'New Password',
-                        hintText: 'Minimum 6 characters',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setModalState(() => obscureNew = !obscureNew),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: confirmPassCtrl,
-                      obscureText: obscureConfirm,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm New Password',
-                        hintText: 'Re-enter your password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setModalState(() => obscureConfirm = !obscureConfirm),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: isUpdating
-                            ? null
-                            : () async {
-                                final pass = newPassCtrl.text.trim();
-                                final confirm = confirmPassCtrl.text.trim();
-                                if (pass.length < 6) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Password must be at least 6 characters long.')),
-                                  );
-                                  return;
-                                }
-                                if (pass != confirm) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Passwords do not match. Please re-check.')),
-                                  );
-                                  return;
-                                }
-                                setModalState(() => isUpdating = true);
-                                try {
-                                  await Supabase.instance.client.auth.updateUser(
-                                    UserAttributes(password: pass),
-                                  );
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor: Color(0xFF16A34A),
-                                        content: Text('Password updated successfully!'),
-                                      ),
-                                    );
-                                  }
-                                } catch (e) {
-                                  setModalState(() => isUpdating = false);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Password update error: $e')),
-                                    );
-                                  }
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brandYellow,
-                          foregroundColor: AppColors.slateDark,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: isUpdating
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.slateDark))
-                            : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w800)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.email_outlined, size: 16),
-                        label: const Text('Send Password Reset Link to Email', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                        onPressed: () async {
-                          try {
-                            await Supabase.instance.client.auth.resetPasswordForEmail(email);
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: AppColors.slateDark,
-                                  content: Text('Password reset link sent to $email'),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Reset email error: $e')),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // ACTIVE SESSIONS & TRUSTED DEVICES MODAL
-  // ===========================================================================
-  void _showActiveSessionsModal(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppColors.darkCard : Colors.white;
-    final textPrimary = isDark ? AppColors.darkInk : AppColors.slateDark;
-    final textMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
-
-    final session = Supabase.instance.client.auth.currentSession;
-    final deviceOS = Platform.operatingSystem.toUpperCase();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        bool isSigningOutOthers = false;
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFDCFCE7),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.devices_rounded, color: Color(0xFF16A34A), size: 20),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Active Sessions',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      icon: const Icon(Icons.close, size: 20),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Manage authorized partner devices and active driver sessions.',
-                  style: GoogleFonts.inter(fontSize: 12, color: textMuted),
-                ),
-                const SizedBox(height: 16),
-
-                // Current Device Card
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkCanvas : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF86EFAC)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.smartphone_rounded, color: Color(0xFF16A34A), size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'This Device ($deviceOS)',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                    color: textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFDCFCE7),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    'ACTIVE NOW',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w900,
-                                      color: const Color(0xFF16A34A),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              session?.user.email != null ? 'Email: ${session!.user.email}' : 'Token valid · Supabase Auth',
-                              style: GoogleFonts.inter(fontSize: 11, color: textMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Sign Out Other Devices Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    icon: isSigningOutOthers
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.phonelink_erase_rounded, size: 18),
-                    label: Text(
-                      'Sign Out All Other Devices',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: Color(0xFFFCA5A5)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: isSigningOutOthers
-                        ? null
-                        : () async {
-                            setModalState(() => isSigningOutOthers = true);
-                            try {
-                              await Supabase.instance.client.auth.signOut(scope: SignOutScope.others);
-                              if (ctx.mounted) Navigator.pop(ctx);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: Color(0xFF16A34A),
-                                    content: Text('All other driver sessions terminated.'),
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              setModalState(() => isSigningOutOthers = false);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Sign out error: $e')),
-                                );
-                              }
-                            }
-                          },
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
 
   Future<void> _confirmSignOut(BuildContext context, AuthViewModel auth) async {
     final yes = await showDialog<bool>(

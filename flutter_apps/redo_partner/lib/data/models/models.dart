@@ -88,6 +88,7 @@ class TruckModel {
   final String bodyType;
   final String homeOrigin;
   final double defaultCapacityTons;
+  double get capacityTons => defaultCapacityTons;
   final String status;
   final bool rcVerified;
   final String? insurancePolicy;
