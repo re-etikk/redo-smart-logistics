@@ -21,6 +21,7 @@ import AvailableLoads from "./pages/AvailableLoads";
 import AddTrip from "./pages/AddTrip";
 import Notifications from "./pages/Notifications";
 import Landing from "./pages/Landing";
+import Privacy from "./pages/Privacy";
 
 export default function App() {
   return (
@@ -31,6 +32,8 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/privacy-policy" element={<Privacy />} />
 
           {/* Onboarding */}
           <Route path="/onboarding" element={<Protected><OwnerOnboarding /></Protected>} />

@@ -376,6 +376,15 @@ export default function OwnerLayout({
                 </span>
                 <span className="text-[10px] text-amber-500 font-mono">Switch</span>
               </button>
+              <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                <Link to="/privacy" target="_blank" onClick={() => setMobileDrawerOpen(false)} className="hover:text-amber-500 transition">
+                  Privacy Policy
+                </Link>
+                <span>&bull;</span>
+                <Link to="/support" onClick={() => setMobileDrawerOpen(false)} className="hover:text-amber-500 transition">
+                  Support
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -476,6 +485,12 @@ export default function OwnerLayout({
               </button>
             </div>
           )}
+
+          <div className="pt-2 px-2 text-[11px] text-slate-400 flex items-center justify-between font-medium">
+            <Link to="/privacy" target="_blank" className="hover:text-amber-500 transition">Privacy Policy</Link>
+            <span>&bull;</span>
+            <Link to="/support" className="hover:text-amber-500 transition">Support</Link>
+          </div>
         </aside>
 
         {/* Main Content Area */}

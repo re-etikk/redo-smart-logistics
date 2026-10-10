@@ -285,6 +285,15 @@ export default function OwnerSignUp() {
               <span>Continue with Google</span>
             </button>
 
+            {/* Partner Privacy Consent Notice */}
+            <p className="text-[11px] text-center text-slate-500 font-medium leading-relaxed px-2">
+              By registering as a Truck Owner / Partner, you agree to REDO&apos;s{" "}
+              <Link to="/privacy" className="text-amber-600 underline font-bold" target="_blank">
+                Partner Privacy Policy
+              </Link>{" "}
+              and consent to background GPS telematics during active shipments.
+            </p>
+
             {/* Bottom Account Switch Link */}
             <div className="pt-2 text-center text-xs font-bold text-slate-500">
               <span>Already have an account? </span>
@@ -295,6 +304,20 @@ export default function OwnerSignUp() {
           </div>
         </div>
       </main>
+
+      {/* Bottom Footer */}
+      <footer className="py-6 border-t border-slate-100 bg-[#FAF9F5] px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto flex items-center justify-between text-[11px] text-slate-400 font-medium">
+          <span>&copy; {new Date().getFullYear()} REDO Smart Logistics &bull; Partner Fleet Network</span>
+          <div className="flex items-center gap-3">
+            <Link to="/privacy" className="text-amber-600 hover:underline font-bold">Privacy Policy</Link>
+            <span>&bull;</span>
+            <Link to="/privacy#background-gps" className="hover:text-slate-600">Background GPS Disclosure</Link>
+            <span>&bull;</span>
+            <Link to="/" className="hover:text-slate-600">Home</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

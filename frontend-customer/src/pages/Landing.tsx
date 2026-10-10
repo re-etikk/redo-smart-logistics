@@ -30,7 +30,7 @@ export default function CustomerLanding() {
               <a href="#how-it-works" className="hover:text-slate-900 transition">How It Works</a>
               <a href="#services" className="hover:text-slate-900 transition">Services</a>
               <a href="#pricing" className="hover:text-slate-900 transition">Pricing</a>
-              <a href="#about" className="hover:text-slate-900 transition">About Us</a>
+              <Link to="/privacy" className="hover:text-slate-900 transition">Privacy Policy</Link>
               <a href="#support" className="hover:text-slate-900 transition">Support</a>
             </nav>
           </div>
@@ -67,6 +67,7 @@ export default function CustomerLanding() {
             <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">How It Works</a>
             <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Services</a>
             <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Pricing</a>
+            <Link to="/privacy" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Privacy Policy</Link>
             <div className="pt-3 border-t border-slate-100 flex gap-3">
               <Link to="/login" className="w-1/2 text-center py-2 font-bold border border-slate-200 rounded-xl">Sign In</Link>
               <Link to="/signup" className="w-1/2 text-center py-2 font-black bg-amber-400 rounded-xl">Create Account</Link>
@@ -228,7 +229,7 @@ export default function CustomerLanding() {
       {/* ========================================================================= */}
       {/* 4. ENTERPRISE TRUST BAR AT BOTTOM */}
       {/* ========================================================================= */}
-      <footer className="py-12 border-t border-slate-100 bg-[#FAF9F5] px-4 sm:px-8 text-center space-y-6">
+      <section className="py-12 border-t border-slate-100 bg-[#FAF9F5] px-4 sm:px-8 text-center space-y-6">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
           Powering logistics for thousands of businesses and individuals across India.
         </p>
@@ -247,6 +248,80 @@ export default function CustomerLanding() {
           </span>
           <span className="font-serif font-black text-base text-slate-800">WIPRO</span>
           <span className="font-serif font-bold text-base text-slate-800">PATANJALI</span>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 5. COMPREHENSIVE FOOTER WITH PRIVACY & LEGAL SECTION */}
+      {/* ========================================================================= */}
+      <footer className="border-t border-slate-200 bg-white pt-12 pb-8 px-4 sm:px-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-10 text-xs">
+          {/* Brand Info */}
+          <div className="space-y-3 md:col-span-1">
+            <Logo />
+            <p className="text-slate-500 leading-relaxed font-medium">
+              India&apos;s intelligent intercity freight marketplace connecting shippers, factories, and SMEs with verified commercial truck partners.
+            </p>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-[10px]">
+              <ShieldCheck size={12} className="text-emerald-600" />
+              <span>DPDP Act 2023 Compliant</span>
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="space-y-2">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px]">Platform</h4>
+            <ul className="space-y-1.5 text-slate-600 font-medium">
+              <li><Link to="/book" className="hover:text-amber-600 transition">Book a Truck</Link></li>
+              <li><Link to="/post-cargo" className="hover:text-amber-600 transition">Post Freight Load</Link></li>
+              <li><Link to="/rate-card" className="hover:text-amber-600 transition">Corridor Rate Card</Link></li>
+              <li><Link to="/login" className="hover:text-amber-600 transition">Shipper Dashboard</Link></li>
+            </ul>
+          </div>
+
+          {/* Privacy & Legal Section */}
+          <div className="space-y-2">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px]">Privacy &amp; Legal</h4>
+            <ul className="space-y-1.5 text-slate-600 font-medium">
+              <li>
+                <Link to="/privacy" className="text-amber-600 hover:text-amber-700 font-bold transition flex items-center gap-1">
+                  <span>Privacy Policy</span>
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1 rounded">Updated</span>
+                </Link>
+              </li>
+              <li><Link to="/privacy#location-data" className="hover:text-amber-600 transition">Background GPS Disclosures</Link></li>
+              <li><Link to="/privacy#data-collection" className="hover:text-amber-600 transition">Data Collection &amp; Use</Link></li>
+              <li><Link to="/privacy#account-deletion" className="hover:text-amber-600 transition">Account &amp; Data Deletion</Link></li>
+              <li><Link to="/privacy#grievance" className="hover:text-amber-600 transition">Grievance Redressal</Link></li>
+            </ul>
+          </div>
+
+          {/* Support & Grievance Contact */}
+          <div className="space-y-2">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px]">Grievance &amp; Support</h4>
+            <p className="text-slate-500 font-medium leading-relaxed">
+              Designated Data Protection Officer: <strong className="text-slate-700">Ritik Chaurasia</strong>
+            </p>
+            <p className="text-slate-600 font-mono">
+              Email: <a href="mailto:ritik45chaurasia@gmail.com" className="text-amber-600 underline">ritik45chaurasia@gmail.com</a>
+            </p>
+            <p className="text-slate-600 font-mono">
+              Helpline: <a href="tel:+917250171036" className="text-amber-600 underline">+91 7250171036</a>
+            </p>
+            <p className="text-[10px] text-slate-400">Patna, Bihar, India &bull; Available 24/7</p>
+          </div>
+        </div>
+
+        {/* Bottom Copyright & Legal Line */}
+        <div className="border-t border-slate-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <p>&copy; {new Date().getFullYear()} REDO Smart Logistics. All rights reserved.</p>
+          <div className="flex items-center gap-4 text-[11px]">
+            <Link to="/privacy" className="text-amber-600 hover:underline font-bold">Privacy Policy</Link>
+            <span>&bull;</span>
+            <Link to="/support" className="hover:text-slate-900 transition">Help Center</Link>
+            <span>&bull;</span>
+            <span>Security: 256-bit TLS</span>
+          </div>
         </div>
       </footer>
     </div>

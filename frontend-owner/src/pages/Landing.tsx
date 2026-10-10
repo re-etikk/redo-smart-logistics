@@ -34,8 +34,8 @@ export default function OwnerLanding() {
               <a href="#benefits" className="hover:text-slate-900 transition">Benefits</a>
               <a href="#features" className="hover:text-slate-900 transition">Features</a>
               <a href="#pricing" className="hover:text-slate-900 transition">Pricing</a>
+              <Link to="/privacy" className="hover:text-slate-900 transition">Privacy Policy</Link>
               <a href="#support" className="hover:text-slate-900 transition">Support</a>
-              <a href="#about" className="hover:text-slate-900 transition">About Us</a>
             </nav>
           </div>
 
@@ -72,6 +72,7 @@ export default function OwnerLanding() {
             <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">How It Works</a>
             <a href="#benefits" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Benefits</a>
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Features</a>
+            <Link to="/privacy" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600">Privacy Policy</Link>
             <div className="pt-3 border-t border-slate-100 flex gap-3">
               <Link to="/login" className="w-1/2 text-center py-2 font-bold border border-slate-200 rounded-xl">Login</Link>
               <Link to="/signup" className="w-1/2 text-center py-2 font-black bg-amber-400 rounded-xl">Register</Link>
@@ -258,7 +259,7 @@ export default function OwnerLanding() {
       {/* ========================================================================= */}
       {/* 4. TRUST BAR AT BOTTOM */}
       {/* ========================================================================= */}
-      <footer className="py-12 border-t border-slate-100 bg-[#FAF9F5] px-4 sm:px-8">
+      <section className="py-12 border-t border-slate-100 bg-[#FAF9F5] px-4 sm:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div className="font-black text-sm text-slate-900">
             Trusted by Truck Owners Across India
@@ -292,6 +293,85 @@ export default function OwnerLanding() {
               </div>
               <span><strong>4.8 ★</strong> Owner Rating</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 5. COMPREHENSIVE FOOTER WITH PRIVACY & LEGAL SECTION */}
+      {/* ========================================================================= */}
+      <footer className="border-t border-slate-200 bg-white pt-12 pb-8 px-4 sm:px-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-10 text-xs">
+          {/* Brand Info */}
+          <div className="space-y-3 md:col-span-1">
+            <div className="flex items-center gap-2">
+              <Logo />
+              <span className="text-amber-500 font-black text-[10px] uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded border border-amber-300">
+                PARTNER FLEET
+              </span>
+            </div>
+            <p className="text-slate-500 leading-relaxed font-medium">
+              India&apos;s highest-paying commercial trucking network. Eliminate empty return miles and receive verified direct-to-bank settlements within 24 hours.
+            </p>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-[10px]">
+              <ShieldCheck size={12} className="text-emerald-600" />
+              <span>DPDP Act 2023 &bull; Bank-Grade AES-256</span>
+            </div>
+          </div>
+
+          {/* Partner Quick Links */}
+          <div className="space-y-2">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px]">Partner Services</h4>
+            <ul className="space-y-1.5 text-slate-600 font-medium">
+              <li><Link to="/loads" className="hover:text-amber-600 transition">Find Return Loads</Link></li>
+              <li><Link to="/trucks" className="hover:text-amber-600 transition">Register Your Truck</Link></li>
+              <li><Link to="/earnings" className="hover:text-amber-600 transition">Driver Earnings &amp; Wallet</Link></li>
+              <li><Link to="/login" className="hover:text-amber-600 transition">Truck Owner Portal</Link></li>
+            </ul>
+          </div>
+
+          {/* Privacy & Compliance Section */}
+          <div className="space-y-2">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px]">Privacy &amp; Fleet Compliance</h4>
+            <ul className="space-y-1.5 text-slate-600 font-medium">
+              <li>
+                <Link to="/privacy" className="text-amber-600 hover:text-amber-700 font-bold transition flex items-center gap-1">
+                  <span>Partner Privacy Policy</span>
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1 rounded">Updated</span>
+                </Link>
+              </li>
+              <li><Link to="/privacy#background-gps" className="hover:text-amber-600 transition">Background GPS Disclosures</Link></li>
+              <li><Link to="/privacy#documents-kyc" className="hover:text-amber-600 transition">RC &amp; DL Document Protection</Link></li>
+              <li><Link to="/privacy#bank-payouts" className="hover:text-amber-600 transition">Bank Payout Security</Link></li>
+              <li><Link to="/privacy#deletion" className="hover:text-amber-600 transition">Account &amp; Vehicle Deletion</Link></li>
+            </ul>
+          </div>
+
+          {/* Grievance & Operator Helpline */}
+          <div className="space-y-2">
+            <h4 className="font-black text-slate-900 uppercase tracking-wider text-[11px]">Grievance &amp; Partner Desk</h4>
+            <p className="text-slate-500 font-medium leading-relaxed">
+              Data Protection &amp; Grievance Officer: <strong className="text-slate-700">Ritik Chaurasia</strong>
+            </p>
+            <p className="text-slate-600 font-mono">
+              Email: <a href="mailto:ritik45chaurasia@gmail.com" className="text-amber-600 underline">ritik45chaurasia@gmail.com</a>
+            </p>
+            <p className="text-slate-600 font-mono">
+              Helpline: <a href="tel:+917250171036" className="text-amber-600 underline">+91 7250171036</a>
+            </p>
+            <p className="text-[10px] text-slate-400">Patna, Bihar, India &bull; 24x7 Roadside &amp; Payout Support</p>
+          </div>
+        </div>
+
+        {/* Bottom Copyright & Legal Line */}
+        <div className="border-t border-slate-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <p>&copy; {new Date().getFullYear()} REDO Smart Logistics (Partner Fleet Network). All rights reserved.</p>
+          <div className="flex items-center gap-4 text-[11px]">
+            <Link to="/privacy" className="text-amber-600 hover:underline font-bold">Privacy Policy</Link>
+            <span>&bull;</span>
+            <Link to="/support" className="hover:text-slate-900 transition">Support Center</Link>
+            <span>&bull;</span>
+            <span>PCI-DSS &amp; DPDP 2023 Verified</span>
           </div>
         </div>
       </footer>

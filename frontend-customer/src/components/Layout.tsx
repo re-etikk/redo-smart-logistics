@@ -234,6 +234,12 @@ export default function Layout({ children }: { children: ReactNode }) {
               {t("postLoad")}
             </button>
           </div>
+
+          <div className="mt-auto px-4 py-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between font-medium">
+            <NavLink to="/privacy" target="_blank" className="hover:text-amber-500 transition">Privacy Policy</NavLink>
+            <span>&bull;</span>
+            <NavLink to="/support" className="hover:text-amber-500 transition">Support</NavLink>
+          </div>
         </aside>
 
         {/* Sidebar (mobile drawer) */}

@@ -315,10 +315,17 @@ export default function OwnerLogin() {
               <span>Continue with Google</span>
             </button>
 
-            {/* Bottom Security Note */}
-            <div className="pt-2 text-center flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-bold">
-              <Lock size={12} className="text-amber-500" />
-              <span>Secure login • Your data is safe with us</span>
+            {/* Bottom Security Note & Privacy Link */}
+            <div className="pt-2 text-center flex flex-col items-center gap-1.5 text-[11px] text-slate-400 font-bold">
+              <div className="flex items-center gap-1.5">
+                <Lock size={12} className="text-amber-500" />
+                <span>Bank-grade 256-bit encryption</span>
+              </div>
+              <div className="flex items-center gap-2 pt-1 text-slate-500 font-medium">
+                <Link to="/privacy" className="text-amber-600 hover:underline font-bold">Privacy Policy</Link>
+                <span>&bull;</span>
+                <Link to="/privacy#background-gps" className="hover:text-slate-800">Background GPS Notice</Link>
+              </div>
             </div>
           </div>
         </div>

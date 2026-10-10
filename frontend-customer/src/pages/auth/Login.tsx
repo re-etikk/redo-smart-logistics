@@ -390,6 +390,15 @@ export default function CustomerLogin() {
             </div>
           </div>
         </div>
+
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+          <span>&copy; {new Date().getFullYear()} REDO Smart Logistics</span>
+          <div className="flex items-center gap-3">
+            <Link to="/privacy" className="text-amber-600 hover:underline font-bold">Privacy Policy</Link>
+            <span>&bull;</span>
+            <Link to="/" className="hover:text-slate-600">Home</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );
